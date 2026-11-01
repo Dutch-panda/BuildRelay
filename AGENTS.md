@@ -39,6 +39,9 @@ Your objective is maximum autonomy within strict security boundaries.
   - `buildrelay session <project_id>` (`tools/session.py`): Continuous conversational project REPL supporting iterative commands (`/profile`, `/env`, `/verify`, `/preview`, `/test`, `/exit`).
   - Living `PROJECT_PROFILE.md` memory schema in `workspace/<project_id>/` recording active schemas, input surfaces, rules, and task history. Injected into agent prompts.
   - Dedicated project workspace `.env` (mode `0600`, gitignored) for project-specific tokens, spreadsheet IDs, and webhook secrets.
+- **Continuous Feature Iteration Pipeline**:
+  - `prompt_iteration_gate` (`tools/ui.py`) & `run_iteration_loop` (`main.py`): Post-delivery gate allowing users to seamlessly add sequential feature milestones (`[1]`), refactor code (`[2]`), launch the project REPL session (`[3]`), or run live verification/preview (`[4]`).
+  - Iteration tasks inherit project identity and inject living memory from `PROJECT_PROFILE.md` into Natasha's and Taghi's agent prompts (`[INCREMENTAL FEATURE EVOLUTION]` and `[INCREMENTAL ARCHITECTURE SPECIFICATION]`), preserving existing schemas, file structures, and verified interfaces.
 - **Verification Runner & UI Preview**:
   - `buildrelay verify <project_id>` (`tools/live_verifier.py`): Tier 2 live verification smoke test runner executing host scripts with project credentials.
   - `buildrelay preview <project_id>` (`tools/ui_preview.py`): Local web preview server serving generated input forms and web entries.

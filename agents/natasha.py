@@ -58,7 +58,11 @@ class NatashaRouter:
                 "  Declare whether the project will generate an input form/UI (e.g. automated Google Form builder script, web form, or interactive CLI), "
                 "  or connect to an external source. Never frame an app as a headless receiver without specifying how a human or client enters data.\n"
                 "- If the input mechanism is ambiguous (e.g. user mentions 'form responses' but not where the form comes from), "
-                "  include a clarification question asking whether to generate a new entry form/UI or connect an existing form."
+                "  include a clarification question asking whether to generate a new entry form/UI or connect an existing form.\n\n"
+                "CONTINUOUS FEATURE ITERATION & EVOLUTION RULES:\n"
+                "- When existing project profile and memory are present, this task represents an incremental feature addition, milestone, or refinement to an active project.\n"
+                "- Preserve existing data schemas, file structures, input surfaces, and architectural conventions unless the user explicitly requests changes.\n"
+                "- Formulate clarification questions and research questions tailored to extending the existing project rather than re-creating foundation infrastructure."
             )
         )
         # --- BINDING TOOLS TO Natasha ---
@@ -89,7 +93,15 @@ class NatashaRouter:
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", task_id):
             raise ValueError("Task ID must contain only letters, digits, underscores, or hyphens")
         project = prepare_project(self.vault_path, project_id)
-        result = await self.agent.run(f"Task ID: {task_id}\n{project.prompt}User request: {user_prompt}")
+        incremental_header = ""
+        if project.profile_text and ("## Task History" in project.profile_text or "## Active Data Schema" in project.profile_text):
+            incremental_header = (
+                "[INCREMENTAL FEATURE EVOLUTION]\n"
+                f"You are incrementally enhancing the existing project '{project_id}'. "
+                "Preserve existing files, data schemas, and validated interfaces. "
+                "Extend the existing architecture rather than rebuilding from scratch.\n\n"
+            )
+        result = await self.agent.run(f"Task ID: {task_id}\n{incremental_header}{project.prompt}User request: {user_prompt}")
         task_brief = result.output
         task_brief.task_id = task_id
         task_brief.project_id = project_id

@@ -71,7 +71,10 @@ class TaghiArchitect:
                 "   - Docker tests validate 100% offline with zero external network or secrets required.\n"
                 "2. Tier 2 (Guided Live Environment Verification):\n"
                 "   - Always populate 'live_verification_guide' with a clear, step-by-step checklist explaining how the user verifies against their real environment (e.g. Google Sheets, live webhooks, real database).\n"
-                "   - Mandate in the final delivery phase that Meti builds a dedicated live smoke-test script (e.g. 'scripts/verify_live.py' or Apps Script 'testDirectSync()') and includes the Live Verification Checklist in the project README.md."
+                "   - Mandate in the final delivery phase that Meti builds a dedicated live smoke-test script (e.g. 'scripts/verify_live.py' or Apps Script 'testDirectSync()') and includes the Live Verification Checklist in the project README.md.\n\n"
+                "CONTINUOUS FEATURE ITERATION & INCREMENTAL DEVELOPMENT:\n"
+                "- When working within an existing project workspace with previous task history, architect phases that build on and integrate with existing files and tests.\n"
+                "- Ensure new phases do not break existing validation commands or overwrite existing user configurations."
             ),
         )
         # --- BINDING TOOLS TO Taghi ---
@@ -92,9 +95,17 @@ class TaghiArchitect:
             raise ValueError("Task ID must contain only letters, digits, underscores, or hyphens")
         project = prepare_project(self.vault_path, project_id)
         workspace_dir = project_id or task_id
+        incremental_header = ""
+        if project.profile_text and ("## Task History" in project.profile_text or "## Active Data Schema" in project.profile_text):
+            incremental_header = (
+                "[INCREMENTAL ARCHITECTURE SPECIFICATION]\n"
+                f"This specification extends existing project '{workspace_dir}'. "
+                "Do not regenerate existing baseline boilerplate if already present in the workspace. "
+                "Focus new phases on implementing and validating the requested features or refactorings.\n\n"
+            )
         directory_instruction = f"Create your project directory at workspace/{workspace_dir}/ and place all modules there."
         prompt = (
-            f"Task ID: {task_id}\n{project.prompt}Research Summary/Findings: {research_summary}\n\n"
+            f"Task ID: {task_id}\n{incremental_header}{project.prompt}Research Summary/Findings: {research_summary}\n\n"
             f"Include this instruction in the specification: {directory_instruction}\n"
             f"All sandbox commands start in /app/workspace/{workspace_dir}/. "
             "Keep source files, tests, documentation, validation scripts, and dependencies in this project directory. "

@@ -209,6 +209,13 @@ To eliminate early misunderstandings and prevent wasted model calls, BuildRelay 
 7. **Two-Tier Verification Architecture:**
    - **Tier 1 (Automated Docker Sandbox):** Meti validates business logic and data mappers inside isolated Docker containers using deterministic local unit tests, fixtures, and mocked service adapters (e.g., mock `SpreadsheetApp`, simulated REST webhooks).
    - **Tier 2 (Guided Live Verification):** Meti generates a live smoke-test script (e.g., `scripts/verify_live.py` or Apps Script `testDirectSync()`) and an interactive **Live Verification Checklist** in `README.md` with numbered instructions for verifying against real accounts, spreadsheets, or cloud endpoints.
+8. **Continuous Feature Iteration & Post-Delivery Enhancement Gate:**
+   - After Meti validates all phases and the deliverable is confirmed, BuildRelay presents an interactive enhancement gate instead of abruptly terminating.
+   - **`[1]` Add New Feature / Milestone:** Prompts for your next requirement, retains the existing project workspace and schemas, and routes sequentially through Natasha → Taghi → Meti. All agents receive existing schemas and memory from `PROJECT_PROFILE.md` to incrementally evolve the codebase.
+   - **`[2]` Refactor or Optimize:** Prompts for performance, code hygiene, or refactoring instructions and executes focused improvements against the verified codebase.
+   - **`[3]` Open Project REPL Session (`buildrelay session <project_id>`):** Launches the interactive conversational REPL with instant `/profile`, `/env`, `/verify`, `/preview`, and `/test` commands.
+   - **`[4]` Run Verification / UI Preview:** Directly runs the Tier 2 live verification smoke test or launches the local web preview server.
+   - **`[5]` Exit Cleanly (`[Enter]` or `[q]`):** Concludes the workflow and returns to your shell with all progress safely saved in `.state/tasks.db` and the project workspace.
 
 ## Token usage and cost analytics
 
