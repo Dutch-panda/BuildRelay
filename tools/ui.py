@@ -612,6 +612,61 @@ def prompt_step_gate(
     return "pivot", choice
 
 
+def print_ui_spec_proposal_card(ui_spec: Any) -> None:
+    """Render Taghi's dedicated UI/UX visual design specification card."""
+    if not ui_spec:
+        return
+
+    surface_type = getattr(ui_spec, "surface_type", "web_form")
+    theme_name = getattr(ui_spec, "theme", "modern_dark")
+    palette = getattr(ui_spec, "color_palette", {}) or {}
+    layout = getattr(ui_spec, "component_layout", "")
+    fields = getattr(ui_spec, "form_fields", []) or []
+    states = getattr(ui_spec, "states", {}) or {}
+    responsive = getattr(ui_spec, "responsive_breakpoints", "")
+
+    lines = [
+        f"[bold white]🎨 UI Surface & Theme:[/bold white]   [cyan]{escape(str(surface_type))}[/cyan]  |  [yellow]{escape(str(theme_name))}[/yellow]",
+        f"[bold white]📱 Responsive Layout:[/bold white]    {escape(str(responsive))}\n",
+    ]
+
+    if palette:
+        palette_tokens = "  ".join(f"[bold]{k}:[/bold] `{v}`" for k, v in list(palette.items())[:5])
+        lines.append(f"[bold white]🎨 Design Palette Tokens:[/bold white]\n  {palette_tokens}\n")
+
+    if layout:
+        lines.append(f"[bold white]📐 Component Hierarchy & Wireframe:[/bold white]\n{escape(str(layout)[:400]) + ('...' if len(str(layout)) > 400 else '')}\n")
+
+    if fields:
+        lines.append(f"[bold white]📝 Form Fields & Input Constraints ({len(fields)} fields):[/bold white]")
+        for f in fields[:6]:
+            req = "[red]*[/red]" if getattr(f, "required", True) else "[dim](opt)[/dim]"
+            f_id = getattr(f, "id", "field")
+            f_label = getattr(f, "label", f_id)
+            f_type = getattr(f, "input_type", "text")
+            f_rules = getattr(f, "validation_rules", None)
+            rule_str = f" [dim]({f_rules})[/dim]" if f_rules else ""
+            lines.append(f"  • {req} [bold]{escape(str(f_label))}[/bold] [cyan]({f_type})[/cyan]{escape(rule_str)}")
+        if len(fields) > 6:
+            lines.append(f"  [dim]... and {len(fields) - 6} more fields[/dim]")
+        lines.append("")
+
+    if states:
+        lines.append("[bold white]⚡ Dynamic UI States:[/bold white]")
+        for st_name, st_desc in list(states.items())[:4]:
+            lines.append(f"  • [cyan]{escape(st_name.capitalize())}:[/cyan] {escape(str(st_desc))}")
+
+    panel = Panel(
+        "\n".join(lines).strip(),
+        title="[bold #ec4899]🎨 Taghi — UI/UX Design & Ergonomics Specification[/bold #ec4899]",
+        title_align="left",
+        border_style="#ec4899",
+        padding=(1, 2),
+    )
+    console.print()
+    console.print(panel)
+
+
 def print_spec_proposal_card(spec: Any) -> None:
     """Render Taghi's full architectural proposal, input surface, and phase roadmap."""
     theme = _get_theme("taghi")
@@ -655,6 +710,10 @@ def print_spec_proposal_card(spec: Any) -> None:
     )
     console.print()
     console.print(panel)
+
+    ui_spec = getattr(spec, "ui_spec", None)
+    if ui_spec:
+        print_ui_spec_proposal_card(ui_spec)
 
 
 def prompt_spec_approval_gate(

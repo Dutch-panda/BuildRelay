@@ -477,6 +477,7 @@ async def run_task(
         required_dependencies=spec.required_dependencies, project_id=project,
         checkpoint=checkpoint, checkpoint_callback=save_implementation, run_number=record.run_number,
         base_image=effective_image,
+        ui_spec=getattr(spec, "ui_spec", None),
     )
     if getattr(impl_res, "token_usage", None):
         impl_res.token_usage["model"] = str(pipeline_models["meti"])

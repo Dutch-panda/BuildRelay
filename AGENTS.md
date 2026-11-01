@@ -29,8 +29,11 @@ Your objective is maximum autonomy within strict security boundaries.
 - **Interactive Grill-Me Alignment**:
   - `tools/grill.py`: Unified multi-choice and open-ended interview engine with quick keyboard shortcuts (`[Enter]` for default, `[1, 2...]` to pick, `[c]` for custom text, `[a]` to accept all remaining, `[q]` to quit).
   - Natasha conducts an intent/scope grill interview (up to 10 questions covering entry points, schemas, triggers, edge cases) before final routing.
-  - Taghi conducts an architectural grill interview (up to 10 questions covering field schemas, form layout, mock strategy) and presents an architectural review card (`prompt_spec_approval_gate`) requiring user approval before Meti begins implementation.
-- **Shared Contracts**: All stage inputs, outputs, attempts, and checkpoints live in `contracts/`. Do not introduce circular dependencies between agents. `TechnicalSpec` includes `input_interface_spec` and `clarification_questions`.
+  - Taghi conducts an architectural grill interview (covering schemas, mocks, failure modes) AND a dedicated UI/UX Design & Ergonomics grill interview (`ui_spec` covering surface type, theme, layout hierarchy, validation feedback). Taghi presents a dual architecture & UI review card (`prompt_spec_approval_gate`) requiring user approval before Meti begins implementation.
+- **Dual-Specification Architecture & UI/UX Standards**:
+  - Taghi persists both `vault/specs/<task_id>-spec.md` (backend models, APIs, and phases) and `vault/specs/<task_id>-ui.md` (visual layout, Tailwind palette tokens, field validation rules, and 4 interactive states: empty, validating, submitting spinner, and success/error alerts).
+  - Phased Execution Ordering: Meti executes and verifies backend core logic and Tier 1 unit tests first in Docker, and only implements frontend UI/UX surfaces after backend logic passes.
+- **Shared Contracts**: All stage inputs, outputs, attempts, and checkpoints live in `contracts/`. Do not introduce circular dependencies between agents. `TechnicalSpec` includes `ui_spec` (`UIDesignSpec`), `input_interface_spec`, and `clarification_questions`.
 - **Two-Tier Verification Architecture**:
   - `Tier 1 (Automated Docker Sandbox)`: Meti validates all execution phases inside Docker using offline deterministic unit tests and mock service adapters (e.g. mock `SpreadsheetApp`, mock REST responses) with 0 external network dependencies.
   - `Tier 2 (Guided Live Verification)`: Taghi mandates `live_verification_guide`, and Meti builds a dedicated live smoke script (e.g. `scripts/verify_live.py` or Apps Script `testDirectSync()`) plus an interactive checklist in `README.md` for real-environment verification.

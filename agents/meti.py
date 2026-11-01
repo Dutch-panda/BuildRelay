@@ -15,6 +15,7 @@ from contracts import (
     ExecutionPhase,
     ImplementationCheckpoint,
     ImplementationResult,
+    UIDesignSpec,
     ValidationAttempt,
 )
 from agents.execution_policy import (
@@ -78,6 +79,14 @@ class MetiImplementer:
                 "  (e.g. an auto-generated form builder script, a web form HTML, an interactive CLI input prompt, or a direct submission tester), "
                 "  and (2) ensure the project README clearly answers: 'Where do I enter data? How do I or my users submit inputs?' "
                 "  with explicit links or run commands.\n\n"
+                "MODERN UI/UX IMPLEMENTATION STANDARDS (PHASED BACKEND THEN FRONTEND):\n"
+                "- Order of Execution: (1) First, implement and validate backend models, data engines, formula sanitizers, and offline unit tests. "
+                "  (2) Only after backend phases pass, implement frontend UI/UX surfaces based on the UI design specification.\n"
+                "- UI Design Quality: Never deliver raw unstyled HTML. Always include Tailwind CSS CDN (<script src='https://cdn.tailwindcss.com'></script>), "
+                "  clean card layouts, rounded corners, subtle shadows, and responsive mobile/desktop breakpoints.\n"
+                "- Interactive UI States: Implement instant client-side field validation, loading spinner indicators on submission buttons to prevent double-clicks, "
+                "  and animated/dismissible success and error alert banners.\n"
+                "- User Entry Points: Ensure the entry page (e.g. form.html or web-entry.html) is immediately previewable via 'buildrelay preview'.\n\n"
                 "TWO-TIER VERIFICATION DELIVERY MANDATE:\n"
                 "1. Tier 1 (Automated Docker Validation):\n"
                 "   - Write pure unit tests with mocked service adapters (e.g., mock Google SpreadsheetApp/FormApp, mock REST API responses, fixtures) "
@@ -150,6 +159,7 @@ class MetiImplementer:
         checkpoint_callback: Callable[[ImplementationCheckpoint], None] | Callable[[dict], None] | None = None,
         run_number: int = 1,
         base_image: str | None = None,
+        ui_spec: UIDesignSpec | None = None,
     ) -> ImplementationResult:
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", task_id):
             raise ValueError("Task ID must contain only letters, digits, underscores, or hyphens")
@@ -197,6 +207,22 @@ class MetiImplementer:
 
         # Construct prompt providing the blueprint for Meti
         phases_text = "\n".join([f"- Phase: {p.phase_name}\n  Instructions: {p.instructions}\n  Validation: {p.validation_command}" for p in phases])
+        ui_spec_section = ""
+        if ui_spec:
+            fld_list = ", ".join(f"{f.label} ({f.input_type})" for f in getattr(ui_spec, "form_fields", []))
+            ui_spec_section = (
+                f"\n\nUI/UX Design Specification:\n"
+                f"- Surface Type: {ui_spec.surface_type}\n"
+                f"- Visual Theme: {ui_spec.theme}\n"
+                f"- Color Palette: {ui_spec.color_palette}\n"
+                f"- Layout & Wireframe: {ui_spec.component_layout}\n"
+                f"- Form Fields: {fld_list}\n"
+                f"- UI States: {ui_spec.states}\n"
+                f"- Responsive Breakpoints: {ui_spec.responsive_breakpoints}\n"
+                "UI Engineering Mandate: When executing the UI phases, apply modern styling with Tailwind CSS CDN, "
+                "responsive flex/grid layouts, client validation feedback, submit button loading spinners, and dismissible alerts."
+            )
+
         prompt = (
             f"Task ID: {task_id}\n"
             f"{project.prompt}"
@@ -207,7 +233,7 @@ class MetiImplementer:
             "Use relative paths from this directory or its absolute container path; do not create another workspace or task subdirectory inside it.\n"
             f"Architecture Overview: {spec_overview}\n\n"
             f"Required Dependencies: {required_dependencies or []}\n\n"
-            f"Phased Roadmap to Execute:\n{phases_text}\n\n"
+            f"Phased Roadmap to Execute:\n{phases_text}{ui_spec_section}\n\n"
             "Please use your sandbox execution tool to implement the requirements phase by phase, run the validation commands, "
             "and output the final implementation results."
         )

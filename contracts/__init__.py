@@ -218,6 +218,90 @@ class ResearchReport(BaseModel):
         return self.__dict__.items()
 
 
+class UIFieldSpec(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    id: str = Field(description="Unique field identifier, e.g. 'invoice_amount', 'customer_email'")
+    label: str = Field(description="User-facing input label, e.g. 'Invoice Amount ($)'")
+    input_type: str = Field(default="text", description="Input type: text, number, email, date, select, textarea, file")
+    placeholder: str | None = Field(default=None, description="Helpful placeholder text or format guidance")
+    required: bool = Field(default=True, description="Whether this field is mandatory")
+    validation_rules: str | None = Field(default=None, description="Validation constraints (e.g. min 1, regex, valid email)")
+    options: list[str] = Field(default_factory=list, description="Dropdown options if input_type is select")
+
+
+class UIDesignSpec(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    surface_type: Literal["web_form", "dashboard", "apps_script_dialog", "cli_interactive", "webhook_portal"] = Field(
+        default="web_form",
+        description="Type of user entry surface"
+    )
+    theme: str = Field(default="modern_dark", description="Visual theme: modern_dark, clean_light, minimalist")
+    color_palette: dict[str, str] = Field(
+        default_factory=lambda: {
+            "primary": "#3b82f6",
+            "background": "#0f172a",
+            "surface": "#1e293b",
+            "text": "#f8fafc",
+            "border": "#334155",
+            "success": "#10b981",
+            "error": "#ef4444",
+        },
+        description="Theme color tokens for UI styling"
+    )
+    component_layout: str = Field(
+        description="Wireframe / layout structure: header/hero, form card groups, layout grid, action buttons"
+    )
+    form_fields: list[UIFieldSpec] = Field(
+        default_factory=list,
+        description="Detailed list of user input fields and validation constraints"
+    )
+    states: dict[str, str] = Field(
+        default_factory=lambda: {
+            "empty": "Initial welcoming form state with clean field inputs and instructions.",
+            "validating": "Real-time client-side field validation highlighting errors or required fields.",
+            "submitting": "Button loading spinner with disabled submit to prevent double-clicks.",
+            "success": "Animated success alert card or toast confirming submission with transaction summary.",
+            "error": "Dismissible red error alert banner describing failure cause clearly."
+        },
+        description="Specifications for UI interactive states"
+    )
+    responsive_breakpoints: str = Field(
+        default="Mobile-first: single column (<640px), balanced 2-column card grid on desktop (>=768px)",
+        description="Responsive layout behavior across screen sizes"
+    )
+    clarification_questions: list[ClarificationQuestion] = Field(
+        default_factory=list,
+        description="UI/UX Grill-Me questions covering layout, theme, and input ergonomics"
+    )
+
+    def __getitem__(self, item: str) -> Any:
+        try:
+            return getattr(self, item)
+        except AttributeError:
+            raise KeyError(item)
+
+    def get(self, item: str, default: Any = None) -> Any:
+        val = getattr(self, item, default)
+        return val if val is not None else default
+
+    def __contains__(self, item: str) -> bool:
+        return hasattr(self, item)
+
+    def __iter__(self):
+        return iter(self.__dict__)
+
+    def keys(self):
+        return self.__dict__.keys()
+
+    def values(self):
+        return self.__dict__.values()
+
+    def items(self):
+        return self.__dict__.items()
+
+
 class TechnicalSpec(BaseModel):
     model_config = ConfigDict(extra="allow")
 
@@ -237,6 +321,10 @@ class TechnicalSpec(BaseModel):
     input_interface_spec: str | None = Field(
         default=None,
         description="Specification of user entry interface (e.g. form fields, CLI prompt, webhook schema)",
+    )
+    ui_spec: UIDesignSpec | None = Field(
+        default=None,
+        description="Dedicated UI/UX design specification for visual layout, styling, and interactive states",
     )
     live_verification_guide: str | None = Field(
         default=None,

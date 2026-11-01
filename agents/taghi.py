@@ -7,7 +7,7 @@ from pathlib import Path
 from datetime import datetime
 from pydantic_ai import Agent
 from pydantic_ai.models import Model
-from contracts import ExecutionPhase, TechnicalSpec
+from contracts import ExecutionPhase, TechnicalSpec, UIDesignSpec, UIFieldSpec
 from tools.graphify_tool import GraphifyVaultManager
 from tools.project_notes import prepare_project
 from tools.vault_infra import (
@@ -51,22 +51,26 @@ class TaghiArchitect:
                 "- The final documentation/delivery phase MUST instruct creation of a project README.md designed for end-users with zero cognitive friction.\n"
                 "- The README.md MUST include: (1) an intuitive visual architecture or data flow diagram (ASCII or Mermaid), (2) a zero-jargon, step-by-step Quickstart guide explaining exactly how to run or deploy the result in simple numbered steps, and (3) concrete examples.\n"
                 "- If a project requires user-provided configuration (e.g. spreadsheet URLs, API tokens, column mappings, or database paths), DO NOT leave passive markdown questionnaires or expect raw JSON editing: mandate an interactive CLI setup script (e.g. 'scripts/setup.js' or 'setup.py') that guides the user interactively in plain English.\n\n"
-                "MANDATORY USER INPUT SURFACE & ENTRY POINT PHASE:\n"
-                "- NEVER architect a 'headless receiver' or 'ghost pipeline' that assumes user data arrives from nowhere. "
-                "  If the task involves workflows, form submissions, surveys, transaction inputs, or interactive tools, "
-                "  you MUST dedicate an explicit execution phase to creating the concrete User Input Surface / Entry Point "
-                "  (e.g. an automated form creator script, a lightweight HTML web form, or an interactive CLI input prompt). "
-                "  The phases must build both the data receiver AND the actual input mechanism that a human or client uses to enter data.\n\n"
+                "MANDATORY USER INPUT SURFACE & ENTRY POINT PHASE (DUAL-DISCIPLINE ARCHITECTURE & PHASE ORDERING):\n"
+                "- When the task involves user-facing input surfaces, web forms, dashboards, or transaction workflows:\n"
+                "  1. Backend Phases First (Executed and verified in Docker before UI work begins):\n"
+                "     - Phase 1: Database models, schemas, and formula injection sanitizers.\n"
+                "     - Phase 2: Core processing engine, API/webhook handlers, and deterministic unit tests.\n"
+                "  2. Frontend UI/UX Phases Second (Built against the verified backend):\n"
+                "     - Phase 3: Modern UI surface layout (e.g. 'form.html' with Tailwind CSS CDN, responsive card grid, and clear visual hierarchy).\n"
+                "     - Phase 4: Client-side validation, loading spinners on submit, and interactive success/error notification banners.\n"
+                "  3. Live Verification & Delivery Third:\n"
+                "     - Phase 5: Tier 2 Live Verification Smoke Script ('scripts/verify_live.py') and README Live Checklist.\n"
+                "- DEDICATED UI/UX DESIGN SPECIFICATION ('ui_spec'):\n"
+                "  Always populate 'ui_spec' with: (1) surface_type, (2) theme & color_palette, (3) component_layout wireframe, "
+                "  (4) form_fields with explicit validation_rules, (5) the 4 interactive UI states (empty, validating, submitting, success, error), "
+                "  and (6) 2 to 4 targeted 'clarification_questions' inside ui_spec covering UI theme, layout, and feedback preferences.\n\n"
                 "ARCHITECTURAL GRILL-ME & USER INTERFACE APPROVAL:\n"
-                "- Always populate 'input_interface_spec' with the concrete layout/schema of the user entry interface "
-                "  (e.g., list of form fields, data types, validation rules, dropdown options, or CLI prompt questions).\n"
-                "- Formulate up to 10 targeted 'clarification_questions' (strictly <= 10) for the user to approve before coding. "
-                "  Cover key architectural trade-offs: (1) field schema & column names, (2) UI/form structure and UX options, "
-                "  (3) core libraries/frameworks, (4) failure modes & error handling, and (5) offline mock verification strategy. "
-                "  Every question MUST provide 2 to 4 concrete numbered options with exactly one marked is_default=True representing your recommended architecture.\n\n"
+                "- Always populate 'input_interface_spec' and 'ui_spec' with concrete layout and field validation rules.\n"
+                "- Formulate up to 10 targeted backend 'clarification_questions' (strictly <= 10) covering schema, frameworks, error handling, and offline mocks. "
+                "  Every question MUST provide 2 to 4 numbered options with exactly one marked is_default=True.\n\n"
                 "TWO-TIER VERIFICATION ARCHITECTURE & SPECIFICATION MANDATE:\n"
                 "1. Tier 1 (Automated Docker Validation):\n"
-                "   - Phase 1 MUST define and build the concrete User Input Interface / Surface (e.g., Form generator, HTML web form, or CLI input script).\n"
                 "   - All execution phases executed by Meti inside Docker MUST use deterministic unit tests, fixtures, and mock service adapters (e.g. mock SpreadsheetApp, mock REST API responses).\n"
                 "   - Docker tests validate 100% offline with zero external network or secrets required.\n"
                 "2. Tier 2 (Guided Live Environment Verification):\n"
@@ -161,6 +165,53 @@ links: ["[[research-{task_id}]]", "[[{task_id}-brief]]"]
         print_agent("taghi", f"Saved technical specification to: {note_filename}")
 
         await update_vault_graph(self.graph_manager, note_filename)
+
+        if getattr(spec, "ui_spec", None):
+            ui_note_filename = self.specs_dir / f"spec-{task_id}-ui.md"
+            ui = spec.ui_spec
+            fields_table = "| Field ID | Label | Type | Required | Constraints |\n| :--- | :--- | :---: | :---: | :--- |\n"
+            for fld in getattr(ui, "form_fields", []):
+                fields_table += f"| `{fld.id}` | {fld.label} | `{fld.input_type}` | {'Yes' if fld.required else 'No'} | {fld.validation_rules or 'Standard'} |\n"
+
+            palette_table = "| Token | Value |\n| :--- | :---: |\n"
+            for tok, col in getattr(ui, "color_palette", {}).items():
+                palette_table += f"| {tok.capitalize()} | `{col}` |\n"
+
+            states_list = ""
+            for st_name, st_desc in getattr(ui, "states", {}).items():
+                states_list += f"- **{st_name.capitalize()}:** {st_desc}\n"
+
+            ui_markdown = f"""---
+id: "spec-{task_id}-ui"
+type: "ui-design-spec"
+agent: "taghi"
+task_id: "{task_id}"
+{project.frontmatter}created_at: "{timestamp}"
+links: ["[[spec-{task_id}]]"]
+---
+# UI/UX Design Specification: {task_id}
+
+## Surface Type & Visual Theme
+- **Surface Type:** `{ui.surface_type}`
+- **Theme:** `{ui.theme}`
+- **Responsive Breakpoints:** {ui.responsive_breakpoints}
+
+## Color System
+{palette_table}
+
+## Component Hierarchy & Wireframe
+{ui.component_layout}
+
+## Form Fields & Input Constraints
+{fields_table}
+
+## Interactive UI States
+{states_list}
+"""
+            ui_note_filename.write_text(ui_markdown, encoding="utf-8")
+            print_agent("taghi", f"Saved UI/UX design specification to: {ui_note_filename}")
+            await update_vault_graph(self.graph_manager, ui_note_filename)
+
         return spec
 
     async def conduct_architectural_review(
@@ -198,6 +249,27 @@ links: ["[[research-{task_id}]]", "[[{task_id}-brief]]"]
                     formatted_decisions = format_grill_answers_for_prompt(answers, current_spec.clarification_questions)
                     updated_context = f"{design_context}\n\n{formatted_decisions}"
                     current_spec = await self.create_specification(task_id, updated_context, project_id=project_id)
+                    continue
+
+            # Step 1b: Run dedicated UI/UX design grill if present in ui_spec
+            ui_spec = getattr(current_spec, "ui_spec", None)
+            if ui_spec and getattr(ui_spec, "clarification_questions", None):
+                ui_answers, quit_requested = run_grill_session(
+                    ui_spec.clarification_questions,
+                    agent_name="taghi",
+                    title="🎨 Taghi UI/UX Design & Ergonomics Grill",
+                    auto=auto,
+                    input_func=input_func,
+                    max_questions=10,
+                )
+                if quit_requested:
+                    return current_spec, True
+
+                if not auto and has_non_default_answers(ui_spec.clarification_questions, ui_answers):
+                    formatted_ui_decisions = format_grill_answers_for_prompt(ui_answers, ui_spec.clarification_questions)
+                    updated_context = f"{design_context}\n\nUser UI/UX Preferences:\n{formatted_ui_decisions}"
+                    current_spec = await self.create_specification(task_id, updated_context, project_id=project_id)
+                    continue
 
             # Step 2: Present architectural review card and prompt for user approval
             action, feedback = prompt_spec_approval_gate(current_spec, auto=auto, input_func=input_func)
