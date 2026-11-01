@@ -580,10 +580,123 @@ async def main() -> None:
                 print_how_to_run(workspace_path)
             if result.status != 'success':
                 sys.exit(1)
+            if (
+                result.status == 'success'
+                and not args.research_only
+                and not args.auto
+                and sys.stdin.isatty()
+                and not is_testing
+            ):
+                await run_iteration_loop(
+                    record=record,
+                    ledger=ledger,
+                    args=args,
+                    lead_overrides=lead_overrides,
+                )
     except Exception as error:
         print_agent('orchestrator', f'[bold red]{error}[/bold red]')
         print_agent('orchestrator', f'To retry a saved task: python main.py --resume {task_id}')
         sys.exit(1)
+
+
+async def run_iteration_loop(
+    record: TaskRecord,
+    ledger: TaskLedger,
+    args: Any,
+    lead_overrides: dict[str, Any],
+    input_func: Callable[[str], str] | None = None,
+) -> None:
+    """
+    Continuous feature iteration loop allowing users to iteratively add features,
+    refactor code, run verification, or launch a REPL session without leaving the process.
+    """
+    from tools.ui import prompt_iteration_gate
+    current_project = record.project_id or record.task_id
+
+    while True:
+        action, payload = prompt_iteration_gate(
+            project_id=current_project,
+            task_id=record.task_id,
+            auto=getattr(args, "auto", False),
+            input_func=input_func,
+        )
+        if action in ("exit", None):
+            break
+        elif action == "none":
+            continue
+        elif action == "session":
+            from tools.session import run_project_session
+            await run_project_session(
+                project_id=current_project,
+                model=getattr(args, "model", None),
+                tier=getattr(args, "tier", None),
+                auto=getattr(args, "auto", False),
+                step=getattr(args, "step", False),
+                input_func=input_func,
+            )
+            break
+        elif action == "verify":
+            from tools.live_verifier import run_live_verification
+            run_live_verification(current_project)
+            continue
+        elif action == "preview":
+            from tools.ui_preview import start_preview_server
+            try:
+                start_preview_server(
+                    project_id=current_project,
+                    port=getattr(args, "port", 8080),
+                    open_browser=not getattr(args, "auto", False) and (input_func is None and sys.stdin.isatty()),
+                    run_until_interrupted=True,
+                )
+            except (KeyboardInterrupt, Exception):
+                pass
+            continue
+        elif action in ("feature", "refactor"):
+            if not payload or not payload.strip():
+                continue
+            next_prompt = payload.strip()
+            if action == "refactor":
+                next_prompt = f"Refactor and optimize: {next_prompt}"
+
+            next_task_id = task_id_for(next_prompt, ledger=ledger)
+            with ledger.claim(next_task_id):
+                record = TaskRecord(
+                    task_id=next_task_id,
+                    prompt=next_prompt,
+                    project_id=current_project,
+                )
+                ledger.create(record)
+                print_task_header(next_task_id, record.prompt, project_id=current_project, is_resume=False)
+                try:
+                    result = await run_task(
+                        record,
+                        ledger,
+                        model_override=getattr(args, "model", None),
+                        image_override=getattr(args, "image", None),
+                        auto=getattr(args, "auto", False),
+                        step=getattr(args, "step", False),
+                        tier=getattr(args, "tier", None),
+                        lead_overrides=lead_overrides,
+                        research_only=getattr(args, "research_only", False),
+                    )
+                except (Exception, KeyboardInterrupt, asyncio.CancelledError) as error:
+                    record.status = "FAILED"
+                    record.error = f"{type(error).__name__}: {error}"
+                    ledger.save(record)
+                    raise
+                record.result = result
+                record.status = "COMPLETED" if result.status == "success" else "FAILED"
+                record.error = None if result.status == "success" else result.summary
+                ledger.save(record)
+                print_completion(next_task_id, result.status == "success", result.summary)
+                if record.token_usage:
+                    print_token_summary_table(record.token_usage, default_model=getattr(args, "model", None))
+                if result.status == "success":
+                    workspace_path = Path("workspace") / current_project
+                    print_workspace_tree(workspace_path)
+                    print_how_to_run(workspace_path)
+                else:
+                    print_agent("orchestrator", f"[bold red]Iteration task {next_task_id} failed.[/bold red]")
 
 
 def cli_entrypoint() -> None:

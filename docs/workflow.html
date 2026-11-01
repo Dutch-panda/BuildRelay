@@ -72,5 +72,15 @@
 <li><strong>Tier 2 (Guided Live Verification):</strong> Meti generates a live smoke-test script (e.g., <code>scripts/verify_live.py</code> or Apps Script <code>testDirectSync()</code>) and an interactive <strong>Live Verification Checklist</strong> in <code>README.md</code> with numbered instructions for verifying against real accounts, spreadsheets, or cloud endpoints.</li>
 </ul>
 </li>
+<li id="continuous-feature-iteration-post-delivery-enhancement-gate"><strong>Continuous Feature Iteration &amp; Post-Delivery Enhancement Gate:</strong>
+<ul>
+<li>After Meti validates all phases and the deliverable is confirmed, BuildRelay presents an interactive enhancement gate instead of abruptly terminating.</li>
+<li><strong><code>[1]</code> Add New Feature / Milestone:</strong> Prompts for your next requirement, retains the existing project workspace and schemas, and routes sequentially through Natasha → Taghi → Meti. All agents receive existing schemas and memory from <code>PROJECT_PROFILE.md</code> to incrementally evolve the codebase.</li>
+<li><strong><code>[2]</code> Refactor or Optimize:</strong> Prompts for performance, code hygiene, or refactoring instructions and executes focused improvements against the verified codebase.</li>
+<li><strong><code>[3]</code> Open Project REPL Session (<code>buildrelay session &lt;project_id&gt;</code>):</strong> Launches the interactive conversational REPL with instant <code>/profile</code>, <code>/env</code>, <code>/verify</code>, <code>/preview</code>, and <code>/test</code> commands.</li>
+<li><strong><code>[4]</code> Run Verification / UI Preview:</strong> Directly runs the Tier 2 live verification smoke test or launches the local web preview server.</li>
+<li><strong><code>[5]</code> Exit Cleanly (<code>[Enter]</code> or <code>[q]</code>):</strong> Concludes the workflow and returns to your shell with all progress safely saved in <code>.state/tasks.db</code> and the project workspace.</li>
+</ul>
+</li>
 </ol>
 <footer>Early-stage developer tool · Review generated code and validation results.<br><a href="https://github.com/Dutch-panda/BuildRelay/blob/main/README.md">Source guide on GitHub</a></footer></main><aside class="toc"><nav aria-label="On this page"><p>ON THIS PAGE</p><a href="#how-the-workflow-runs">How the workflow runs</a><a href="#interactive-alignment-and-execution-modes">Interactive alignment and execution modes</a></nav></aside></div></body></html>

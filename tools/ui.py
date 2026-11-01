@@ -932,3 +932,118 @@ def prompt_model_approval_gate(
             changed = selected != models
         except (EOFError, KeyboardInterrupt):
             return "quit", None
+
+
+def prompt_iteration_gate(
+    project_id: str,
+    task_id: str,
+    auto: bool = False,
+    input_func: Callable[[str], str] | None = None,
+) -> tuple[str, str | None]:
+    """
+    Continuous feature iteration & enhancement gate after task completion.
+
+    Provides interactive choices:
+      [1] Add new feature / milestone (loops back to Natasha -> Taghi -> Meti within project)
+      [2] Refactor or optimize existing code
+      [3] Open interactive REPL session (buildrelay session <project_id>)
+      [4] Run Tier 2 live verification or UI preview
+      [5] Exit cleanly ([Enter] or [q])
+
+    Returns:
+      (action, payload) where:
+        action is one of: 'feature', 'refactor', 'session', 'verify', 'preview', 'none', 'exit'
+        payload is optional instruction or prompt string.
+    """
+    import os
+    import sys
+
+    ask = input_func or input
+    if auto or (
+        input_func is None
+        and (not sys.stdin.isatty() or "pytest" in sys.modules or os.environ.get("BUILDRELAY_TESTING") == "1")
+    ):
+        return "exit", None
+
+    content = (
+        f"[bold white]Project ID:[/bold white]          [green]{escape(project_id)}[/green]\n"
+        f"[bold white]Completed Milestone:[/bold white] [cyan]{escape(task_id)}[/cyan]\n"
+        f"[bold white]Project Workspace:[/bold white]   [yellow]workspace/{escape(project_id)}[/yellow]\n\n"
+        "[bold white]Continuous Enhancement Options:[/bold white]\n"
+        "  [bold green][1][/bold green] 🚀 [bold]Add a new feature / milestone[/bold] [dim](Natasha → Taghi → Meti)[/dim]\n"
+        "  [bold cyan][2][/bold cyan] ⚡ [bold]Refactor or optimize existing codebase[/bold]\n"
+        "  [bold magenta][3][/bold magenta] 💬 [bold]Launch interactive Project REPL session[/bold] [dim](buildrelay session)[/dim]\n"
+        "  [bold blue][4][/bold blue] 🧪 [bold]Run Tier 2 live verification or UI preview[/bold]\n"
+        "  [bold dim][5][/bold dim] 🏁 [bold]Exit & complete workflow[/bold] [dim]([Enter] or [q])[/dim]"
+    )
+    panel = Panel(
+        content.strip(),
+        title="[bold #38bdf8]🔄 BuildRelay — Continuous Feature Iteration Gate[/bold #38bdf8]",
+        title_align="left",
+        border_style="#38bdf8",
+        padding=(1, 2),
+    )
+    console.print()
+    console.print(panel)
+
+    console.print(
+        "[bold]👉 Next Step:[/bold] "
+        "[green]\\[1][/green] Add Feature  |  "
+        "[cyan]\\[2][/cyan] Refactor  |  "
+        "[magenta]\\[3][/magenta] REPL Session  |  "
+        "[blue]\\[4][/blue] Verify/Preview  |  "
+        "[dim]\\[5/enter/q][/dim] Exit"
+    )
+
+    try:
+        user_choice = ask("> ").strip()
+    except (EOFError, KeyboardInterrupt):
+        return "exit", None
+
+    low = user_choice.lower()
+    if low in ("", "5", "q", "quit", "exit"):
+        return "exit", None
+
+    if low in ("1", "feature", "new", "f"):
+        try:
+            prompt_text = ask("📝 Enter new feature request or milestone description: ").strip()
+            if not prompt_text:
+                return "exit", None
+            return "feature", prompt_text
+        except (EOFError, KeyboardInterrupt):
+            return "exit", None
+
+    if low in ("2", "refactor", "optimize", "r"):
+        try:
+            prompt_text = ask("📝 Enter refactoring or optimization instructions: ").strip()
+            if not prompt_text:
+                return "exit", None
+            return "refactor", prompt_text
+        except (EOFError, KeyboardInterrupt):
+            return "exit", None
+
+    if low in ("3", "session", "repl", "s"):
+        return "session", None
+
+    if low in ("4", "verify", "preview", "v", "p"):
+        console.print(
+            "[bold]Pick action:[/bold] "
+            "[cyan]\\[v/1][/cyan] Run Tier 2 Live Verification  |  "
+            "[green]\\[p/2][/green] Launch UI Preview  |  "
+            "[dim]\\[enter][/dim] Cancel"
+        )
+        try:
+            sub = ask("> ").strip().lower()
+            if sub in ("v", "verify", "1"):
+                return "verify", None
+            elif sub in ("p", "preview", "2"):
+                return "preview", None
+            else:
+                return "none", None
+        except (EOFError, KeyboardInterrupt):
+            return "exit", None
+
+    # Freeform user input treated directly as a new feature prompt
+    console.print(f"   [dim]↳ Proceeding with new feature prompt: {escape(user_choice)}[/dim]")
+    return "feature", user_choice
+
