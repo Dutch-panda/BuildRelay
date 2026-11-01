@@ -31,7 +31,7 @@ python main.py --config
 <ol>
 <li><strong>Provider Selection:</strong>
 <ul>
-<li><strong>ChatGPT Web Auth (Codex / Browser Subscription):</strong> Connects to your ChatGPT Plus/Team subscription without entering an API key; provider access and usage limits still apply. Supports Codex models (<code>gpt-6.1-sol</code>, <code>gpt-6.1</code>, <code>gpt-6</code>, <code>gpt-5.5</code>).</li>
+<li><strong>ChatGPT Web Auth (Codex / Browser Subscription):</strong> Connects to your ChatGPT Plus/Team subscription without entering an API key; provider access and usage limits still apply. Browser model discovery is unavailable; any suggested names are unverified and must be supported by your account.</li>
 <li><strong>OpenAI API:</strong> Direct API key for GPT-4o, GPT-4o-mini, o3-mini, o1.</li>
 <li><strong>Anthropic Claude:</strong> Direct API key for Claude 3.7 Sonnet, Claude 3.5 Haiku.</li>
 <li><strong>Google Gemini:</strong> Direct API key for Gemini 2.0 Flash, Gemini 2.5 Pro.</li>
@@ -45,14 +45,14 @@ python main.py --config
 <li>A short, synchronous reachability check runs for supported providers before saving. Connectivity failures can be treated as skipped checks; setup completion does not prove model access.</li>
 </ul>
 </li>
-<li><strong>Execution Tier Preset:</strong>
+<li><strong>Per-Lead Model Selection:</strong>
 <ul>
-<li>Sets your default tier: <code>balanced</code> (default), <code>fast</code>, or <code>powerful</code>.</li>
+<li>Choose Natasha, Odin, Taghi, and Meti models from numbered choices. Enter reuses the previous choice; <code>/text</code> filters the list, <code>m</code> enters an unverified custom ID, and <code>q</code> cancels.</li>
 </ul>
 </li>
-<li><strong>Lead-Specific Model Customization (Optional):</strong>
+<li><strong>Saved Assignments:</strong>
 <ul>
-<li>Customize models for individual leads: Natasha (Coordinator), Odin (Researcher), Taghi (Architect), Meti (Implementer).</li>
+<li>Each interactive run displays the saved lineup. Keep it or change an individual lead, then optionally save the new assignments. Changes remain run-only unless saving is explicitly requested.</li>
 </ul>
 </li>
 <li><strong>Safe Atomic Persistence:</strong>
@@ -65,14 +65,18 @@ python main.py --config
 <h4 id="manual-configuration-via-env-alternative">Manual Configuration via <code>.env</code> (Alternative)</h4>
 <p>If you prefer editing <code>.env</code> directly:</p>
 <p><strong>Option A: ChatGPT Web Auth (Codex Subscription — No API Key Required)</strong></p>
-<pre><code class="language-dotenv">OPENAI_MODEL=gpt-6.1-sol
+<pre><code class="language-dotenv">BUILDRELAY_PROVIDER=chatgpt_oauth
+BUILDRELAY_MODEL_MODE=selected
+BUILDRELAY_MODEL=openai:YOUR_ACCOUNT_MODEL_ID
+USE_CHATGPT_OAUTH=1
 CHATGPT_AUTH_FILE=.env.chatgpt-auth.json
-DEFAULT_TIER=balanced
 </code></pre>
 <p><strong>Option B: Standard Direct API Keys</strong></p>
-<pre><code class="language-dotenv">OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-4o
-DEFAULT_TIER=balanced
+<pre><code class="language-dotenv">BUILDRELAY_PROVIDER=openai
+BUILDRELAY_MODEL_MODE=selected
+BUILDRELAY_MODEL=openai:YOUR_ACCOUNT_MODEL_ID
+OPENAI_API_KEY=sk-...
+USE_CHATGPT_OAUTH=0
 
 # Or Anthropic:
 # ANTHROPIC_API_KEY=sk-ant-...
@@ -83,12 +87,16 @@ DEFAULT_TIER=balanced
 # GEMINI_MODEL=gemini-2.0-flash
 
 # Optional per-lead overrides:
-# MODEL_NATASHA=google:gemini-2.0-flash
-# MODEL_ODIN=anthropic:claude-3-5-haiku
-# MODEL_TAGHI=openai:gpt-6
-# MODEL_METI=openai:gpt-6.1-sol
+# MODEL_NATASHA=openai:YOUR_ROUTER_MODEL_ID
+# MODEL_ODIN=openai:YOUR_RESEARCH_MODEL_ID
+# MODEL_TAGHI=openai:YOUR_DESIGN_MODEL_ID
+# MODEL_METI=openai:YOUR_CODING_MODEL_ID
 </code></pre>
+<p>Replace placeholder model IDs with choices from your connection. Use the wizard to configure another provider; an explicit connection does not silently switch authentication for cross-provider overrides.</p>
 <p>You can also override models at runtime using <code>--model</code> (e.g., <code>--model anthropic:claude-3-7-sonnet</code>) or per-lead flags (<code>--model-taghi</code>, <code>--model-meti</code>).</p>
+<h3 id="explicit-provider-and-model-selection-issue-26">Explicit provider and model selection (issue #26)</h3>
+<p>First-time interactive runs open setup before using any lead. Choose browser authentication or an API/local connection, authenticate, and select a model. API catalogs are queried using that connection; discovery failures and browser-login suggestions are explicitly unverified. Catalog presence does not guarantee tool/structured-output support or account quota.</p>
+<p>Setup saves <code>BUILDRELAY_PROVIDER</code>, <code>BUILDRELAY_MODEL</code>, and <code>BUILDRELAY_MODEL_MODE=selected</code>. Setup saves explicit <code>MODEL_NATASHA</code>, <code>MODEL_ODIN</code>, <code>MODEL_TAGHI</code>, and <code>MODEL_METI</code> assignments. Each lead is selected with a numbered picker; Enter reuses the previous choice. Tiers are not offered in setup or the run-time picker. A changed run-time lineup is saved only after explicit confirmation. The picker retains cached catalogs, saved lead choices, and separately labeled unverified fallback suggestions. Native model IDs containing colons, such as local <code>model:tag</code>, are supported. Reconfiguration replaces previous lead choices; old credentials can remain stored without changing the active connection. Cross-provider overrides require reconfiguration instead of silently switching authentication. Browser login failure leaves setup incomplete. No live account access is established by the offline tests.</p>
 <h3 id="3-give-the-team-a-task">3. Give the team a task</h3>
 <pre><code class="language-bash">python main.py &quot;Build a compound interest calculator&quot; --project my-awesome-app
 </code></pre>

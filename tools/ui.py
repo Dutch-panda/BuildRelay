@@ -676,7 +676,7 @@ def prompt_spec_approval_gate(
     console.print(
         "[bold]👉 Architecture Approval Action:[/bold] "
         "[green]\\[Y/enter][/green] Approve Architecture & Begin Coding  |  "
-        "[yellow]\\[r][/yellow] Revise Architecture / Fields / Spec  |  "
+        "[yellow]\\[e/r][/yellow] Edit / Revise Architecture & Fields  |  "
         "[red]\\[q][/red] Abort"
     )
     try:
@@ -792,7 +792,7 @@ def prompt_delivery_gate(
     console.print(
         "[bold]👉 Delivery Action:[/bold] "
         "[green]\\[Y/enter][/green] Accept & Complete  |  "
-        "[yellow]\\[r][/yellow] Request Refinement (Docs/Code)  |  "
+        "[yellow]\\[e/r][/yellow] Request Refinement / Edit (Docs/Code)  |  "
         "[red]\\[q][/red] Quit"
     )
     try:
@@ -846,7 +846,7 @@ def print_model_lineup_card(
         str_right = f"[{t_right['color']}]{t_right['icon']} {t_right['name']}:[/{t_right['color']}] [white]{escape(str(mdl_right))}[/white] [dim]({lbl_right})[/dim]"
         content_lines.append(f"{str_left:<42}  {str_right}")
 
-    footer = f"\n[bold cyan]Tier:[/bold cyan] {tier.title()}  |  [bold yellow]Prompt Caching:[/bold yellow] {'Enabled (prefix match)' if prompt_caching else 'Disabled'}"
+    footer = f"\n[bold cyan]Selection:[/bold cyan] {'Per lead' if tier == 'manual' else tier.title()}  |  [bold yellow]Prompt Caching:[/bold yellow] {'Requested; provider-dependent' if prompt_caching else 'Disabled'}"
     if budget_estimate:
         footer += f"  |  [bold green]Est. Budget:[/bold green] {budget_estimate}"
     content_lines.append(footer)
@@ -869,74 +869,66 @@ def prompt_model_approval_gate(
     input_func: Callable[[str], str] | None = None,
 ) -> tuple[str, dict[str, Any] | None]:
     """
-    Prompt user for confirmation of the model lineup and cost tier before execution.
+    Confirm or edit per-lead models; persist changes only after explicit confirmation.
     Returns: ('confirm' | 'change' | 'quit', resolved_models)
     """
+    import os
     import sys
-    from tools.model_tiers import estimate_pipeline_budget, resolve_pipeline_models
-
-    _, budget_str = estimate_pipeline_budget(models)
-    print_model_lineup_card(models, tier=tier, prompt_caching=True, budget_estimate=budget_str)
+    from tools.model_tiers import estimate_pipeline_budget, get_available_models_for_active_provider
+    from tools.model_catalog import pick_model
 
     ask = input_func or input
-    if auto or (input_func is None and not sys.stdin.isatty()):
-        return "confirm", models
-
-    console.print(
-        "[bold]Proceed with this model lineup?[/bold] [green][Y/enter][/green] Proceed  |  "
-        "[yellow][c][/yellow] Change Lineup/Tier  |  [red][q][/red] Abort"
-    )
-    try:
-        choice = ask("> ").strip()
-    except (EOFError, KeyboardInterrupt):
-        return "quit", None
-
-    low = choice.lower()
-    if low in ("", "y", "yes"):
-        return "confirm", models
-    if low in ("q", "quit", "exit"):
-        return "quit", None
-    if low in ("c", "change"):
-        from tools.model_tiers import (
-            get_available_models_for_active_provider,
-            get_tier_label,
-            resolve_pipeline_models,
-        )
-
-        provider_name, available_models = get_available_models_for_active_provider()
-        console.print(f"\n[bold cyan]Dynamic Model Selection ({provider_name}):[/bold cyan]")
-        for idx, m in enumerate(available_models, start=1):
-            lbl = get_tier_label(m)
-            is_active = any(str(v).endswith(m) or str(v) == m for v in models.values())
-            active_tag = " [green](Active)[/green]" if is_active else ""
-            console.print(f"  [{idx}] {m} [dim]({lbl})[/dim]{active_tag}")
-
-        fast_example = available_models[3] if len(available_models) > 3 else available_models[-1]
-        console.print(f"  [f] Fast Tier ({fast_example} across leads)")
-        console.print(f"  [b] Balanced Tier (Fast Router/Search + Reasoning Architect/Implementer)")
-        console.print(f"  [p] Powerful Tier (Frontier reasoning/coding across leads)")
-        console.print(f"  [m] Custom model name")
-
+    selected = dict(models)
+    changed = False
+    while True:
+        _, budget = estimate_pipeline_budget(selected)
+        print_model_lineup_card(selected, tier="manual", prompt_caching=True, budget_estimate=budget)
+        if auto or (input_func is None and not sys.stdin.isatty()):
+            return "confirm", selected
         try:
-            choice_input = ask(f"Select Model [1-{len(available_models)}] or Tier [f/b/p/m]: ").strip().lower()
-            if choice_input.isdigit():
-                idx = int(choice_input) - 1
-                if 0 <= idx < len(available_models):
-                    selected_model = available_models[idx]
-                    return "change", resolve_pipeline_models(global_model=selected_model)
-            elif choice_input in ("f", "fast"):
-                return "change", resolve_pipeline_models(tier="fast")
-            elif choice_input in ("b", "balanced"):
-                return "change", resolve_pipeline_models(tier="balanced")
-            elif choice_input in ("p", "powerful"):
-                return "change", resolve_pipeline_models(tier="powerful")
-            elif choice_input in ("m", "custom"):
-                custom = ask("Enter model (e.g. gpt-5.5, gpt-6, claude-3-5-sonnet): ").strip()
-                if custom:
-                    return "change", resolve_pipeline_models(global_model=custom)
-            return "confirm", models
+            choice = ask("Enter: continue | c: change a lead | q: quit > ").strip().lower()
+            if choice in ("q", "quit", "exit"):
+                return "quit", None
+            if choice in ("", "y", "yes"):
+                if changed:
+                    save = ask("Save these assignments as defaults? [y/N] > ").strip().lower()
+                    if save in ("y", "yes"):
+                        from tools.onboarding import save_env_configuration
+                        model_key = {"anthropic": "ANTHROPIC_MODEL", "gemini": "GEMINI_MODEL"}.get(os.environ.get("BUILDRELAY_PROVIDER"), "OPENAI_MODEL")
+                        save_env_configuration({
+                            **{f"MODEL_{lead.upper()}": str(value) for lead, value in selected.items()},
+                            "BUILDRELAY_MODEL_MODE": "selected",
+                            "BUILDRELAY_MODEL": str(selected["natasha"]),
+                            model_key: str(selected["natasha"]).split(":", 1)[-1],
+                        })
+                return ("change" if changed else "confirm"), selected
+            if choice not in ("c", "change"):
+                console.print("Choose Enter, c, or q.")
+                continue
+            leads = list(selected)
+            for idx, lead in enumerate(leads, 1):
+                console.print(f"  [{idx}] {lead.title()}: {selected[lead]}")
+            target = ask("Choose lead number (Enter returns) > ").strip()
+            if not target:
+                continue
+            if not target.isdigit() or not 1 <= int(target) <= len(leads):
+                console.print("Choose a listed lead number.")
+                continue
+            lead = leads[int(target) - 1]
+            provider, catalog = get_available_models_for_active_provider()
+            console.print(f"Models for {provider}. Cached catalog or saved choices; availability is not guaranteed.")
+            def picker_ask(prompt, default=""):
+                return ask(prompt + " > ")
+            chosen = pick_model(catalog, str(selected[lead]), lead.title(), picker_ask, console.print)
+            connection = os.environ.get("BUILDRELAY_PROVIDER")
+            if connection:
+                from tools.model_catalog import qualify_model
+                try:
+                    chosen = qualify_model(chosen, connection)
+                except ValueError:
+                    console.print("Choose a model from the selected connection.")
+                    continue
+            selected[lead] = chosen
+            changed = selected != models
         except (EOFError, KeyboardInterrupt):
             return "quit", None
-
-    return "confirm", models
-

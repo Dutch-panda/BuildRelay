@@ -20,9 +20,11 @@ from tools.onboarding import (
 
 
 @pytest.fixture(autouse=True)
-def preserve_environ():
+def preserve_environ(monkeypatch):
     """Snapshot and restore os.environ around each test to avoid test pollution."""
     old_env = dict(os.environ)
+    monkeypatch.setattr("tools.onboarding.discover_models", lambda *a, **kw: ([], "Discovery unavailable in offline test"))
+    monkeypatch.setattr("tools.chatgpt_auth.login_with_chatgpt_browser", lambda **kw: (True, "Mock browser login"))
     yield
     os.environ.clear()
     os.environ.update(old_env)
@@ -151,7 +153,7 @@ def test_save_env_configuration_preserves_comments_and_updates_in_place(tmp_path
     env_file.write_text(initial_content, encoding="utf-8")
 
     updates = {
-        "OPENAI_MODEL": "gpt-6.1-sol",
+        "OPENAI_MODEL": "gpt-4o",
         "DEFAULT_TIER": "balanced",
     }
     saved_path = save_env_configuration(updates, env_path=env_file)
@@ -160,11 +162,11 @@ def test_save_env_configuration_preserves_comments_and_updates_in_place(tmp_path
     new_content = env_file.read_text(encoding="utf-8")
     assert "# Global Configuration" in new_content
     assert "EXISTING_VAR=hello" in new_content
-    assert "OPENAI_MODEL=gpt-6.1-sol" in new_content
+    assert "OPENAI_MODEL=gpt-4o" in new_content
     assert "DEFAULT_TIER=balanced" in new_content
 
     # In-memory os.environ is updated
-    assert os.environ["OPENAI_MODEL"] == "gpt-6.1-sol"
+    assert os.environ["OPENAI_MODEL"] == "gpt-4o"
     assert os.environ["DEFAULT_TIER"] == "balanced"
 
     # Enforce file permission mode 0o600
@@ -212,10 +214,10 @@ def test_run_onboarding_wizard_chatgpt_oauth(tmp_path, clean_credentials):
 
     # Inputs:
     # 1: Select provider "1" (ChatGPT OAuth)
-    # 2: Select model "1" (gpt-6.1-sol)
+    # 2: Select model "1" (gpt-4o)
     # 3: Select tier "1" (balanced)
     # Confirm lead customization: False
-    inputs = iter(["1", "1", "1"])
+    inputs = iter(["1", "1", "", "", ""])
     confirms = iter([False])
 
     result = run_onboarding_wizard(
@@ -228,9 +230,9 @@ def test_run_onboarding_wizard_chatgpt_oauth(tmp_path, clean_credentials):
 
     assert result is True
     content = test_env.read_text(encoding="utf-8")
-    assert "CHATGPT_AUTH_FILE=.env.chatgpt-auth.json" in content
-    assert "OPENAI_MODEL=gpt-6.1-sol" in content
-    assert "DEFAULT_TIER=balanced" in content
+    assert f"CHATGPT_AUTH_FILE={os.environ['CHATGPT_AUTH_FILE']}" in content
+    assert "OPENAI_MODEL=gpt-4o" in content
+    assert "DEFAULT_TIER=\n" in content
 
 
 def test_run_onboarding_wizard_openai_with_lead_overrides(tmp_path, clean_credentials):
@@ -247,16 +249,7 @@ def test_run_onboarding_wizard_openai_with_lead_overrides(tmp_path, clean_creden
     # Odin: openai:gpt-4o-mini
     # Taghi: openai:o3-mini
     # Meti: openai:gpt-4o
-    inputs = iter([
-        "2",
-        "sk-proj-1234567890abcdef12345",
-        "1",
-        "3",
-        "openai:gpt-4o-mini",
-        "openai:gpt-4o-mini",
-        "openai:o3-mini",
-        "openai:gpt-4o",
-    ])
+    inputs = iter(["2", "sk-proj-1234567890abcdef12345", "2", "", "3", "2"])
     confirms = iter([True, True])  # 1st confirm for format/ping, 2nd confirm for lead customization
 
     result = run_onboarding_wizard(
@@ -270,8 +263,8 @@ def test_run_onboarding_wizard_openai_with_lead_overrides(tmp_path, clean_creden
     assert result is True
     content = test_env.read_text(encoding="utf-8")
     assert "OPENAI_API_KEY=sk-proj-1234567890abcdef12345" in content
-    assert "OPENAI_MODEL=gpt-4o" in content
-    assert "DEFAULT_TIER=powerful" in content
+    assert "OPENAI_MODEL=gpt-4o-mini" in content
+    assert "DEFAULT_TIER=\n" in content
     assert "MODEL_NATASHA=openai:gpt-4o-mini" in content
     assert "MODEL_TAGHI=openai:o3-mini" in content
 
@@ -339,3 +332,33 @@ def test_cli_zero_config_non_interactive_exits(monkeypatch, clean_credentials):
         import asyncio
         asyncio.run(main.main())
     assert exc.value.code == 1
+
+
+def test_run_onboarding_wizard_triggers_browser_login(tmp_path, clean_credentials):
+    test_env = tmp_path / ".env"
+    mock_console = Mock()
+    mock_login = Mock(return_value=(True, "Successfully authenticated via browser"))
+
+    # Inputs:
+    # 1: Select Web Browser Login "1"
+    # 2: Select Model "1" (gpt-4o)
+    # 3: Select Tier "1" (balanced)
+    # Confirm lead customization: False
+    inputs = iter(["1", "1", "", "", ""])
+    confirms = iter([False])
+
+    result = run_onboarding_wizard(
+        console=mock_console,
+        env_path=test_env,
+        prompt_ask=lambda *a, **kw: next(inputs),
+        confirm_ask=lambda *a, **kw: next(confirms),
+        login_func=mock_login,
+        is_reconfig=False,
+    )
+
+    assert result is True
+    mock_login.assert_called_once()
+    content = test_env.read_text(encoding="utf-8")
+    assert f"CHATGPT_AUTH_FILE={os.environ['CHATGPT_AUTH_FILE']}" in content
+    assert "OPENAI_MODEL=gpt-4o" in content
+    assert "DEFAULT_TIER=\n" in content

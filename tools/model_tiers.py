@@ -82,28 +82,30 @@ GEMINI_TIERS: dict[str, dict[str, str]] = {
 
 CHATGPT_OAUTH_TIERS: dict[str, dict[str, str]] = {
     "fast": {
-        "natasha": "openai:gpt-5.5",
-        "odin": "openai:gpt-5.5",
-        "taghi": "openai:gpt-5.5",
-        "meti": "openai:gpt-5.5",
+        "natasha": "openai:gpt-4o-mini",
+        "odin": "openai:gpt-4o-mini",
+        "taghi": "openai:gpt-4o-mini",
+        "meti": "openai:gpt-4o-mini",
     },
     "balanced": {
-        "natasha": "openai:gpt-5.5",
-        "odin": "openai:gpt-5.5",
-        "taghi": "openai:gpt-6",
-        "meti": os.environ.get("OPENAI_MODEL", "openai:gpt-6.1-sol"),
+        "natasha": "openai:gpt-4o-mini",
+        "odin": "openai:gpt-4o-mini",
+        "taghi": "openai:o3-mini",
+        "meti": os.environ.get("OPENAI_MODEL", "openai:gpt-4o"),
     },
     "powerful": {
-        "natasha": "openai:gpt-6",
-        "odin": "openai:gpt-6",
-        "taghi": "openai:gpt-6.1",
-        "meti": os.environ.get("OPENAI_MODEL", "openai:gpt-6.1-sol"),
+        "natasha": "openai:gpt-4o",
+        "odin": "openai:gpt-4o",
+        "taghi": "openai:o3-mini",
+        "meti": os.environ.get("OPENAI_MODEL", "openai:gpt-4o"),
     },
 }
 
 
 def detect_provider(model_hint: str | None = None) -> str:
     """Detect whether user environment or model preference favors OpenAI, Anthropic, Gemini, or ChatGPT OAuth."""
+    if not model_hint and os.environ.get("BUILDRELAY_PROVIDER"):
+        return os.environ["BUILDRELAY_PROVIDER"]
     if model_hint:
         hint = str(model_hint).lower()
         if "claude" in hint or "anthropic" in hint:
@@ -128,15 +130,23 @@ def detect_provider(model_hint: str | None = None) -> str:
 
 
 def get_available_models_for_active_provider() -> tuple[str, list[str]]:
-    """Return (provider_display_name, list_of_models) dynamically for the active environment."""
+    """Return saved connection choices; catalogs and suggestions are not live probes."""
     provider = detect_provider()
-    env_model = os.environ.get("OPENAI_MODEL", "gpt-6.1-sol")
+    if os.environ.get("BUILDRELAY_PROVIDER"):
+        from tools.model_catalog import qualify_model
+        saved = [os.environ.get("BUILDRELAY_MODEL", "")]
+        saved += [os.environ.get(f"MODEL_{lead}", "") for lead in ("NATASHA", "ODIN", "TAGHI", "METI")]
+        catalog = [item for item in os.environ.get("BUILDRELAY_MODEL_CATALOG", "").split(",") if item]
+        suggestions = [item for item in os.environ.get("BUILDRELAY_MODEL_SUGGESTIONS", "").split(",") if item]
+        choices = [qualify_model(item, provider) for item in [*saved, *(catalog or suggestions)] if item]
+        return provider, list(dict.fromkeys(choices))
+    env_model = os.environ.get("OPENAI_MODEL", "gpt-4o")
 
     if provider == "chatgpt_oauth":
-        models = [env_model, "gpt-6.1", "gpt-6", "gpt-5.5", "gpt-4o", "gpt-4o-mini", "o3-mini"]
+        models = [env_model, "gpt-4o", "gpt-4o-mini", "o3-mini", "o1"]
         # deduplicate while preserving order
         unique_models = list(dict.fromkeys(models))
-        return "ChatGPT OAuth (Codex)", unique_models
+        return "ChatGPT Subscription (Codex)", unique_models
 
     if provider == "anthropic":
         return "Anthropic Claude", ["claude-3-7-sonnet", "claude-3-5-sonnet", "claude-3-5-haiku"]
@@ -150,9 +160,9 @@ def get_available_models_for_active_provider() -> tuple[str, list[str]]:
 def get_tier_label(model_name: str | Any) -> str:
     """Return a human-friendly role tier badge for a model."""
     name = str(model_name).lower()
-    if any(k in name for k in ("6.1", "gpt-6", "o3", "o1", "reasoning", "thinking", "r1", "sol")):
+    if any(k in name for k in ("o3", "o1", "reasoning", "thinking", "r1")):
         return "Reasoning"
-    if any(k in name for k in ("5.5", "mini", "haiku", "flash")):
+    if any(k in name for k in ("mini", "haiku", "flash")):
         return "Fast"
     if any(k in name for k in ("sonnet", "gpt-4o", "pro", "opus")):
         return "Coding"
@@ -199,6 +209,12 @@ def resolve_pipeline_models(
     effective_overrides = {**env_overrides, **{k: v for k, v in overrides.items() if v is not None}}
     has_overrides = bool(effective_overrides)
 
+    if tier is None and os.environ.get("BUILDRELAY_MODEL_MODE") == "selected":
+        chosen = global_model or os.environ.get("BUILDRELAY_MODEL")
+        if chosen:
+            return {lead: overrides.get(lead) or (global_model if global_model is not None else env_overrides.get(lead)) or chosen
+                    for lead in ("natasha", "odin", "taghi", "meti")}
+
     effective_tier = tier or (os.environ.get("DEFAULT_TIER") if global_model is None else None)
 
     # If no tier and no lead overrides were given, keep a uniform global model
@@ -212,6 +228,8 @@ def resolve_pipeline_models(
         }
 
     provider = detect_provider(global_model)
+    if provider in ("ollama", "openrouter") and tier is not None:
+        raise ValueError("Tier presets are not defined for this endpoint; select a model or explicit lead overrides.")
     if provider == "anthropic":
         tier_table = ANTHROPIC_TIERS
     elif provider == "gemini":

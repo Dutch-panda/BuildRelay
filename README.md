@@ -80,7 +80,7 @@ If you launch BuildRelay on a fresh machine without credentials, the CLI automat
 
 The wizard guides you through:
 1. **Provider Selection:**
-   - **ChatGPT Web Auth (Codex / Browser Subscription):** Connects to your ChatGPT Plus/Team subscription without entering an API key; provider access and usage limits still apply. Supports Codex models (`gpt-6.1-sol`, `gpt-6.1`, `gpt-6`, `gpt-5.5`).
+   - **ChatGPT Web Auth (Codex / Browser Subscription):** Connects to your ChatGPT Plus/Team subscription without entering an API key; provider access and usage limits still apply. Browser model discovery is unavailable; any suggested names are unverified and must be supported by your account.
    - **OpenAI API:** Direct API key for GPT-4o, GPT-4o-mini, o3-mini, o1.
    - **Anthropic Claude:** Direct API key for Claude 3.7 Sonnet, Claude 3.5 Haiku.
    - **Google Gemini:** Direct API key for Gemini 2.0 Flash, Gemini 2.5 Pro.
@@ -89,10 +89,10 @@ The wizard guides you through:
 2. **Masked Input & Validation:**
    - Inputs are masked for security (`password=True`).
    - A short, synchronous reachability check runs for supported providers before saving. Connectivity failures can be treated as skipped checks; setup completion does not prove model access.
-3. **Execution Tier Preset:**
-   - Sets your default tier: `balanced` (default), `fast`, or `powerful`.
-4. **Lead-Specific Model Customization (Optional):**
-   - Customize models for individual leads: Natasha (Coordinator), Odin (Researcher), Taghi (Architect), Meti (Implementer).
+3. **Per-Lead Model Selection:**
+   - Choose Natasha, Odin, Taghi, and Meti models from numbered choices. Enter reuses the previous choice; `/text` filters the list, `m` enters an unverified custom ID, and `q` cancels.
+4. **Saved Assignments:**
+   - Each interactive run displays the saved lineup. Keep it or change an individual lead, then optionally save the new assignments. Changes remain run-only unless saving is explicitly requested.
 5. **Safe Atomic Persistence:**
    - Saved directly to `.env` preserving existing comments and settings.
    - Enforces strict `0600` file permissions (owner read/write only).
@@ -103,16 +103,20 @@ If you prefer editing `.env` directly:
 
 **Option A: ChatGPT Web Auth (Codex Subscription — No API Key Required)**
 ```dotenv
-OPENAI_MODEL=gpt-6.1-sol
+BUILDRELAY_PROVIDER=chatgpt_oauth
+BUILDRELAY_MODEL_MODE=selected
+BUILDRELAY_MODEL=openai:YOUR_ACCOUNT_MODEL_ID
+USE_CHATGPT_OAUTH=1
 CHATGPT_AUTH_FILE=.env.chatgpt-auth.json
-DEFAULT_TIER=balanced
 ```
 
 **Option B: Standard Direct API Keys**
 ```dotenv
+BUILDRELAY_PROVIDER=openai
+BUILDRELAY_MODEL_MODE=selected
+BUILDRELAY_MODEL=openai:YOUR_ACCOUNT_MODEL_ID
 OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-4o
-DEFAULT_TIER=balanced
+USE_CHATGPT_OAUTH=0
 
 # Or Anthropic:
 # ANTHROPIC_API_KEY=sk-ant-...
@@ -123,13 +127,21 @@ DEFAULT_TIER=balanced
 # GEMINI_MODEL=gemini-2.0-flash
 
 # Optional per-lead overrides:
-# MODEL_NATASHA=google:gemini-2.0-flash
-# MODEL_ODIN=anthropic:claude-3-5-haiku
-# MODEL_TAGHI=openai:gpt-6
-# MODEL_METI=openai:gpt-6.1-sol
+# MODEL_NATASHA=openai:YOUR_ROUTER_MODEL_ID
+# MODEL_ODIN=openai:YOUR_RESEARCH_MODEL_ID
+# MODEL_TAGHI=openai:YOUR_DESIGN_MODEL_ID
+# MODEL_METI=openai:YOUR_CODING_MODEL_ID
 ```
 
+Replace placeholder model IDs with choices from your connection. Use the wizard to configure another provider; an explicit connection does not silently switch authentication for cross-provider overrides.
+
 You can also override models at runtime using `--model` (e.g., `--model anthropic:claude-3-7-sonnet`) or per-lead flags (`--model-taghi`, `--model-meti`).
+
+### Explicit provider and model selection (issue #26)
+
+First-time interactive runs open setup before using any lead. Choose browser authentication or an API/local connection, authenticate, and select a model. API catalogs are queried using that connection; discovery failures and browser-login suggestions are explicitly unverified. Catalog presence does not guarantee tool/structured-output support or account quota.
+
+Setup saves `BUILDRELAY_PROVIDER`, `BUILDRELAY_MODEL`, and `BUILDRELAY_MODEL_MODE=selected`. Setup saves explicit `MODEL_NATASHA`, `MODEL_ODIN`, `MODEL_TAGHI`, and `MODEL_METI` assignments. Each lead is selected with a numbered picker; Enter reuses the previous choice. Tiers are not offered in setup or the run-time picker. A changed run-time lineup is saved only after explicit confirmation. The picker retains cached catalogs, saved lead choices, and separately labeled unverified fallback suggestions. Native model IDs containing colons, such as local `model:tag`, are supported. Reconfiguration replaces previous lead choices; old credentials can remain stored without changing the active connection. Cross-provider overrides require reconfiguration instead of silently switching authentication. Browser login failure leaves setup incomplete. No live account access is established by the offline tests.
 
 ### 3. Give the team a task
 
@@ -210,7 +222,7 @@ BuildRelay tracks exact prompt (input) and completion (output) token consumption
 
 ## Tiered model routing and token optimization
 
-To balance execution speed, reasoning depth, and cost efficiency, BuildRelay provides tiered model routing and context compression:
+Normal setup uses explicit per-lead choices, with no tier selection. The legacy `--tier` CLI option remains for compatibility; explicit saved lead assignments take precedence over its presets. Context compression remains independent of model selection:
 
 - **Model Tiers (`--tier`):**
   - **Fast (`--tier fast`):** Routes lightweight, fast models across all leads (`gpt-4o-mini`, `claude-3-5-haiku`, `gemini-2.0-flash`). Ideal for quick scripts, prototyping, and high speed.
@@ -218,10 +230,10 @@ To balance execution speed, reasoning depth, and cost efficiency, BuildRelay pro
   - **Powerful (`--tier powerful`):** Assigns top-tier frontier models across all design and execution phases.
 - **Lead-Specific Overrides:**
   - Override individual leads via CLI flags: `--model-natasha`, `--model-odin`, `--model-taghi`, `--model-meti`.
-  - Scoped overrides take precedence over global `--model` and `--tier`.
+  - In selected-model mode, precedence is explicit per-lead CLI choice, global `--model`, saved lead choice, then the saved default model. Legacy `--tier` behavior is retained separately.
 - **Model Lineup Approval Gate:**
   - On launch, BuildRelay renders a 2-column model lineup card displaying the active model for each lead, cost tier label, caching status, and estimated budget.
-  - Interactive users can press **`[Enter]`** to confirm, **`[c]`** to quickly switch tiers, or **`[q]`** to abort. Auto/headless runs (`-y`/`--auto`) accept automatically.
+  - Interactive users can press **`[Enter]`** to confirm, **`[c]`** to choose a lead and change its model from a numbered picker (with optional saving), or **`[q]`** to abort. Auto/headless runs (`-y`/`--auto`) accept automatically.
 - **Prompt Prefix Caching:**
   - All agent system prompts, static guidelines, and contracts are stabilized at prompt prefixes.
   - Agents pass `model_settings={"cache": True}`. Actual caching depends on the provider, model, and SDK support; BuildRelay does not guarantee a cache hit or measured latency or cost savings.
@@ -475,7 +487,7 @@ BuildRelay uses Docker workspace mounts and constrained host-side tools. These a
 
 The installed distribution provides the console script entry point `buildrelay` (e.g. `buildrelay "prompt"` or `buildrelay config`), or you can run directly from the checkout with `python main.py`. Runtime dependencies and Python requirements are declared in [pyproject.toml](pyproject.toml); dependency versions are lower bounds rather than a locked environment.
 
-The agent classes can also be called directly with a `model_name` (model string or Pydantic AI model object) and a `vault_path`. Agents support explicit dependency injection: `graph_manager`, custom artifact storage directories (`tasks_dir`, `research_dir`, `specs_dir`, `code_reviews_dir`), and `MetiImplementer` additionally accepts custom `sandbox` runners (e.g. `DockerSandboxRunner` or mock test runners). Constructors defer Docker connections and directory creation until operations actually require them. Programmatic Meti calls can supply `checkpoint`, `checkpoint_callback`, and a new `run_number` to persist and restore implementation progress; the CLI connects these to the ledger automatically. The CLI resolves a model per lead from provider tier presets and overrides. Collaborator injection and custom artifact-directory options are programmatic interfaces, not CLI flags.
+The agent classes can also be called directly with a `model_name` (model string or Pydantic AI model object) and a `vault_path`. Agents support explicit dependency injection: `graph_manager`, custom artifact storage directories (`tasks_dir`, `research_dir`, `specs_dir`, `code_reviews_dir`), and `MetiImplementer` additionally accepts custom `sandbox` runners (e.g. `DockerSandboxRunner` or mock test runners). Constructors defer Docker connections and directory creation until operations actually require them. Programmatic Meti calls can supply `checkpoint`, `checkpoint_callback`, and a new `run_number` to persist and restore implementation progress; the CLI connects these to the ledger automatically. The CLI resolves explicit per-lead choices from the selected provider connection. Legacy configurations can still use tier presets. Collaborator injection and custom artifact-directory options are programmatic interfaces, not CLI flags.
 
 ### Website documentation
 

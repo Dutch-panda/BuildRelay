@@ -97,6 +97,22 @@ def test_grill_session_user_custom_input():
     assert questions[1].custom_response == "Send an email alert to admin"
 
 
+def test_grill_session_user_presses_e_for_custom():
+    questions = sample_questions()
+    # User types 'e' to edit/customize the first question
+    inputs = ["e", "Custom database schema with PostgreSQL", ""]
+    answers, quit_req = run_grill_session(
+        questions,
+        agent_name="taghi",
+        auto=False,
+        input_func=lambda _: inputs.pop(0),
+    )
+    assert quit_req is False
+    assert answers["entry_method"] == "Custom database schema with PostgreSQL"
+    assert answers["error_handling"] == "Log to 'Error' sheet and notify"
+
+
+
 def test_grill_session_accept_all_remaining():
     questions = sample_questions()
     inputs = ["a"]  # Accepts all remaining defaults immediately

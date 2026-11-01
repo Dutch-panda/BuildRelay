@@ -53,19 +53,19 @@ def test_resolve_pipeline_models_default_tiers(monkeypatch):
 def test_resolve_pipeline_models_chatgpt_oauth_codex_tiers(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.setattr("tools.model_tiers.is_chatgpt_oauth_available", lambda: True)
-    monkeypatch.setenv("OPENAI_MODEL", "openai:gpt-6.1-sol")
+    monkeypatch.setenv("OPENAI_MODEL", "openai:gpt-4o")
 
     # Balanced tier with ChatGPT OAuth / Codex
     res = resolve_pipeline_models(tier="balanced")
-    assert "5.5" in res["natasha"]
-    assert "5.5" in res["odin"]
-    assert "6" in res["taghi"]
-    assert "6.1" in res["meti"]
+    assert "mini" in res["natasha"]
+    assert "mini" in res["odin"]
+    assert "o3-mini" in res["taghi"]
+    assert "gpt-4o" in res["meti"]
 
     # Fast tier with ChatGPT OAuth / Codex
     fast = resolve_pipeline_models(tier="fast")
-    assert "5.5" in fast["natasha"]
-    assert "5.5" in fast["meti"]
+    assert "mini" in fast["natasha"]
+    assert "mini" in fast["meti"]
 
 
 def test_resolve_pipeline_models_provider_presets():
@@ -121,10 +121,9 @@ def test_estimate_pipeline_budget(monkeypatch):
 def test_get_tier_label():
     assert get_tier_label("gpt-4o-mini") == "Fast"
     assert get_tier_label("claude-3-5-haiku") == "Fast"
-    assert get_tier_label("gpt-5.5") == "Fast"
+    assert get_tier_label("gemini-2.0-flash") == "Fast"
     assert get_tier_label("o3-mini") == "Reasoning"
-    assert get_tier_label("gpt-6") == "Reasoning"
-    assert get_tier_label("gpt-6.1-sol") == "Reasoning"
+    assert get_tier_label("o1") == "Reasoning"
     assert get_tier_label("claude-3-7-sonnet") == "Coding"
     assert get_tier_label("ollama:deepseek") == "Local"
 
@@ -229,7 +228,8 @@ def test_print_model_lineup_card(capsys):
     assert "Odin" in out
     assert "Meti" in out
     assert "Balanced" in out
-    assert "Prompt Caching: Enabled" in out
+    assert "Prompt Caching:" in out
+    assert "provider-dependent" in out
 
 
 def test_prompt_model_approval_gate_confirm():
@@ -254,19 +254,16 @@ def test_prompt_model_approval_gate_quit():
     assert selected is None
 
 
-def test_prompt_model_approval_gate_change():
-    models = {"natasha": "gpt-4o", "odin": "gpt-4o", "taghi": "gpt-4o", "meti": "gpt-4o"}
-    inputs = iter(["c", "f"])  # Change to fast tier
-    action, selected = prompt_model_approval_gate(models, auto=False, input_func=lambda _: next(inputs))
+def test_prompt_model_approval_gate_change(monkeypatch):
+    monkeypatch.setattr("tools.model_tiers.get_available_models_for_active_provider",
+                        lambda: ("OpenAI", ["gpt-4o", "gpt-4o-mini"]))
+    models = dict.fromkeys(("natasha", "odin", "taghi", "meti"), "gpt-4o")
+    inputs = iter(["c", "1", "2", "", "n"])
+    action, selected = prompt_model_approval_gate(models, input_func=lambda _: next(inputs))
     assert action == "change"
-    assert "mini" in selected["natasha"] or "5.5" in selected["natasha"]
-    assert "mini" in selected["meti"] or "5.5" in selected["meti"]
-
-    # Select model directly by index number (e.g. 1)
-    inputs_num = iter(["c", "1"])
-    action2, selected2 = prompt_model_approval_gate(models, auto=False, input_func=lambda _: next(inputs_num))
-    assert action2 == "change"
-    assert selected2["natasha"] is not None
+    assert selected["natasha"] == "gpt-4o-mini"
+    assert selected["meti"] == "gpt-4o"
+    assert models["natasha"] == "gpt-4o"
 
 
 # =========================================================================

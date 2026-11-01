@@ -4,17 +4,17 @@
     "type": "split",
     "children": [
       {
-        "id": "11007b6bd9276182",
+        "id": "0a5046664b62c4cf",
         "type": "tabs",
         "children": [
           {
-            "id": "8a42996831a94854",
+            "id": "7859bf945f7c88df",
             "type": "leaf",
             "state": {
-              "type": "graph",
+              "type": "empty",
               "state": {},
-              "icon": "lucide-git-fork",
-              "title": "Graph view"
+              "icon": "lucide-file",
+              "title": "New tab"
             }
           }
         ]
@@ -184,8 +184,9 @@
       "bases:Create new base": false
     }
   },
-  "active": "7070a27781527c16",
+  "active": "7859bf945f7c88df",
   "lastOpenFiles": [
+    "file:/Users/ehsan/Projects/AP-V2/workspace/task-build-a-fast-lightweight-and-efficient-cli-tool-20261026/README.md",
     "Untitled.canvas",
     "2026-10-21.md",
     "Untitled 1.canvas",

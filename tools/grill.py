@@ -150,6 +150,14 @@ def run_grill_session(
             desc = f" [dim]— {escape(opt.description)}[/dim]" if opt.description else ""
             console.print(f"     [bold cyan]\\[{escape(str(opt.key))}][/bold cyan] {escape(opt.label)}{tag}{desc}")
 
+        console.print(
+            f"     [dim]Key commands: [green][Enter][/green] Default  |  "
+            f"[cyan][1, 2...][/cyan] Pick  |  "
+            f"[yellow][e/c][/yellow] Custom  |  "
+            f"[magenta][a][/magenta] Accept All  |  "
+            f"[red][q][/red] Quit[/dim]"
+        )
+
         while True:
             try:
                 prompt_label = f"[{theme['name']}] > "
@@ -185,7 +193,7 @@ def run_grill_session(
                 break
 
             # Custom freeform prompt
-            if low in ("c", "custom"):
+            if low in ("c", "custom", "e", "edit"):
                 try:
                     custom_text = ask("   📝 Enter custom specification / answer: ").strip()
                 except (EOFError, KeyboardInterrupt):

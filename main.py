@@ -159,8 +159,8 @@ async def run_task(
         overrides=lead_overrides,
     )
 
-    # Model usage and cost approval gate (before execution starts on fresh runs)
-    if record.brief is None and not auto:
+    # Confirm the per-lead lineup before each active run, including resumed tasks.
+    if not auto:
         gate_action, updated_models = prompt_model_approval_gate(
             pipeline_models, tier=tier or "balanced", auto=auto
         )
@@ -450,6 +450,13 @@ async def main() -> None:
         session_proj = parts[1] if len(parts) > 1 else (args.project or "default-project")
 
     if is_session:
+        from tools.onboarding import check_credentials_configured, run_onboarding_wizard
+        if args.model != "test" and os.environ.get("BUILDRELAY_TESTING") != "1" and not check_credentials_configured():
+            if args.auto or not sys.stdin.isatty():
+                print_agent('orchestrator', 'Run buildrelay config before starting a session.')
+                sys.exit(1)
+            if not run_onboarding_wizard():
+                sys.exit(1)
         from tools.session import run_project_session
         await run_project_session(
             project_id=session_proj,

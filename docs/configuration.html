@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>Models &amp; configuration · BuildRelay</title><meta name="description" content="BuildRelay guides: plan, build, check, and resume development tasks."><link rel="icon" href="brand/logo.svg" type="image/svg+xml"><link rel="stylesheet" href="site.css"><script src="site.js" defer></script><link rel="canonical" href="https://dutch-panda.github.io/BuildRelay/configuration.html"></head>
 <body><a class="skip" href="#content">Skip to content</a><header><a class="brand" href="index.html"><img src="brand/logo.svg" alt="" width="32" height="32">BuildRelay <span>Docs</span></a><a href="https://github.com/Dutch-panda/BuildRelay">GitHub ↗</a></header><div class="layout"><aside class="sidebar"><details open><summary>Documentation</summary><nav aria-label="Documentation"><p>GET STARTED & BUILD</p><a href="index.html">Introduction</a><a href="example.html">Terminal example</a><a href="quickstart.html">Quick start</a><a href="workflow.html">Workflow &amp; alignment</a><a href="configuration.html" aria-current="page">Models &amp; configuration</a><a href="execution.html">Execution &amp; web research</a><a href="projects.html">Projects &amp; memory</a><a href="resume.html">Resume a task</a><a href="architecture.html">Architecture</a><a href="testing.html">Testing &amp; integration</a><a href="limitations.html">Limits &amp; security</a><a href="troubleshooting.html">Troubleshooting</a></nav></details></aside><main id="content"><div class="breadcrumb">BuildRelay / Models &amp; configuration</div><h1>Models &amp; configuration</h1><h2 id="tiered-model-routing-and-token-optimization">Tiered model routing and token optimization</h2>
-<p>To balance execution speed, reasoning depth, and cost efficiency, BuildRelay provides tiered model routing and context compression:</p>
+<p>Normal setup uses explicit per-lead choices, with no tier selection. The legacy <code>--tier</code> CLI option remains for compatibility; explicit saved lead assignments take precedence over its presets. Context compression remains independent of model selection:</p>
 <ul>
 <li><strong>Model Tiers (<code>--tier</code>):</strong>
 <ul>
@@ -13,13 +13,13 @@
 <li><strong>Lead-Specific Overrides:</strong>
 <ul>
 <li>Override individual leads via CLI flags: <code>--model-natasha</code>, <code>--model-odin</code>, <code>--model-taghi</code>, <code>--model-meti</code>.</li>
-<li>Scoped overrides take precedence over global <code>--model</code> and <code>--tier</code>.</li>
+<li>In selected-model mode, precedence is explicit per-lead CLI choice, global <code>--model</code>, saved lead choice, then the saved default model. Legacy <code>--tier</code> behavior is retained separately.</li>
 </ul>
 </li>
 <li><strong>Model Lineup Approval Gate:</strong>
 <ul>
 <li>On launch, BuildRelay renders a 2-column model lineup card displaying the active model for each lead, cost tier label, caching status, and estimated budget.</li>
-<li>Interactive users can press <strong><code>[Enter]</code></strong> to confirm, <strong><code>[c]</code></strong> to quickly switch tiers, or <strong><code>[q]</code></strong> to abort. Auto/headless runs (<code>-y</code>/<code>--auto</code>) accept automatically.</li>
+<li>Interactive users can press <strong><code>[Enter]</code></strong> to confirm, <strong><code>[c]</code></strong> to choose a lead and change its model from a numbered picker (with optional saving), or <strong><code>[q]</code></strong> to abort. Auto/headless runs (<code>-y</code>/<code>--auto</code>) accept automatically.</li>
 </ul>
 </li>
 <li><strong>Prompt Prefix Caching:</strong>

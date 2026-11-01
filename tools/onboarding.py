@@ -13,6 +13,7 @@ from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
+from tools.model_catalog import discover_models, pick_model, qualify_model
 from tools.chatgpt_auth import is_chatgpt_oauth_available
 
 
@@ -21,9 +22,9 @@ SUPPORTED_PROVIDERS: list[dict[str, Any]] = [
         "id": "chatgpt_oauth",
         "name": "ChatGPT Web Auth (Codex / Browser Subscription)",
         "badge": "Codex / Subscription",
-        "description": "Zero API key cost. Uses your ChatGPT Plus/Team subscription.",
-        "models": ["gpt-6.1-sol", "gpt-6.1", "gpt-6", "gpt-5.5", "gpt-4o", "gpt-4o-mini", "o3-mini"],
-        "default_model": "gpt-6.1-sol",
+        "description": "Browser authentication; provider access and usage limits apply.",
+        "models": ["gpt-4o", "o3-mini", "gpt-4o-mini", "o1"],
+        "default_model": "gpt-4o",
     },
     {
         "id": "openai",
@@ -79,6 +80,15 @@ def check_credentials_configured() -> bool:
     Returns True if direct API keys are present in environment,
     ChatGPT OAuth credentials exist, or a local LLM URL is configured.
     """
+    selected = os.environ.get("BUILDRELAY_PROVIDER")
+    if selected:
+        if selected == "chatgpt_oauth":
+            return is_chatgpt_oauth_available()
+        key = {"openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY", "gemini": "GEMINI_API_KEY", "ollama": "OPENAI_API_KEY", "openrouter": "OPENAI_API_KEY"}.get(selected)
+        credentials = bool(key and os.environ.get(key, "").strip()) or (selected == "gemini" and bool(os.environ.get("GOOGLE_API_KEY", "").strip()))
+        if selected in ("ollama", "openrouter"):
+            return credentials and bool(os.environ.get("OPENAI_BASE_URL", "").strip())
+        return credentials
     # 1. Direct API keys
     api_keys = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY"]
     for key in api_keys:
@@ -134,6 +144,8 @@ def get_credential_status() -> dict[str, Any]:
     elif chatgpt:
         active_provider = "chatgpt_oauth"
 
+    active_provider = os.environ.get("BUILDRELAY_PROVIDER") or active_provider
+
     if active_provider == "anthropic":
         active_model = os.environ.get("ANTHROPIC_MODEL", "claude-3-7-sonnet")
     elif active_provider == "gemini":
@@ -144,7 +156,7 @@ def get_credential_status() -> dict[str, Any]:
         active_model = os.environ.get("OPENAI_MODEL", "gpt-4o")
 
     return {
-        "has_credentials": len(configured) > 0,
+        "has_credentials": check_credentials_configured(),
         "configured_providers": configured,
         "active_provider": active_provider,
         "chatgpt_oauth": chatgpt,
@@ -152,7 +164,7 @@ def get_credential_status() -> dict[str, Any]:
         "anthropic": anthropic_key,
         "gemini": gemini_key,
         "local": local_url,
-        "active_model": active_model,
+        "active_model": os.environ.get("BUILDRELAY_MODEL") or active_model,
         "active_tier": os.environ.get("DEFAULT_TIER", "balanced"),
     }
 
@@ -319,12 +331,13 @@ def run_onboarding_wizard(
     env_path: Path | str | None = None,
     prompt_ask: Callable[..., str] | None = None,
     confirm_ask: Callable[..., bool] | None = None,
+    login_func: Callable[..., tuple[bool, str]] | None = None,
     is_reconfig: bool = False,
 ) -> bool:
     """
     Interactive first-time onboarding and model/provider configuration wizard.
     Allows selecting primary provider, entering credentials (masked), picking
-    Codex/OpenAI/Claude/Gemini models, tier presets, and optional per-lead models.
+    a model for each lead from the connection catalog or unverified suggestions.
     """
     ui = console or Console()
     ask = prompt_ask or Prompt.ask
@@ -333,13 +346,13 @@ def run_onboarding_wizard(
     # 1. Header Banner
     title = "🔄 BuildRelay Configuration Wizard" if is_reconfig else "⚡ Welcome to BuildRelay! Setup Wizard"
     subtitle = (
-        "Reconfigure your AI development team credentials, models, and execution tiers."
+        "Reconfigure your AI development team connection and per-lead models."
         if is_reconfig
         else "Let's connect your AI development team (Natasha, Odin, Taghi, Meti) to your preferred LLM provider."
     )
 
     header_panel = Panel(
-        f"[bold white]{subtitle}[/bold white]\n[dim]Configure once; credentials are encrypted/restricted in .env (0600 mode).[/dim]",
+        f"[bold white]{subtitle}[/bold white]\n[dim]Configure once; credentials are stored in plaintext .env with owner-only permissions (0600).[/dim]",
         title=f"[bold #818cf8]{title}[/bold #818cf8]",
         title_align="left",
         border_style="#818cf8",
@@ -358,28 +371,52 @@ def run_onboarding_wizard(
         status_table.add_row("Configured Providers", ", ".join(current_status["configured_providers"]))
         status_table.add_row("Active Provider", current_status["active_provider"])
         status_table.add_row("Default Model", current_status["active_model"])
-        status_table.add_row("Default Tier", current_status["active_tier"].title())
+        status_table.add_row("Model selection", "Explicit per-lead choices")
         ui.print(status_table)
         ui.print()
 
     # 3. Provider Selection
-    ui.print("[bold]Step 1: Select your primary LLM Provider[/bold]")
-    for idx, prov in enumerate(SUPPORTED_PROVIDERS, start=1):
+    ui.print("[bold]Step 1: Choose Authentication Method & Provider[/bold]\n")
+    ui.print("[bold cyan]── Web Browser Authentication ───────────────────────────────────[/bold cyan]")
+    ui.print(
+        "  [cyan][1][/cyan] [bold]Web Browser Login (ChatGPT Plus/Team Subscription)[/bold]\n"
+        "      • Browser sign-in; provider access and usage limits apply\n"
+        "      • Automatically redirects to browser for one-click authorization\n"
+        "      • Model suggestions are unverified; select an account-supported model\n"
+    )
+    ui.print("[bold cyan]── Direct API Key / Local Authentication ────────────────────────[/bold cyan]")
+    for idx, prov in enumerate(SUPPORTED_PROVIDERS[1:], start=2):
         ui.print(
-            f"  [cyan][{idx}][/cyan] [bold]{prov['name']}[/bold] "
-            f"[dim]({prov['badge']})[/dim]\n"
+            f"  [cyan][{idx}][/cyan] [bold]{prov['name']}[/bold] [dim]({prov['badge']})[/dim]\n"
             f"      [dim]{prov['description']}[/dim]"
         )
     ui.print("  [red][q][/red] [dim]Cancel and exit[/dim]\n")
 
-    choice = ask("Select provider", choices=[str(i) for i in range(1, len(SUPPORTED_PROVIDERS) + 1)] + ["q"], default="1")
+    choice = ask("Select provider or authentication method", choices=[str(i) for i in range(1, len(SUPPORTED_PROVIDERS) + 1)] + ["q"], default="1")
     if choice.lower() == "q":
         ui.print("[yellow]Setup cancelled. No changes were made.[/yellow]")
         return False
 
     selected_prov = SUPPORTED_PROVIDERS[int(choice) - 1]
     prov_id = selected_prov["id"]
-    entries_to_save: dict[str, str] = {}
+    entries_to_save: dict[str, str] = {
+        "BUILDRELAY_PROVIDER": prov_id,
+        "USE_CHATGPT_OAUTH": "1" if prov_id == "chatgpt_oauth" else "0",
+        "BUILDRELAY_MODEL_MODE": "selected",
+        **{f"MODEL_{lead}": "" for lead in ("NATASHA", "ODIN", "TAGHI", "METI")},
+    }
+    selected_prov = dict(selected_prov)
+    def load_catalog(api_key="", base_url=None):
+        models, note = discover_models(prov_id, api_key=api_key, base_url=base_url)
+        ui.print(note)
+        entries_to_save["BUILDRELAY_MODEL_CATALOG"] = ",".join(models)
+        if models:
+            selected_prov["models"] = models
+            selected_prov["default_model"] = models[0]
+        else:
+            ui.print("[yellow]Suggested model names below are not verified for this account.[/yellow]")
+        entries_to_save["BUILDRELAY_MODEL_SUGGESTIONS"] = ",".join(selected_prov["models"]) if not models else ""
+
 
     # 4. Provider-Specific Credentials & Model Selection
     ui.print(f"\n[bold green]Configuring {selected_prov['name']}:[/bold green]")
@@ -387,28 +424,19 @@ def run_onboarding_wizard(
     if prov_id == "chatgpt_oauth":
         ui.print(
             "BuildRelay connects directly to your ChatGPT Plus/Team browser session via Codex OAuth.\n"
-            "[green]✓ Zero API key charges (uses existing ChatGPT subscription)[/green]"
+            "[green]✓ Browser login; account access and usage limits apply[/green]"
         )
-        if is_chatgpt_oauth_available():
-            ui.print("  [cyan]✓ Found existing active ChatGPT OAuth session file (.env.chatgpt-auth.json).[/cyan]")
+        from tools.chatgpt_auth import login_with_chatgpt_browser
+        do_login = login_func or login_with_chatgpt_browser
+        login_ok, login_msg = do_login(ui=ui)
+        if not login_ok:
+            ui.print("[yellow]Setup incomplete. Retry browser login before starting the task.[/yellow]")
+            return False
+        ui.print(f"  [bold green]✓ {login_msg}[/bold green]")
 
-        entries_to_save["CHATGPT_AUTH_FILE"] = ".env.chatgpt-auth.json"
+        entries_to_save["CHATGPT_AUTH_FILE"] = os.environ.get("CHATGPT_AUTH_FILE", ".env.chatgpt-auth.json")
 
-        ui.print("\n[bold]Select default Codex Model:[/bold]")
-        for idx, mdl in enumerate(selected_prov["models"], start=1):
-            star = " (Recommended)" if idx == 1 else ""
-            ui.print(f"  [{idx}] {mdl}{star}")
-        ui.print(f"  [{len(selected_prov['models']) + 1}] Enter custom model name")
-
-        model_choice = ask("Select model", default="1")
-        if model_choice.isdigit() and 1 <= int(model_choice) <= len(selected_prov["models"]):
-            chosen_model = selected_prov["models"][int(model_choice) - 1]
-        elif model_choice.isdigit() and int(model_choice) == len(selected_prov["models"]) + 1:
-            chosen_model = ask("Enter custom model name (e.g. gpt-6.1-sol)", default="gpt-6.1-sol")
-        else:
-            chosen_model = model_choice.strip() or "gpt-6.1-sol"
-
-        entries_to_save["OPENAI_MODEL"] = chosen_model
+        load_catalog()
 
     elif prov_id in ("openai", "anthropic", "gemini"):
         env_key = selected_prov["env_key"]
@@ -431,70 +459,44 @@ def run_onboarding_wizard(
             ui.print(f"[dim]{ping_msg}[/dim]")
 
         entries_to_save[env_key] = api_key
+        if prov_id == "openai":
+            entries_to_save["OPENAI_BASE_URL"] = "https://api.openai.com/v1"
+        load_catalog(api_key=api_key)
 
-        ui.print(f"\n[bold]Select default model for {selected_prov['name']}:[/bold]")
-        for idx, mdl in enumerate(selected_prov["models"], start=1):
-            star = " (Recommended)" if idx == 1 else ""
-            ui.print(f"  [{idx}] {mdl}{star}")
-        ui.print(f"  [{len(selected_prov['models']) + 1}] Enter custom model name")
-
-        model_choice = ask("Select model", default="1")
-        if model_choice.isdigit() and 1 <= int(model_choice) <= len(selected_prov["models"]):
-            chosen_model = selected_prov["models"][int(model_choice) - 1]
-        elif model_choice.isdigit() and int(model_choice) == len(selected_prov["models"]) + 1:
-            chosen_model = ask(f"Enter custom model name", default=selected_prov["default_model"])
-        else:
-            chosen_model = model_choice.strip() or selected_prov["default_model"]
-
-        model_env_key = f"{prov_id.upper()}_MODEL" if prov_id != "openai" else "OPENAI_MODEL"
-        entries_to_save[model_env_key] = chosen_model
 
     elif prov_id == "ollama":
         base_url = ask("Enter local LLM Base URL", default=selected_prov["default_base_url"])
-        model_name = ask("Enter local model name (e.g. llama3.3, qwen2.5-coder)", default=selected_prov["default_model"])
+        load_catalog(api_key="ollama", base_url=base_url)
 
         entries_to_save["OPENAI_BASE_URL"] = base_url
-        entries_to_save["OPENAI_MODEL"] = model_name
         entries_to_save["OPENAI_API_KEY"] = "ollama"
 
     elif prov_id == "openrouter":
         base_url = ask("Enter gateway Base URL", default=selected_prov["default_base_url"])
         api_key = ask("Enter API Key", password=True)
-        model_name = ask("Enter model identifier", default=selected_prov["default_model"])
+        load_catalog(api_key=api_key, base_url=base_url)
 
         entries_to_save["OPENAI_BASE_URL"] = base_url
         entries_to_save["OPENAI_API_KEY"] = api_key
-        entries_to_save["OPENAI_MODEL"] = model_name
 
-    # 5. Default Tier Preset
-    ui.print("\n[bold]Step 2: Select default execution tier preset[/bold]")
-    ui.print("  [1] [bold]balanced[/bold] [dim](Recommended - Fast Natasha/Odin routing, deep reasoning for Taghi/Meti)[/dim]")
-    ui.print("  [2] [bold]fast[/bold]     [dim](Fastest response times and lowest cost across all 4 leads)[/dim]")
-    ui.print("  [3] [bold]powerful[/bold] [dim](Maximum reasoning capacity across all 4 leads)[/dim]")
-
-    tier_choice = ask("Select tier preset", choices=["1", "2", "3", "balanced", "fast", "powerful"], default="1")
-    tier_map = {"1": "balanced", "2": "fast", "3": "powerful"}
-    selected_tier = tier_map.get(tier_choice, tier_choice)
-    entries_to_save["DEFAULT_TIER"] = selected_tier
-
-    # 6. Optional Per-Lead Customization
-    ui.print("\n[bold]Step 3: Lead Customization (Optional)[/bold]")
-    customize_leads = confirm("Would you like to customize models for individual agent leads (Natasha, Odin, Taghi, Meti)?", default=False)
-    if customize_leads:
-        ui.print("[dim]Leave empty or press enter to keep tier default.[/dim]")
-        natasha = ask("Natasha (Coordinator) model override", default="").strip()
-        odin = ask("Odin (Researcher) model override", default="").strip()
-        taghi = ask("Taghi (Architect) model override", default="").strip()
-        meti = ask("Meti (Implementer) model override", default="").strip()
-
-        if natasha:
-            entries_to_save["MODEL_NATASHA"] = natasha
-        if odin:
-            entries_to_save["MODEL_ODIN"] = odin
-        if taghi:
-            entries_to_save["MODEL_TAGHI"] = taghi
-        if meti:
-            entries_to_save["MODEL_METI"] = meti
+    prefix = {"anthropic": "anthropic", "gemini": "google"}.get(prov_id, "openai")
+    def qualify(value):
+        return qualify_model(value, prov_id)
+    catalog = [qualify(value) for value in selected_prov["models"]]
+    current = qualify(selected_prov["default_model"])
+    ui.print("\n[bold]Choose a model for each lead. Enter reuses the previous choice.[/bold]")
+    try:
+        for lead in ("natasha", "odin", "taghi", "meti"):
+            current = pick_model(catalog, current, lead.title(), ask, ui.print)
+            current = qualify(current)
+            entries_to_save[f"MODEL_{lead.upper()}"] = current
+    except (EOFError, KeyboardInterrupt, ValueError):
+        ui.print("[yellow]Setup cancelled; choose models from the selected connection. Assignments were not saved.[/yellow]")
+        return False
+    entries_to_save["BUILDRELAY_MODEL"] = entries_to_save["MODEL_NATASHA"]
+    model_key = {"anthropic": "ANTHROPIC_MODEL", "gemini": "GEMINI_MODEL"}.get(prov_id, "OPENAI_MODEL")
+    entries_to_save[model_key] = entries_to_save["MODEL_NATASHA"].split(":", 1)[-1]
+    entries_to_save["DEFAULT_TIER"] = ""
 
     # 7. Safe Persistence
     saved_path = save_env_configuration(entries_to_save, env_path=env_path)

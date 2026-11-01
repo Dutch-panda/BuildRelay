@@ -138,7 +138,8 @@ def test_parse_ddg_html():
     assert "modern, fast web framework" in results[0].snippet
 
 
-def test_search_web_uses_cache(tmp_path):
+def test_search_web_uses_cache(tmp_path, monkeypatch):
+    monkeypatch.delenv("TAVILY_API_KEY", raising=False)
     query = "pydantic v2 migration"
     mock_results = [WebSearchResult(title="Pydantic V2", url="https://docs.pydantic.dev", snippet="Migration guide")]
 
