@@ -1,25 +1,239 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="760" height="412" viewBox="0 0 760 412" role="img" aria-labelledby="title desc">
-<title id="title">Task workflow</title><desc id="desc">Natasha routes a prompt to research, design, or implementation, overseen by Dana Quality Supervisor. Research continues through Odin, Taghi, and Meti; design through Taghi and Meti; direct builds go to Meti. Meti runs Docker commands and validates phases.</desc>
-<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8" fill="#b8b0a4"/></marker></defs>
-<rect width="760" height="412" rx="12" fill="#151514"/>
-<style>text{font-family:Arial,Helvetica,sans-serif;fill:#f2eee7;font-size:18px}.sub{fill:#bbb4aa;font-size:15px}.accent{fill:#ffac75}.line{fill:none;stroke:#b8b0a4;stroke-width:1.6;marker-end:url(#arrow)}.box{fill:#23221f;stroke:#565048;stroke-width:1}.supervisor{fill:#1a202c;stroke:#6272a4;stroke-width:1.4}</style>
-<rect class="box" x="28" y="24" width="156" height="56" rx="7"/>
-<text x="106.0" y="58.0" text-anchor="middle">Your prompt</text>
-<rect class="box" x="242" y="24" width="320" height="56" rx="7"/>
-<text x="402.0" y="49.0" text-anchor="middle" class="accent">Natasha</text>
-<text class="sub" x="402.0" y="72.0" text-anchor="middle">Brief and route</text>
-<path class="line" d="M184 52 H242"/>
-<path class="line" d="M402 80 V100 H72 V145 H128"/>
-<path class="line" d="M72 145 V209 H128"/>
-<path class="line" d="M72 209 V273 H128"/>
-<rect class="box" x="128" y="120" width="580" height="50" rx="7"/>
-<text x="418.0" y="151.0" text-anchor="middle">Research: Odin → Taghi → Meti</text>
-<rect class="box" x="128" y="184" width="580" height="50" rx="7"/>
-<text x="418.0" y="215.0" text-anchor="middle">Design: Taghi → Meti</text>
-<rect class="box" x="128" y="248" width="580" height="50" rx="7"/>
-<text x="418.0" y="279.0" text-anchor="middle">Build: Meti</text>
-<rect class="supervisor" x="128" y="312" width="580" height="48" rx="7"/>
-<text x="418.0" y="333.0" text-anchor="middle" class="accent">Dana — Quality Supervisor</text>
-<text class="sub" x="418.0" y="350.0" text-anchor="middle">Advisory critique cards or autonomous stage steering across all leads</text>
-<text class="sub" x="380" y="388" text-anchor="middle">All routes: Meti → Docker commands → Phase validation → Result</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="540" viewBox="0 0 880 540" role="img" aria-labelledby="wf-title wf-desc">
+  <title id="wf-title">BuildRelay Multi-Lead Autonomous Workflow</title>
+  <desc id="wf-desc">Sequential 4-lead workflow (Natasha, Odin, Taghi, Meti) overseen by Dana Quality Supervisor across all stage boundaries, featuring interactive Grill-Me gates, dual specifications, backend-first Docker verification, and continuous feature iteration.</desc>
+  
+  <defs>
+    <!-- Arrowhead markers -->
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0 0 L8 4 L0 8" fill="#a8a29e"/>
+    </marker>
+    <marker id="arrow-cyan" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0 0 L8 4 L0 8" fill="#38bdf8"/>
+    </marker>
+    <marker id="arrow-purple" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0 0 L8 4 L0 8" fill="#c084fc"/>
+    </marker>
+    <marker id="arrow-amber" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0 0 L8 4 L0 8" fill="#fbbf24"/>
+    </marker>
+    <marker id="arrow-emerald" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0 0 L8 4 L0 8" fill="#4ade80"/>
+    </marker>
+    <marker id="arrow-indigo" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0 0 L8 4 L0 8" fill="#818cf8"/>
+    </marker>
+    <marker id="arrow-orange" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0 0 L8 4 L0 8" fill="#ffa76c"/>
+    </marker>
+    
+    <!-- Linear Gradients -->
+    <linearGradient id="bg-canvas" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#181716"/>
+      <stop offset="100%" stop-color="#121110"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background Canvas -->
+  <rect width="880" height="540" rx="14" fill="url(#bg-canvas)" stroke="#34312b" stroke-width="1.2"/>
+
+  <style>
+    .title { font-family: system-ui, -apple-system, sans-serif; font-size: 15px; font-weight: 700; fill: #f5f5f4; }
+    .subtitle { font-family: system-ui, -apple-system, sans-serif; font-size: 11px; fill: #a8a29e; }
+    .badge { font-family: system-ui, -apple-system, sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+    .gate-text { font-family: system-ui, -apple-system, sans-serif; font-size: 10px; font-weight: 600; fill: #e7e5e4; }
+    .step-desc { font-family: system-ui, -apple-system, sans-serif; font-size: 10px; fill: #d6d3d1; }
+    .path-line { fill: none; stroke: #57534e; stroke-width: 1.6; marker-end: url(#arrow); }
+    .path-orange { fill: none; stroke: #ffa76c; stroke-width: 1.6; stroke-dasharray: 4 3; marker-end: url(#arrow-orange); }
+    .path-indigo { fill: none; stroke: #818cf8; stroke-width: 1.4; stroke-dasharray: 3 3; marker-end: url(#arrow-indigo); }
+  </style>
+
+  <!-- Top Header Bar -->
+  <g transform="translate(24, 20)">
+    <text class="title" x="0" y="16">Autonomous Sequential Multi-Lead Pipeline</text>
+    <text class="subtitle" x="0" y="34">Typed handoffs · Dual architecture &amp; UI specs · Backend-first verification · Continuous feature iteration</text>
+  </g>
+
+  <!-- USER PROMPT -->
+  <g transform="translate(24, 76)">
+    <rect width="130" height="74" rx="8" fill="#201f1c" stroke="#565048" stroke-width="1.2"/>
+    <text class="badge" x="12" y="22" fill="#d6d3d1">ENTRY POINT</text>
+    <text class="title" x="12" y="42" font-size="13">User Request</text>
+    <text class="subtitle" x="12" y="58">CLI prompt / REPL</text>
+  </g>
+
+  <!-- Arrow Prompt -> Natasha -->
+  <path class="path-line" d="M154 113 H182"/>
+
+  <!-- NATASHA (Coordinator) -->
+  <g transform="translate(182, 76)">
+    <rect width="154" height="114" rx="8" fill="#082f49" stroke="#0284c7" stroke-width="1.4"/>
+    <rect x="8" y="8" width="68" height="18" rx="4" fill="#0c4a6e"/>
+    <text class="badge" x="14" y="21" fill="#7dd3fc">NATASHA</text>
+    <text class="title" x="10" y="44" font-size="13">Coordinator</text>
+    <text class="step-desc" x="10" y="60">5-sentence intent brief</text>
+    <text class="step-desc" x="10" y="74">Deterministic router</text>
+    
+    <!-- Interactive Grill-Me Gate -->
+    <rect x="8" y="84" width="138" height="22" rx="4" fill="#0369a1" stroke="#38bdf8" stroke-width="1"/>
+    <text class="gate-text" x="14" y="99">⚡ Grill-Me Interview</text>
+  </g>
+
+  <!-- Natasha Routing Branches -->
+  <!-- 1. Research-only branch -->
+  <path class="path-line" d="M336 100 H362 V42 H392"/>
+  <rect x="340" y="28" width="46" height="14" rx="3" fill="#1c1917"/>
+  <text x="343" y="39" class="subtitle" font-size="8" fill="#c084fc">--research</text>
+
+  <!-- 2. Full pipeline branch to Odin -->
+  <path class="path-line" d="M336 120 H392"/>
+
+  <!-- 3. Direct build branch to Meti -->
+  <path class="path-line" d="M259 190 V226 H572 V190"/>
+  <rect x="380" y="218" width="60" height="14" rx="3" fill="#1c1917"/>
+  <text x="385" y="229" class="subtitle" font-size="8" fill="#4ade80">direct build</text>
+
+  <!-- ODIN (Researcher) -->
+  <g transform="translate(392, 76)">
+    <rect width="150" height="114" rx="8" fill="#2e1065" stroke="#7c3aed" stroke-width="1.4"/>
+    <rect x="8" y="8" width="48" height="18" rx="4" fill="#4c1d95"/>
+    <text class="badge" x="14" y="21" fill="#d8b4fe">ODIN</text>
+    <text class="title" x="10" y="44" font-size="13">Researcher</text>
+    <text class="step-desc" x="10" y="60">Graphify vault lookup</text>
+    <text class="step-desc" x="10" y="74">PyPI / npm &amp; Tavily check</text>
+    
+    <!-- Research Note Output -->
+    <rect x="8" y="84" width="134" height="22" rx="4" fill="#3b0764" stroke="#c084fc" stroke-width="1"/>
+    <text class="gate-text" x="14" y="99">📄 Research Notes</text>
+  </g>
+
+  <!-- Research-Only Done Exit -->
+  <g transform="translate(392, 24)">
+    <rect width="150" height="34" rx="6" fill="#1e1b4b" stroke="#6366f1" stroke-width="1.2"/>
+    <text class="badge" x="10" y="16" fill="#a5b4fc">RESEARCH-ONLY EXIT</text>
+    <text class="step-desc" x="10" y="28">Complete after Odin</text>
+  </g>
+
+  <!-- Arrow Odin -> Taghi -->
+  <path class="path-line" d="M542 120 H572"/>
+
+  <!-- TAGHI (Architect & UI Designer) -->
+  <g transform="translate(572, 60)">
+    <rect width="168" height="146" rx="8" fill="#451a03" stroke="#b45309" stroke-width="1.4"/>
+    <rect x="8" y="8" width="56" height="18" rx="4" fill="#78350f"/>
+    <text class="badge" x="14" y="21" fill="#fde68a">TAGHI</text>
+    <text class="title" x="10" y="44" font-size="13">Architect &amp; UI Spec</text>
+    
+    <!-- Dual Specs Box -->
+    <rect x="8" y="52" width="152" height="42" rx="4" fill="#291202" stroke="#d97706" stroke-width="1"/>
+    <text class="step-desc" x="14" y="68" fill="#fde68a">1. Core Backend Spec (.md)</text>
+    <text class="step-desc" x="14" y="84" fill="#fde68a">2. UI/UX Design Spec (.md)</text>
+
+    <!-- Dual Grill & Approval Gate -->
+    <rect x="8" y="100" width="152" height="36" rx="4" fill="#78350f" stroke="#fbbf24" stroke-width="1"/>
+    <text class="gate-text" x="14" y="115">🎨 UI Ergonomics Grill</text>
+    <text class="gate-text" x="14" y="128" fill="#fbbf24">✓ Spec Approval Gate</text>
+  </g>
+
+  <!-- Arrow Taghi -> Meti -->
+  <path class="path-line" d="M740 120 H768"/>
+
+  <!-- METI (Phased Implementer) -->
+  <g transform="translate(768, 48)">
+    <rect width="90" height="236" rx="8" fill="#064e3b" stroke="#059669" stroke-width="1.4"/>
+    <rect x="8" y="8" width="48" height="18" rx="4" fill="#047857"/>
+    <text class="badge" x="14" y="21" fill="#86efac">METI</text>
+    <text class="title" x="8" y="44" font-size="13">Implementer</text>
+    
+    <!-- Execution Phases -->
+    <g transform="translate(6, 52)">
+      <!-- Step 1 Backend -->
+      <rect width="78" height="52" rx="4" fill="#022c22" stroke="#10b981" stroke-width="1"/>
+      <text class="badge" x="6" y="14" fill="#86efac">PHASE 1</text>
+      <text class="step-desc" x="6" y="28">Backend Core</text>
+      <text class="step-desc" x="6" y="42">&amp; Sanitizers</text>
+
+      <!-- Step 2 Tier 1 Tests -->
+      <rect y="58" width="78" height="52" rx="4" fill="#022c22" stroke="#10b981" stroke-width="1"/>
+      <text class="badge" x="6" y="72" fill="#86efac">PHASE 2</text>
+      <text class="step-desc" x="6" y="86">Tier 1 Tests</text>
+      <text class="step-desc" x="6" y="100">Docker Mocks</text>
+
+      <!-- Step 3 UI Surface -->
+      <rect y="116" width="78" height="60" rx="4" fill="#022c22" stroke="#34d399" stroke-width="1.2"/>
+      <text class="badge" x="6" y="130" fill="#a7f3d0">PHASE 3</text>
+      <text class="step-desc" x="6" y="144">Tailwind UI</text>
+      <text class="step-desc" x="6" y="158">&amp; Live Smoke</text>
+    </g>
+  </g>
+
+  <!-- DANA QUALITY SUPERVISOR STRIP -->
+  <g transform="translate(24, 300)">
+    <rect width="834" height="96" rx="10" fill="#0f172a" stroke="#3b82f6" stroke-width="1.4"/>
+    <rect x="14" y="12" width="54" height="20" rx="4" fill="#1e1b4b"/>
+    <text class="badge" x="22" y="26" fill="#a5b4fc">DANA</text>
+    <text class="title" x="78" y="27" font-size="14" fill="#93c5fd">Principal Quality Supervisor &amp; Autonomous Overseer</text>
+    <text class="subtitle" x="14" y="48">Evaluates 5 criteria: Schema completeness · Container isolation · Offline determinism · UI surface ergonomics · Idiomatic modularity</text>
+    
+    <!-- Supervision Checkpoint Badges -->
+    <g transform="translate(14, 58)">
+      <rect x="0" y="0" width="170" height="26" rx="5" fill="#1e293b" stroke="#60a5fa" stroke-width="1"/>
+      <text class="gate-text" x="10" y="17" fill="#93c5fd">1. Natasha Intent Audit</text>
+
+      <rect x="180" y="0" width="170" height="26" rx="5" fill="#1e293b" stroke="#c084fc" stroke-width="1"/>
+      <text class="gate-text" x="10" y="17" fill="#d8b4fe">2. Odin Tech Feasibility</text>
+
+      <rect x="360" y="0" width="190" height="26" rx="5" fill="#1e293b" stroke="#fbbf24" stroke-width="1"/>
+      <text class="gate-text" x="10" y="17" fill="#fde68a">3. Taghi Dual-Spec Review</text>
+
+      <rect x="560" y="0" width="246" height="26" rx="5" fill="#1e293b" stroke="#4ade80" stroke-width="1"/>
+      <text class="gate-text" x="10" y="17" fill="#86efac">4. Meti Code &amp; Test Quality</text>
+    </g>
+  </g>
+
+  <!-- Dana Supervision Arrows (Supervision Checkpoints) -->
+  <path class="path-indigo" d="M259 190 V300"/>
+  <path class="path-indigo" d="M467 190 V300"/>
+  <path class="path-indigo" d="M656 206 V300"/>
+  <path class="path-indigo" d="M813 284 V300"/>
+
+  <!-- Autonomous Steering Loopback Arrow (from Dana back to Taghi/Meti on warning/block) -->
+  <path class="path-indigo" d="M690 300 V230 H656"/>
+
+  <!-- DELIVERABLE & TWO-TIER VERIFICATION -->
+  <g transform="translate(24, 416)">
+    <rect width="834" height="106" rx="10" fill="#1c1917" stroke="#44403c" stroke-width="1.2"/>
+    
+    <!-- Workspace Box -->
+    <g transform="translate(16, 16)">
+      <rect width="210" height="74" rx="6" fill="#292524" stroke="#78716c" stroke-width="1"/>
+      <text class="badge" x="12" y="20" fill="#fb923c">WORKSPACE DELIVERABLE</text>
+      <text class="title" x="12" y="38" font-size="12">workspace/&lt;project_id&gt;/</text>
+      <text class="step-desc" x="12" y="54">• Backend code &amp; formula defenses</text>
+      <text class="step-desc" x="12" y="68">• form.html &amp; Tailwind UI surface</text>
+    </g>
+
+    <!-- Tier 1 & Tier 2 Badges -->
+    <g transform="translate(240, 16)">
+      <rect width="270" height="74" rx="6" fill="#0f291e" stroke="#10b981" stroke-width="1.2"/>
+      <text class="badge" x="12" y="20" fill="#4ade80">TWO-TIER VERIFICATION</text>
+      <text class="title" x="12" y="38" font-size="12">Tier 1: Offline Docker Sandbox (0 net)</text>
+      <text class="step-desc" x="12" y="54">✓ Offline unit tests &amp; mock adapters</text>
+      <text class="step-desc" x="12" y="68">Tier 2: Host Live Verification Smoke</text>
+    </g>
+
+    <!-- Post-Delivery Continuous Feature Iteration Gate -->
+    <g transform="translate(524, 16)">
+      <rect width="294" height="74" rx="6" fill="#2d1506" stroke="#ea580c" stroke-width="1.2"/>
+      <text class="badge" x="12" y="20" fill="#fdba74">CONTINUOUS ITERATION PIPELINE</text>
+      <text class="title" x="12" y="38" font-size="12">REPL &amp; Feature Gate [1] [2] [3] [4]</text>
+      <text class="step-desc" x="12" y="54">• Seamless follow-up feature milestones</text>
+      <text class="step-desc" x="12" y="68">• Preserves PROJECT_PROFILE.md memory</text>
+    </g>
+  </g>
+
+  <!-- Arrow Meti -> Workspace -->
+  <path class="path-line" d="M813 396 V440 H740"/>
+
+  <!-- Iteration Loop Arrow: Back from Iteration Gate to Natasha/Taghi -->
+  <path class="path-orange" d="M524 453 H500 V260 H220 V190"/>
 </svg>

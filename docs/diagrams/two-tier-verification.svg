@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="380" viewBox="0 0 880 380" role="img" aria-labelledby="ttv-title ttv-desc">
+  <title id="ttv-title">Two-Tier Verification Architecture</title>
+  <desc id="ttv-desc">BuildRelay two-tier verification model: Tier 1 automated Docker sandbox with zero network dependencies and deterministic mock adapters, followed by Tier 2 guided live verification with real credentials, smoke test runners, and local UI preview.</desc>
+  
+  <defs>
+    <marker id="arrow-green" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0 0 L8 4 L0 8" fill="#10b981"/>
+    </marker>
+    <marker id="arrow-amber" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0 0 L8 4 L0 8" fill="#fbbf24"/>
+    </marker>
+    <linearGradient id="bg-canvas" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#181716"/>
+      <stop offset="100%" stop-color="#121110"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background Canvas -->
+  <rect width="880" height="380" rx="14" fill="url(#bg-canvas)" stroke="#34312b" stroke-width="1.2"/>
+
+  <style>
+    .title { font-family: system-ui, -apple-system, sans-serif; font-size: 15px; font-weight: 700; fill: #f5f5f4; }
+    .subtitle { font-family: system-ui, -apple-system, sans-serif; font-size: 11px; fill: #a8a29e; }
+    .badge { font-family: system-ui, -apple-system, sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+    .card-title { font-family: system-ui, -apple-system, sans-serif; font-size: 13px; font-weight: 600; fill: #f5f5f4; }
+    .item-title { font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 600; fill: #e7e5e4; }
+    .item-desc { font-family: system-ui, -apple-system, sans-serif; font-size: 10px; fill: #a8a29e; }
+    .tier-tag { font-family: system-ui, -apple-system, sans-serif; font-size: 10px; font-weight: 700; }
+  </style>
+
+  <!-- Header -->
+  <g transform="translate(28, 20)">
+    <text class="title" x="0" y="16">Two-Tier Verification Architecture</text>
+    <text class="subtitle" x="0" y="34">Guaranteed offline determinism in container isolation, verified against real external services on the host.</text>
+  </g>
+
+  <!-- TIER 1 CONTAINER -->
+  <g transform="translate(28, 68)">
+    <!-- Container Box -->
+    <rect width="386" height="284" rx="10" fill="#03261c" stroke="#059669" stroke-width="1.4"/>
+    
+    <!-- Tier 1 Header -->
+    <g transform="translate(16, 14)">
+      <rect width="64" height="20" rx="4" fill="#065f46"/>
+      <text class="badge" x="8" y="14" fill="#6ee7b7">TIER 1</text>
+      <text class="card-title" x="74" y="15" fill="#a7f3d0">Automated Docker Sandbox</text>
+      <text class="subtitle" x="0" y="34" fill="#6ee7b7">100% Offline · 0 Network Leakage · Deterministic Tests</text>
+    </g>
+
+    <!-- Block 1: Offline Mock Service Adapters -->
+    <g transform="translate(16, 68)">
+      <rect width="354" height="60" rx="6" fill="#064e3b" stroke="#10b981" stroke-width="1"/>
+      <text class="item-title" x="12" y="20" fill="#a7f3d0">1. Offline Mock Service Adapters</text>
+      <text class="item-desc" x="12" y="36">• Deterministic in-memory mocks (SpreadsheetApp, REST APIs)</text>
+      <text class="item-desc" x="12" y="50">• Formula injection defenses (=+-@) verified with synthetic fixtures</text>
+    </g>
+
+    <!-- Block 2: Docker Phase Validation -->
+    <g transform="translate(16, 138)">
+      <rect width="354" height="60" rx="6" fill="#064e3b" stroke="#10b981" stroke-width="1"/>
+      <text class="item-title" x="12" y="20" fill="#a7f3d0">2. Phased Test Execution Budget</text>
+      <text class="item-desc" x="12" y="36">• 3 validation retry attempts per phase with error-slice recovery</text>
+      <text class="item-desc" x="12" y="50">• Downgrades to failure if any phase remains unverified</text>
+    </g>
+
+    <!-- Block 3: Frontend Surface Verification -->
+    <g transform="translate(16, 208)">
+      <rect width="354" height="60" rx="6" fill="#064e3b" stroke="#10b981" stroke-width="1"/>
+      <text class="item-title" x="12" y="20" fill="#a7f3d0">3. Backend-First Phased Ordering</text>
+      <text class="item-desc" x="12" y="36">• Core data engine &amp; unit tests pass before frontend is built</text>
+      <text class="item-desc" x="12" y="50">• Validates form.html structure &amp; client-side constraints offline</text>
+    </g>
+  </g>
+
+  <!-- Transition Arrow (Tier 1 -> Tier 2) -->
+  <g transform="translate(424, 190)">
+    <line x1="0" y1="0" x2="24" y2="0" stroke="#10b981" stroke-width="2" marker-end="url(#arrow-green)"/>
+    <rect x="-8" y="-24" width="44" height="18" rx="4" fill="#181716" stroke="#34312b" stroke-width="1"/>
+    <text class="badge" x="-4" y="-11" fill="#4ade80">PASS</text>
+  </g>
+
+  <!-- TIER 2 CONTAINER -->
+  <g transform="translate(466, 68)">
+    <!-- Container Box -->
+    <rect width="386" height="284" rx="10" fill="#2d1506" stroke="#d97706" stroke-width="1.4"/>
+    
+    <!-- Tier 2 Header -->
+    <g transform="translate(16, 14)">
+      <rect width="64" height="20" rx="4" fill="#78350f"/>
+      <text class="badge" x="8" y="14" fill="#fde68a">TIER 2</text>
+      <text class="card-title" x="74" y="15" fill="#fde68a">Guided Live Verification</text>
+      <text class="subtitle" x="0" y="34" fill="#fde68a">Host Environment · Project Credentials · Live Services</text>
+    </g>
+
+    <!-- Block 1: Host Live Smoke Runner -->
+    <g transform="translate(16, 68)">
+      <rect width="354" height="60" rx="6" fill="#451a03" stroke="#f59e0b" stroke-width="1"/>
+      <text class="item-title" x="12" y="20" fill="#fde68a">1. Host Live Smoke Runner (buildrelay verify)</text>
+      <text class="item-desc" x="12" y="36">• Executes scripts/verify_live.py against real APIs &amp; databases</text>
+      <text class="item-desc" x="12" y="50">• Consumes project workspace .env tokens (isolated, 0600 permissions)</text>
+    </g>
+
+    <!-- Block 2: Interactive UI Preview Server -->
+    <g transform="translate(16, 138)">
+      <rect width="354" height="60" rx="6" fill="#451a03" stroke="#f59e0b" stroke-width="1"/>
+      <text class="item-title" x="12" y="20" fill="#fde68a">2. Interactive UI Preview (buildrelay preview)</text>
+      <text class="item-desc" x="12" y="36">• Boots local HTTP preview server on ephemeral port</text>
+      <text class="item-desc" x="12" y="50">• Tests form submissions, responsive layouts, &amp; feedback states</text>
+    </g>
+
+    <!-- Block 3: Interactive Checklist in README -->
+    <g transform="translate(16, 208)">
+      <rect width="354" height="60" rx="6" fill="#451a03" stroke="#f59e0b" stroke-width="1"/>
+      <text class="item-title" x="12" y="20" fill="#fde68a">3. Interactive Live Verification Checklist</text>
+      <text class="item-desc" x="12" y="36">• Markdown guide with step-by-step external setup steps</text>
+      <text class="item-desc" x="12" y="50">• Zero guesswork: clear instructions for manual acceptance</text>
+    </g>
+  </g>
+</svg>
