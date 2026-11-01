@@ -22,6 +22,14 @@ Describe your development task. BuildRelay coordinates research, design, impleme
 
 BuildRelay is a Python CLI that coordinates an engineering team built with Pydantic AI. Natasha selects the entry point for each request; Odin researches, Taghi designs, Meti implements through Docker commands, and Dana supervises deliverable quality across all stages. Each stage saves Markdown artifacts to a local vault, with Graphify providing graph lookup when extraction is available.
 
+**What you can do:**
+
+- **Align before building:** clarify intent, approve backend and UI specifications, then execute ordered phases.
+- **Inspect the evidence:** read recorded checks, optional Dana critiques, and static deliverable evaluations.
+- **Continue the project:** resume saved stages, add features, preview the UI, and run guided live checks.
+
+See the [quick start](#quick-start), [quality signals](#quality-supervision-and-evaluation), and [execution boundaries](#security-and-isolation-boundaries).
+
 ## How the workflow runs
 
 <img src="docs/diagrams/workflow.svg" alt="Natasha routes requests through research, design, or direct implementation, supervised by Dana, ending with Meti and validation." width="760">
@@ -32,7 +40,7 @@ BuildRelay is a Python CLI that coordinates an engineering team built with Pydan
 - **Meti — implementer:** writes code through Docker commands with live progress spinners and validates phases in order. Executes backend core logic and Tier 1 unit tests first, then builds modern UI surfaces using Tailwind CSS CDN, real-time client validation, button loading spinners, and dismissible alerts. Generates a workspace `README.md` with run/test instructions, logs execution details to `.state/task.log`, and renders a file tree and `How to Run & Test` banner. A reported success is downgraded to failure if any phase remains unvalidated.
 - **Dana — quality supervisor:** evaluates intermediate deliverables across every stage (Natasha's intent brief, Odin's research report, Taghi's architecture spec, and Meti's Docker deliverable) against 5 core engineering criteria: schema completeness, container isolation, offline determinism, user input ergonomics, and modular architecture. In advisory mode (`--supervise advisory` / `--dana`), presents a structured critique card with scores and actionable guidance; in autonomous mode (`--supervise autonomous`), detects gaps and autonomously steers leads with corrective prompts to revise deliverables before handoff. Audit notes are persisted in `vault/supervision/`.
 
-Agents run sequentially along the selected route, overseen by Dana at critical stage boundaries. Research requests continue through design and implementation; design requests continue through implementation. Research-only tasks complete immediately after Odin.
+Agents run sequentially along the selected route, overseen by Dana at critical stage boundaries. Research-led build requests continue through design and implementation; explicit research-only tasks stop after Odin. Design-led requests continue through implementation. Dana supervision is opt-in, not a mandatory fifth sequential stage.
 
 ## Quick start
 
@@ -218,22 +226,28 @@ To eliminate early misunderstandings and prevent wasted model calls, BuildRelay 
    - **`[3]` Open Project REPL Session (`buildrelay session <project_id>`):** Launches the interactive conversational REPL with instant `/profile`, `/env`, `/verify`, `/preview`, and `/test` commands.
    - **`[4]` Run Verification / UI Preview:** Directly runs the Tier 2 live verification smoke test or launches the local web preview server.
    - **`[5]` Exit Cleanly (`[Enter]` or `[q]`):** Concludes the workflow and returns to your shell with all progress safely saved in `.state/tasks.db` and the project workspace.
-9. **Dana Quality Supervisor & Autonomous Steering Engine:**
-   - Evaluates deliverables across every stage (Natasha intent brief, Odin research report, Taghi architecture spec, Meti container deliverable) against 5 core criteria: schema completeness, container isolation, offline determinism, user input ergonomics, and modular architecture.
-   - **Advisory Mode (`--supervise advisory` or `--dana`):** Presents a structured quality critique card with score, strengths, risks/gaps, and actionable recommendations. Allows you to `[Enter]` proceed, `[a]` apply recommendations to the lead for automatic revision, `[s]` skip, or `[q]` abort.
-   - **Autonomous Mode (`--supervise autonomous`):** Detects warnings or blocking gaps and autonomously steers the lead with corrective prompts without interrupting human flow.
-   - **Off Mode (default):** Keeps execution lean and direct when supervision is not needed.
-   - **Override Model:** Configure Dana via `--model-dana` or `MODEL_DANA` in `.env`.
-10. **Automated Multi-Dimensional Deliverable Evaluation & Scoring Harness:**
-   - Evaluates completed deliverables across 5 engineering dimensions (up to 20 pts each, 100 max):
-     - **Dimension 1: Test Integrity & Coverage:** Validates test suites, non-trivial assertions, edge case coverage, and mock service adapters. Flags hollow assertions like `assert True`.
-     - **Dimension 2: Security & Sanitization:** Scans for CSV/spreadsheet formula injection vulnerabilities (`=`, `+`, `-`, `@`), detects hardcoded API secrets/tokens, and verifies environment variable hygiene.
-     - **Dimension 3: UI Surface & Usability:** Validates presence and usability of user entry points (`form.html`, responsive styling, field constraints, interactive CLI).
-     - **Dimension 4: Tier 2 Live Verification Readiness:** Checks for dedicated smoke test scripts (`scripts/verify_live.py`) decoupled from mock fixtures, plus actionable numbered checklists in `README.md`.
-     - **Dimension 5: Architectural Conformance & Hygiene:** Validates separation of concerns, living `PROJECT_PROFILE.md` memory, and documentation.
-   - **CLI Command:** `buildrelay --eval [project_id|task_id]` or `python main.py --eval [project_id|task_id]`.
-   - **Project REPL Command:** `/eval` inside `buildrelay session <project_id>`.
-   - **Persistent Reports:** Saves comprehensive Markdown audit reports in `vault/evaluations/eval-<task_id>.md`.
+## Quality supervision and evaluation
+
+### Dana quality supervision
+- Evaluates deliverables across every stage (Natasha intent brief, Odin research report, Taghi architecture spec, Meti container deliverable) against 5 core criteria: schema completeness, container isolation, offline determinism, user input ergonomics, and modular architecture.
+- **Advisory Mode (`--supervise advisory` or `--dana`):** Presents a structured quality critique card with score, strengths, risks/gaps, and actionable recommendations. Allows you to `[Enter]` proceed, `[a]` apply recommendations to the lead for automatic revision, `[s]` skip, or `[q]` abort.
+- **Autonomous Mode (`--supervise autonomous`):** Detects warnings or blocking gaps and autonomously steers the lead with corrective prompts without interrupting human flow.
+- **Off Mode (default):** Keeps execution lean and direct when supervision is not needed.
+- **Override Model:** Configure Dana via `--model-dana` or `MODEL_DANA` in `.env`.
+### Deliverable evaluation
+- Evaluates completed deliverables across 5 engineering dimensions (up to 20 pts each, 100 max):
+  - **Dimension 1: Test Integrity & Coverage:** Validates test suites, non-trivial assertions, edge case coverage, and mock service adapters. Flags hollow assertions like `assert True`.
+  - **Dimension 2: Security & Sanitization:** Scans for CSV/spreadsheet formula injection vulnerabilities (`=`, `+`, `-`, `@`), detects hardcoded API secrets/tokens, and verifies environment variable hygiene.
+  - **Dimension 3: UI Surface & Usability:** Validates presence and usability of user entry points (`form.html`, responsive styling, field constraints, interactive CLI).
+  - **Dimension 4: Tier 2 Live Verification Readiness:** Checks for dedicated smoke test scripts (`scripts/verify_live.py`) decoupled from mock fixtures, plus actionable numbered checklists in `README.md`.
+  - **Dimension 5: Architectural Conformance & Hygiene:** Validates separation of concerns, living `PROJECT_PROFILE.md` memory, and documentation.
+- **CLI Command:** `buildrelay --eval [project_id|task_id]` or `python main.py --eval [project_id|task_id]`.
+- **Project REPL Command:** `/eval` inside `buildrelay session <project_id>`.
+- **Persistent Reports:** Saves comprehensive Markdown audit reports in `vault/evaluations/eval-<task_id>.md`.
+
+<img src="docs/diagrams/dana-supervision.svg" alt="Dana model critiques stage outputs; a separate static harness scores workspace patterns. Neither proves correctness." width="760">
+
+Dana receives stage deliverables and context; it is not a guaranteed full-file or diff review. Autonomous steering does not establish that every finding was repaired or independently re-reviewed. The evaluation harness uses file and text heuristics: its score is a diagnostic signal, not measured test coverage, a security audit, or a cross-project benchmark.
 
 ## Token usage and cost analytics
 
@@ -385,7 +399,7 @@ project: "[[projects/task-tracker]]"
 
 Project IDs accept letters, digits, underscores, and hyphens, and must start with a letter or digit. Project grouping links the notes and codebases: tasks sharing a project ID share the same workspace (`workspace/<project_id>/`), allowing successive tasks to build upon existing project modules and tests. Resumed runs reuse that task's workspace. Standalone tasks without a project ID use `workspace/<task_id>/`.
 
-<img src="docs/diagrams/saved-data.svg" alt="Stage notes connect to project notes and Graphify; the SQLite ledger saves resume progress, and Docker writes generated code to workspaces." width="760">
+<img src="docs/diagrams/saved-data.svg" alt="SQLite checkpoints support resume; workspace files and project profiles support iteration; vault artifacts and Graphify support inspection." width="760">
 
 Open **`vault/` as an Obsidian vault** to browse the notes and project wikilinks. Those links work independently of Graphify.
 
@@ -412,7 +426,9 @@ workspace/<project_or_task_id>/       Generated source, tests, docs, dependencie
 vault/
 ├── tasks/<task_id>-brief.md          Routing brief with the permanent task ID
 ├── research/research-<task_id>.md     Research report, when Odin runs
-├── specs/spec-<task_id>.md            Specification, when Taghi runs
+├── specs/                           Backend and UI specifications, when Taghi runs
+├── supervision/                     Optional Dana critiques
+├── evaluations/                     Static deliverable scorecards
 ├── code-reviews/review-<task_id>.md   Implementation summary and validated phases
 ├── projects/<project_id>.md          Optional shared project note
 └── .graphify/graph.json              Knowledge graph, when available
@@ -421,6 +437,11 @@ vault/
 The local `.state/` directory, generated workspace files, stage notes, and graph artifacts are ignored by Git. Project notes under `vault/projects/` are **not currently ignored**; review them before committing.
 
 ## Execution and validation
+
+<img src="docs/diagrams/two-tier-verification.svg" alt="Tier 1 Docker checks target local fixtures and mocks; Tier 2 runs live scripts on the host with project credentials. Docker networking remains enabled." width="760">
+
+Tier 1 passing does not mean live verification ran. The preview server serves files; it does not independently test browser behavior or visual quality.
+
 
 - Each command runs in a **fresh Docker container**, with the project or task workspace mounted at `/app/workspace/<task_id>/`.
 - Files in that mount persist across commands. Container-local installs and changes outside it do not; keep durable dependencies in the mounted directory.
@@ -443,7 +464,7 @@ The selected logo is **Forward B**, an orange BuildRelay monogram. Use [the cano
 
 ## Component connections
 
-<img src="docs/diagrams/components.svg" alt="Main coordinates model setup, agents, and the task ledger. Agents use vault tools, shared contracts, and Meti’s Docker runner." width="760">
+<img src="docs/diagrams/components.svg" alt="CLI and project sessions coordinate model selection, four leads with optional Dana, persistence, research tools, Docker, and host verification tools." width="760">
 
 Arrows show which component uses another. Shared contracts define stage outputs, handoffs, and checkpoints used by orchestration, agents, and the ledger. Vault tools support graph lookup and project-note links; each agent saves its own stage artifacts.
 
@@ -501,12 +522,12 @@ Arrows show which component uses another. Shared contracts define stage outputs,
 
 BuildRelay uses Docker workspace mounts and constrained host-side tools. These are isolation boundaries, not a guarantee against hostile generated code:
 
-- **Credential & API Key Isolation:** Docker containers executed by Meti do **not** inherit host environment variables. Host API keys (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, etc.) are never passed to containers. Running `env`, `printenv`, or inspecting process environments inside the container reveals only standard container defaults.
+- **Credential Boundaries:** The Docker runner does not pass host environment variables explicitly. The task/project workspace is mounted, however, so a project `.env` inside it is readable by container code. File mode `0600` is not encryption or isolation from a process with sufficient access. Keep unrelated provider credentials outside generated workspaces.
 - **Workspace Containment:** Docker containers mount strictly the target task or project workspace (`workspace/<task_id>/` or `workspace/<project_id>/`) to `/app/workspace/<task_id>/`. The host project root, `.env`, `.git/`, and `.state/` directories are **never mounted**. Path traversal via task IDs is blocked by strict regex validation (`^[A-Za-z0-9][A-Za-z0-9_-]*$`) and filesystem root containment checks.
 - **Agent Tool Boundaries:** Host-level agents (Natasha, Odin, Taghi) use vault graph queries and constrained Markdown note writers; Natasha and Odin also have external search tools, and Odin has registry lookup. They have no terminal, shell, or arbitrary filesystem access.
 - **Vault Artifact Writing:** Model-callable note tools use `safe_write_markdown` to constrain their destinations. Application-generated briefs, research, specifications, and reviews also use direct file writes to configured artifact directories; the shared safe writer does not mediate every artifact write.
-- **No Host Execution:** The host Python application never runs `eval()`, `exec()`, or `subprocess` on generated user code from `workspace/`. All compilation, execution, and tests occur strictly inside Docker containers.
-- **Credential Storage Security:** `.env` and `.env.*` (including `.env.chatgpt-auth.json`) are ignored by Git. The interactive onboarding wizard (`tools/onboarding.py`) and OAuth credential flows enforce atomic file writes with strict `0o600` permissions (readable and writable only by the owner). Host credentials are never mounted into containers or stored in global locations.
+- **Execution Boundaries:** Meti phase commands run inside Docker. Tier 2 `buildrelay verify` explicitly executes generated smoke scripts on the host with project credentials; review those scripts before invoking verification. Host verification is not sandboxed like Docker phase execution.
+- **Credential Storage Security:** `.env` and `.env.*` (including `.env.chatgpt-auth.json`) are ignored by Git. The interactive onboarding wizard (`tools/onboarding.py`) and OAuth credential flows enforce atomic file writes with strict `0o600` permissions (readable and writable only by the owner). The runner does not mount the repository-level credential files. Project-local `.env` files live inside the mounted workspace and need separate care.
 
 ## Development and documentation
 
@@ -557,7 +578,7 @@ These integration checks verify:
 
 If Docker or Graphify is unavailable in the environment, the tests skip gracefully without false test failures. CI runs both the isolated unit test suite and the integration smoke checks on Ubuntu runners.
 
-The [Platform tests workflow](.github/workflows/tests.yml) runs the same validation command on pushes and pull requests using Ubuntu with Python 3.11 and 3.14. Open [CI results](https://github.com/Dutch-panda/BuildRelay/actions/workflows/tests.yml) to inspect runs. To start a manual run, select **Run workflow**, choose a branch, and confirm. Results and failure logs appear on the commit or pull request; no model credentials or Docker service are needed. Requiring passing checks before merging is a separate repository setting.
+The [Platform tests workflow](.github/workflows/tests.yml) runs the same validation command on pushes and pull requests using Ubuntu with Python 3.11, 3.12, 3.13, and 3.14. Open [CI results](https://github.com/Dutch-panda/BuildRelay/actions/workflows/tests.yml) to inspect runs. To start a manual run, select **Run workflow**, choose a branch, and confirm. Results and failure logs appear on the commit or pull request; no model credentials or Docker service are needed. Requiring passing checks before merging is a separate repository setting.
 
 An end-to-end run still requires model access and Docker and writes local artifacts; review generated output before using it.
 

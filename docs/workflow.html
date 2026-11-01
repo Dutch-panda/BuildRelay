@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>Workflow &amp; alignment · BuildRelay</title><meta name="description" content="BuildRelay guides: plan, build, check, and resume development tasks."><link rel="icon" href="brand/logo.svg" type="image/svg+xml"><link rel="stylesheet" href="site.css"><script src="site.js" defer></script><link rel="canonical" href="https://dutch-panda.github.io/BuildRelay/workflow.html"></head>
-<body><a class="skip" href="#content">Skip to content</a><header><a class="brand" href="index.html"><img src="brand/logo.svg" alt="" width="32" height="32">BuildRelay <span>Docs</span></a><a href="https://github.com/Dutch-panda/BuildRelay">GitHub ↗</a></header><div class="layout"><aside class="sidebar"><details open><summary>Documentation</summary><nav aria-label="Documentation"><p>GET STARTED & BUILD</p><a href="index.html">Introduction</a><a href="example.html">Terminal example</a><a href="quickstart.html">Quick start</a><a href="workflow.html" aria-current="page">Workflow &amp; alignment</a><a href="configuration.html">Models &amp; configuration</a><a href="execution.html">Execution &amp; web research</a><a href="projects.html">Projects &amp; memory</a><a href="resume.html">Resume a task</a><a href="architecture.html">Architecture</a><a href="testing.html">Testing &amp; integration</a><a href="limitations.html">Limits &amp; security</a><a href="troubleshooting.html">Troubleshooting</a></nav></details></aside><main id="content"><div class="breadcrumb">BuildRelay / Workflow &amp; alignment</div><h1>Workflow &amp; alignment</h1><h2 id="how-the-workflow-runs">How the workflow runs</h2>
-<img src="diagrams/workflow.svg" alt="Natasha routes requests through research, design, or direct implementation, supervised by Dana, ending with Meti and validation." width="760">
+<body><a class="skip" href="#content">Skip to content</a><header><a class="brand" href="index.html"><img src="brand/logo.svg" alt="" width="32" height="32">BuildRelay <span>Docs</span></a><a href="https://github.com/Dutch-panda/BuildRelay">GitHub ↗</a></header><div class="layout"><aside class="sidebar"><details open><summary>Documentation</summary><nav aria-label="Documentation"><p>GET STARTED</p><a href="index.html">Introduction</a><a href="quickstart.html">Quick start</a><a href="example.html">Terminal example</a><p>USE BUILDRELAY</p><a href="workflow.html" aria-current="page">Workflow &amp; alignment</a><a href="configuration.html">Models &amp; configuration</a><a href="execution.html">Execution &amp; web research</a><a href="projects.html">Projects &amp; memory</a><a href="project-tools.html">Sessions, verify &amp; preview</a><a href="resume.html">Resume a task</a><p>INSPECT & VERIFY</p><a href="quality.html">Supervision &amp; evaluation</a><a href="architecture.html">Architecture</a><a href="testing.html">Testing &amp; integration</a><a href="limitations.html">Limits &amp; security</a><a href="troubleshooting.html">Troubleshooting</a></nav></details></aside><main id="content"><div class="breadcrumb">BuildRelay / Workflow &amp; alignment</div><h1>Workflow &amp; alignment</h1><h2 id="how-the-workflow-runs">How the workflow runs</h2>
+<a class="diagram-link" href="diagrams/workflow.svg" aria-label="Open diagram at full size"><img src="diagrams/workflow.svg" alt="Natasha routes requests through research, design, or direct implementation, supervised by Dana, ending with Meti and validation." width="760"></a>
 <ul>
 <li><strong>Natasha — coordinator:</strong> produces a typed task brief, a 5-sentence intent alignment brief, and conducts an interactive Grill-Me interview (up to 10 questions) to clarify goals, entry mechanisms, and edge cases before routing. Prompts with a low-friction clarification wizard, supports mid-way intent pivots, queries existing vault connections, and can look up official library names online.</li>
 <li><strong>Odin — researcher:</strong> queries vault graph metadata and external web documentation / package registries (PyPI, npm, Tavily API) to produce technical findings and recommended stacks. Research notes record resolved vault notes and external search-result URLs. Tasks marked with <code>--research</code> / <code>--research-only</code> complete cleanly after Odin without invoking design or implementation.</li>
@@ -9,7 +9,7 @@
 <li><strong>Meti — implementer:</strong> writes code through Docker commands with live progress spinners and validates phases in order. Executes backend core logic and Tier 1 unit tests first, then builds modern UI surfaces using Tailwind CSS CDN, real-time client validation, button loading spinners, and dismissible alerts. Generates a workspace <code>README.md</code> with run/test instructions, logs execution details to <code>.state/task.log</code>, and renders a file tree and <code>How to Run &amp; Test</code> banner. A reported success is downgraded to failure if any phase remains unvalidated.</li>
 <li><strong>Dana — quality supervisor:</strong> evaluates intermediate deliverables across every stage (Natasha's intent brief, Odin's research report, Taghi's architecture spec, and Meti's Docker deliverable) against 5 core engineering criteria: schema completeness, container isolation, offline determinism, user input ergonomics, and modular architecture. In advisory mode (<code>--supervise advisory</code> / <code>--dana</code>), presents a structured critique card with scores and actionable guidance; in autonomous mode (<code>--supervise autonomous</code>), detects gaps and autonomously steers leads with corrective prompts to revise deliverables before handoff. Audit notes are persisted in <code>vault/supervision/</code>.</li>
 </ul>
-<p>Agents run sequentially along the selected route, overseen by Dana at critical stage boundaries. Research requests continue through design and implementation; design requests continue through implementation. Research-only tasks complete immediately after Odin.</p>
+<p>Agents run sequentially along the selected route, overseen by Dana at critical stage boundaries. Research-led build requests continue through design and implementation; explicit research-only tasks stop after Odin. Design-led requests continue through implementation. Dana supervision is opt-in, not a mandatory fifth sequential stage.</p>
 <h2 id="interactive-alignment-and-execution-modes">Interactive alignment and execution modes</h2>
 <p>To eliminate early misunderstandings and prevent wasted model calls, BuildRelay provides an interactive alignment and review pipeline:</p>
 <ol>
@@ -74,7 +74,7 @@
 <li><strong>Tier 2 (Guided Live Verification):</strong> Meti generates a live smoke-test script (e.g., <code>scripts/verify_live.py</code> or Apps Script <code>testDirectSync()</code>) and an interactive <strong>Live Verification Checklist</strong> in <code>README.md</code> with numbered instructions for verifying against real accounts, spreadsheets, or cloud endpoints.</li>
 </ul>
 </li>
-<li id="continuous-feature-iteration-post-delivery-enhancement-gate"><strong>Continuous Feature Iteration &amp; Post-Delivery Enhancement Gate:</strong>
+<li><strong>Continuous Feature Iteration &amp; Post-Delivery Enhancement Gate:</strong>
 <ul>
 <li>After Meti validates all phases and the deliverable is confirmed, BuildRelay presents an interactive enhancement gate instead of abruptly terminating.</li>
 <li><strong><code>[1]</code> Add New Feature / Milestone:</strong> Prompts for your next requirement, retains the existing project workspace and schemas, and routes sequentially through Natasha → Taghi → Meti. All agents receive existing schemas and memory from <code>PROJECT_PROFILE.md</code> to incrementally evolve the codebase.</li>
@@ -82,31 +82,6 @@
 <li><strong><code>[3]</code> Open Project REPL Session (<code>buildrelay session &lt;project_id&gt;</code>):</strong> Launches the interactive conversational REPL with instant <code>/profile</code>, <code>/env</code>, <code>/verify</code>, <code>/preview</code>, and <code>/test</code> commands.</li>
 <li><strong><code>[4]</code> Run Verification / UI Preview:</strong> Directly runs the Tier 2 live verification smoke test or launches the local web preview server.</li>
 <li><strong><code>[5]</code> Exit Cleanly (<code>[Enter]</code> or <code>[q]</code>):</strong> Concludes the workflow and returns to your shell with all progress safely saved in <code>.state/tasks.db</code> and the project workspace.</li>
-</ul>
-</li>
-<li id="dana-quality-supervisor-autonomous-steering-engine"><strong>Dana Quality Supervisor &amp; Autonomous Steering Engine:</strong>
-<ul>
-<li>Evaluates deliverables across every stage (Natasha intent brief, Odin research report, Taghi architecture spec, Meti container deliverable) against 5 core criteria: schema completeness, container isolation, offline determinism, user input ergonomics, and modular architecture.</li>
-<li><strong>Advisory Mode (<code>--supervise advisory</code> or <code>--dana</code>):</strong> Presents a structured quality critique card with score, strengths, risks/gaps, and actionable recommendations. Allows you to <code>[Enter]</code> proceed, <code>[a]</code> apply recommendations to the lead for automatic revision, <code>[s]</code> skip, or <code>[q]</code> abort.</li>
-<li><strong>Autonomous Mode (<code>--supervise autonomous</code>):</strong> Detects warnings or blocking gaps and autonomously steers the lead with corrective prompts without interrupting human flow.</li>
-<li><strong>Off Mode (default):</strong> Keeps execution lean and direct when supervision is not needed.</li>
-<li><strong>Override Model:</strong> Configure Dana via <code>--model-dana</code> or <code>MODEL_DANA</code> in <code>.env</code>.</li>
-</ul>
-</li>
-<li id="automated-multi-dimensional-deliverable-evaluation-scoring-harness"><strong>Automated Multi-Dimensional Deliverable Evaluation &amp; Scoring Harness:</strong>
-<ul>
-<li>Evaluates completed deliverables across 5 engineering dimensions (up to 20 pts each, 100 max):
-<ul>
-<li><strong>Dimension 1: Test Integrity &amp; Coverage:</strong> Validates test suites, non-trivial assertions, edge case coverage, and mock service adapters. Flags hollow assertions like <code>assert True</code>.</li>
-<li><strong>Dimension 2: Security &amp; Sanitization:</strong> Scans for CSV/spreadsheet formula injection vulnerabilities (<code>=</code>, <code>+</code>, <code>-</code>, <code>@</code>), detects hardcoded API secrets/tokens, and verifies environment variable hygiene.</li>
-<li><strong>Dimension 3: UI Surface &amp; Usability:</strong> Validates presence and usability of user entry points (<code>form.html</code>, responsive styling, field constraints, interactive CLI).</li>
-<li><strong>Dimension 4: Tier 2 Live Verification Readiness:</strong> Checks for dedicated smoke test scripts (<code>scripts/verify_live.py</code>) decoupled from mock fixtures, plus actionable numbered checklists in <code>README.md</code>.</li>
-<li><strong>Dimension 5: Architectural Conformance &amp; Hygiene:</strong> Validates separation of concerns, living <code>PROJECT_PROFILE.md</code> memory, and documentation.</li>
-</ul>
-</li>
-<li><strong>CLI Command:</strong> <code>buildrelay --eval [project_id|task_id]</code> or <code>python main.py --eval [project_id|task_id]</code>.</li>
-<li><strong>Project REPL Command:</strong> <code>/eval</code> inside <code>buildrelay session &lt;project_id&gt;</code>.</li>
-<li><strong>Persistent Reports:</strong> Saves comprehensive Markdown audit reports in <code>vault/evaluations/eval-&lt;task_id&gt;.md</code>.</li>
 </ul>
 </li>
 </ol>

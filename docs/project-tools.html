@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>Sessions, verify &amp; preview · BuildRelay</title><meta name="description" content="BuildRelay guides: plan, build, check, and resume development tasks."><link rel="icon" href="brand/logo.svg" type="image/svg+xml"><link rel="stylesheet" href="site.css"><script src="site.js" defer></script><link rel="canonical" href="https://dutch-panda.github.io/BuildRelay/project-tools.html"></head>
+<body><a class="skip" href="#content">Skip to content</a><header><a class="brand" href="index.html"><img src="brand/logo.svg" alt="" width="32" height="32">BuildRelay <span>Docs</span></a><a href="https://github.com/Dutch-panda/BuildRelay">GitHub ↗</a></header><div class="layout"><aside class="sidebar"><details open><summary>Documentation</summary><nav aria-label="Documentation"><p>GET STARTED</p><a href="index.html">Introduction</a><a href="quickstart.html">Quick start</a><a href="example.html">Terminal example</a><p>USE BUILDRELAY</p><a href="workflow.html">Workflow &amp; alignment</a><a href="configuration.html">Models &amp; configuration</a><a href="execution.html">Execution &amp; web research</a><a href="projects.html">Projects &amp; memory</a><a href="project-tools.html" aria-current="page">Sessions, verify &amp; preview</a><a href="resume.html">Resume a task</a><p>INSPECT & VERIFY</p><a href="quality.html">Supervision &amp; evaluation</a><a href="architecture.html">Architecture</a><a href="testing.html">Testing &amp; integration</a><a href="limitations.html">Limits &amp; security</a><a href="troubleshooting.html">Troubleshooting</a></nav></details></aside><main id="content"><div class="breadcrumb">BuildRelay / Sessions, verify &amp; preview</div><h1>Sessions, verify &amp; preview</h1><h2 id="project-repl-live-verification-and-ui-preview">Project REPL, Live Verification, and UI Preview</h2>
+<p>To manage real-world business automations and APIs iteratively, BuildRelay provides an interactive project session REPL alongside dedicated Tier 2 verification and preview commands:</p>
+<h3 id="1-interactive-project-repl-session-buildrelay-session">1. Interactive Project REPL Session (<code>buildrelay session</code>)</h3>
+<p>Launch a continuous development session tied to a permanent project workspace:</p>
+<pre><code class="language-bash">python main.py session sales-sync
+# Or:
+python main.py --session sales-sync
+</code></pre>
+<p>Inside the session REPL, developers can refine architectures, plan next features, or execute commands:</p>
+<ul>
+<li><strong><code>/profile</code></strong>: Inspect living project memory (<code>PROJECT_PROFILE.md</code>), active data schemas, entry surfaces, and execution history.</li>
+<li><strong><code>/env</code></strong>: View or securely configure project-specific credentials (<code>.env</code>, mode <code>0600</code>, gitignored).</li>
+<li><strong><code>/verify</code></strong>: Run the Tier 2 live verification smoke test against real services on the host.</li>
+<li><strong><code>/preview</code></strong>: Spin up a local HTTP preview server to interact with generated HTML entry forms.</li>
+<li><strong><code>/test</code></strong>: Run local container unit tests inside the Docker sandbox.</li>
+<li><strong><code>/exit</code></strong>: Exit session.</li>
+</ul>
+<h3 id="2-live-verification-runner-buildrelay-verify">2. Live Verification Runner (<code>buildrelay verify</code>)</h3>
+<p>Execute Tier 2 live verification smoke scripts (<code>scripts/verify_live.py</code>, <code>scripts/verify.js</code>, or Apps Script direct tests) with real credentials on the host:</p>
+<pre><code class="language-bash">python main.py --verify sales-sync
+# Or:
+python main.py verify sales-sync
+</code></pre>
+<h3 id="3-local-ui--input-preview-buildrelay-preview">3. Local UI &amp; Input Preview (<code>buildrelay preview</code>)</h3>
+<p>Launch a zero-dependency local preview server serving all user entry forms and dashboards (<code>form.html</code>, <code>web-entry.html</code>, <code>index.html</code>):</p>
+<pre><code class="language-bash">python main.py --preview sales-sync --port 8080
+# Or:
+python main.py preview sales-sync
+</code></pre>
+<p>Opens your default web browser to the primary entry surface and provides clean access URLs for team review.</p>
+<footer>Early-stage developer tool · Review generated code and validation results.<br><a href="https://github.com/Dutch-panda/BuildRelay/blob/main/README.md">Source guide on GitHub</a></footer></main><aside class="toc"><nav aria-label="On this page"><p>ON THIS PAGE</p><a href="#project-repl-live-verification-and-ui-preview">Project REPL, Live Verification, and UI Preview</a></nav></aside></div></body></html>
