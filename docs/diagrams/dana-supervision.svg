@@ -1,0 +1,212 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="440" viewBox="0 0 880 440" role="img" aria-labelledby="dana-title dana-desc">
+  <title id="dana-title">Dana Quality Supervision and Deliverable Evaluation Engine</title>
+  <desc id="dana-desc">Detailed architecture of Dana Quality Supervisor: stage-boundary deliverable auditing across Natasha, Odin, Taghi, and Meti, 5 evaluation criteria, advisory critique cards, autonomous steering loops, and the 100-point deliverable evaluation harness.</desc>
+
+  <defs>
+    <marker id="arrow-blue" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0 0 L8 4 L0 8" fill="#60a5fa"/>
+    </marker>
+    <marker id="arrow-red" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0 0 L8 4 L0 8" fill="#f87171"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0 0 L8 4 L0 8" fill="#4ade80"/>
+    </marker>
+    <linearGradient id="bg-canvas" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#181716"/>
+      <stop offset="100%" stop-color="#121110"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background Canvas -->
+  <rect width="880" height="440" rx="14" fill="url(#bg-canvas)" stroke="#34312b" stroke-width="1.2"/>
+
+  <style>
+    .title { font-family: system-ui, -apple-system, sans-serif; font-size: 15px; font-weight: 700; fill: #f5f5f4; }
+    .subtitle { font-family: system-ui, -apple-system, sans-serif; font-size: 11px; fill: #a8a29e; }
+    .badge { font-family: system-ui, -apple-system, sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+    .card-title { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 600; fill: #f5f5f4; }
+    .item-title { font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 600; fill: #e7e5e4; }
+    .item-desc { font-family: system-ui, -apple-system, sans-serif; font-size: 10px; fill: #a8a29e; }
+    .verdict-box { font-family: system-ui, -apple-system, sans-serif; font-size: 9px; font-weight: 700; }
+  </style>
+
+  <!-- Header -->
+  <g transform="translate(28, 20)">
+    <text class="title" x="0" y="16">Dana Quality Supervision &amp; Deliverable Evaluation Engine</text>
+    <text class="subtitle" x="0" y="34">Stage-boundary deliverable review · Advisory critique cards · Autonomous steering · 100-point evaluation harness</text>
+  </g>
+
+  <!-- TOP ROW: 4 STAGE INPUT DELIVERABLES -->
+  <g transform="translate(28, 68)">
+    <!-- Natasha Handoff -->
+    <g transform="translate(0, 0)">
+      <rect width="195" height="58" rx="6" fill="#082f49" stroke="#0284c7" stroke-width="1.2"/>
+      <rect x="8" y="8" width="60" height="16" rx="3" fill="#0c4a6e"/>
+      <text class="badge" x="12" y="20" fill="#7dd3fc">NATASHA</text>
+      <text class="item-title" x="74" y="20" fill="#bae6fd">Intent Brief</text>
+      <text class="item-desc" x="8" y="42">Scope clarity &amp; entry triggers</text>
+    </g>
+
+    <!-- Odin Handoff -->
+    <g transform="translate(210, 0)">
+      <rect width="195" height="58" rx="6" fill="#2e1065" stroke="#7c3aed" stroke-width="1.2"/>
+      <rect x="8" y="8" width="46" height="16" rx="3" fill="#4c1d95"/>
+      <text class="badge" x="12" y="20" fill="#d8b4fe">ODIN</text>
+      <text class="item-title" x="60" y="20" fill="#e9d5ff">Research Stack</text>
+      <text class="item-desc" x="8" y="42">Vault lookup &amp; verified libraries</text>
+    </g>
+
+    <!-- Taghi Handoff -->
+    <g transform="translate(420, 0)">
+      <rect width="195" height="58" rx="6" fill="#451a03" stroke="#b45309" stroke-width="1.2"/>
+      <rect x="8" y="8" width="50" height="16" rx="3" fill="#78350f"/>
+      <text class="badge" x="12" y="20" fill="#fde68a">TAGHI</text>
+      <text class="item-title" x="64" y="20" fill="#fef3c7">Dual Specs</text>
+      <text class="item-desc" x="8" y="42">Backend spec.md &amp; UI ui.md</text>
+    </g>
+
+    <!-- Meti Handoff -->
+    <g transform="translate(630, 0)">
+      <rect width="194" height="58" rx="6" fill="#064e3b" stroke="#059669" stroke-width="1.2"/>
+      <rect x="8" y="8" width="46" height="16" rx="3" fill="#047857"/>
+      <text class="badge" x="12" y="20" fill="#86efac">METI</text>
+      <text class="item-title" x="60" y="20" fill="#d1fae5">Deliverable</text>
+      <text class="item-desc" x="8" y="42">Docker code, tests &amp; UI surface</text>
+    </g>
+  </g>
+
+  <!-- Downward Arrows into Dana Engine -->
+  <path d="M125 126 V150" stroke="#60a5fa" stroke-width="1.4" marker-end="url(#arrow-blue)"/>
+  <path d="M335 126 V150" stroke="#60a5fa" stroke-width="1.4" marker-end="url(#arrow-blue)"/>
+  <path d="M545 126 V150" stroke="#60a5fa" stroke-width="1.4" marker-end="url(#arrow-blue)"/>
+  <path d="M755 126 V150" stroke="#60a5fa" stroke-width="1.4" marker-end="url(#arrow-blue)"/>
+
+  <!-- DANA CORE CRITERIA REVIEW ENGINE -->
+  <g transform="translate(28, 150)">
+    <rect width="824" height="120" rx="10" fill="#0f172a" stroke="#3b82f6" stroke-width="1.4"/>
+    
+    <g transform="translate(16, 12)">
+      <rect width="52" height="18" rx="4" fill="#1e1b4b"/>
+      <text class="badge" x="8" y="13" fill="#a5b4fc">DANA</text>
+      <text class="card-title" x="62" y="14" fill="#bfdbfe">Stage Quality Review: 5 Core Engineering Criteria</text>
+    </g>
+
+    <!-- 5 Criteria Boxes -->
+    <g transform="translate(16, 40)">
+      <!-- 1. Schema -->
+      <rect width="150" height="66" rx="5" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+      <text class="item-title" x="8" y="18" fill="#93c5fd">1. Schema &amp; Types</text>
+      <text class="item-desc" x="8" y="34">• Data models &amp; types</text>
+      <text class="item-desc" x="8" y="48">• Missing columns &amp; bounds</text>
+      <text class="item-desc" x="8" y="60">• Edge-case handling</text>
+
+      <!-- 2. Security -->
+      <rect x="160" width="150" height="66" rx="5" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+      <text class="item-title" x="168" y="18" fill="#93c5fd">2. Security Boundary</text>
+      <text class="item-desc" x="168" y="34">• Zero host env leakage</text>
+      <text class="item-desc" x="168" y="48">• Formula sanitizers (=+-@)</text>
+      <text class="item-desc" x="168" y="60">• Credentials in .env (0600)</text>
+
+      <!-- 3. Determinism -->
+      <rect x="320" width="150" height="66" rx="5" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+      <text class="item-title" x="328" y="18" fill="#93c5fd">3. Determinism</text>
+      <text class="item-desc" x="328" y="34">• 0 external net in Docker</text>
+      <text class="item-desc" x="328" y="48">• In-memory mock adapters</text>
+      <text class="item-desc" x="328" y="60">• Offline unit test suite</text>
+
+      <!-- 4. Ergonomics -->
+      <rect x="480" width="150" height="66" rx="5" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+      <text class="item-title" x="488" y="18" fill="#93c5fd">4. UI/UX Ergonomics</text>
+      <text class="item-desc" x="488" y="34">• form.html user entry point</text>
+      <text class="item-desc" x="488" y="48">• Instant client validation</text>
+      <text class="item-desc" x="488" y="60">• Dynamic feedback states</text>
+
+      <!-- 5. Architecture -->
+      <rect x="640" width="150" height="66" rx="5" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+      <text class="item-title" x="648" y="18" fill="#93c5fd">5. Modularity</text>
+      <text class="item-desc" x="648" y="34">• Clean component design</text>
+      <text class="item-desc" x="648" y="48">• Extensible architecture</text>
+      <text class="item-desc" x="648" y="60">• Preserves PROJECT memory</text>
+    </g>
+  </g>
+
+  <!-- Downward Arrows from Dana Engine to Outcomes -->
+  <path d="M230 270 V292" stroke="#60a5fa" stroke-width="1.4" marker-end="url(#arrow-blue)"/>
+  <path d="M650 270 V292" stroke="#60a5fa" stroke-width="1.4" marker-end="url(#arrow-blue)"/>
+
+  <!-- BOTTOM ROW: DUAL OPERATING MODES & SCORECARD HARNESS -->
+  <g transform="translate(28, 292)">
+    <!-- LEFT: ADVISORY & AUTONOMOUS SUPERVISION MODES -->
+    <g transform="translate(0, 0)">
+      <rect width="400" height="130" rx="8" fill="#1e1b4b" stroke="#6366f1" stroke-width="1.2"/>
+      <text class="badge" x="14" y="20" fill="#a5b4fc">DUAL SUPERVISION MODES</text>
+      <text class="card-title" x="14" y="38">Structured Critique &amp; Autonomous Steering</text>
+      
+      <!-- Mode A -->
+      <g transform="translate(14, 48)">
+        <rect width="180" height="68" rx="5" fill="#131131" stroke="#818cf8" stroke-width="1"/>
+        <text class="item-title" x="8" y="16" fill="#c7d2fe">Advisory Mode (--dana)</text>
+        <text class="item-desc" x="8" y="30">• Rich terminal review card</text>
+        <text class="item-desc" x="8" y="44">• Strengths, gaps &amp; recommendations</text>
+        <text class="item-desc" x="8" y="58">• Gate: developer reviews or steers</text>
+      </g>
+
+      <!-- Mode B -->
+      <g transform="translate(204, 48)">
+        <rect width="180" height="68" rx="5" fill="#131131" stroke="#f43f5e" stroke-width="1"/>
+        <text class="item-title" x="8" y="16" fill="#fecdd3">Autonomous (--supervise)</text>
+        <text class="item-desc" x="8" y="30">• Evaluates verdict threshold</text>
+        <text class="item-desc" x="8" y="44">• Auto-rejects on warn/block</text>
+        <text class="item-desc" x="8" y="58">• Steers lead to revise without human</text>
+      </g>
+    </g>
+
+    <!-- RIGHT: AUTOMATED EVALUATION HARNESS SCORECARD -->
+    <g transform="translate(424, 0)">
+      <rect width="400" height="130" rx="8" fill="#1c1917" stroke="#eab308" stroke-width="1.2"/>
+      <rect x="14" y="10" width="105" height="16" rx="3" fill="#422006"/>
+      <text class="badge" x="18" y="22" fill="#fde047">BUILDRELAY EVAL</text>
+      <text class="card-title" x="126" y="22">5-Dimension Deliverable Scorecard (0–100)</text>
+
+      <!-- Scorecard Table Preview -->
+      <g transform="translate(14, 34)">
+        <!-- Dim 1 -->
+        <text class="item-desc" x="0" y="12" fill="#e7e5e4">Test Integrity &amp; Coverage (0-20)</text>
+        <rect x="250" y="3" width="70" height="12" rx="2" fill="#065f46"/>
+        <text class="verdict-box" x="256" y="12" fill="#6ee7b7">20/20 PASS</text>
+
+        <!-- Dim 2 -->
+        <text class="item-desc" x="0" y="28" fill="#e7e5e4">Security &amp; Formula Sanitization (0-20)</text>
+        <rect x="250" y="19" width="70" height="12" rx="2" fill="#065f46"/>
+        <text class="verdict-box" x="256" y="28" fill="#6ee7b7">20/20 PASS</text>
+
+        <!-- Dim 3 -->
+        <text class="item-desc" x="0" y="44" fill="#e7e5e4">UI Surface &amp; Usability (0-20)</text>
+        <rect x="250" y="35" width="70" height="12" rx="2" fill="#065f46"/>
+        <text class="verdict-box" x="256" y="44" fill="#6ee7b7">18/20 PASS</text>
+
+        <!-- Dim 4 -->
+        <text class="item-desc" x="0" y="60" fill="#e7e5e4">Tier 2 Live Verification Readiness (0-20)</text>
+        <rect x="250" y="51" width="70" height="12" rx="2" fill="#065f46"/>
+        <text class="verdict-box" x="256" y="60" fill="#6ee7b7">18/20 PASS</text>
+
+        <!-- Dim 5 -->
+        <text class="item-desc" x="0" y="76" fill="#e7e5e4">Architectural Conformance (0-20)</text>
+        <rect x="250" y="67" width="70" height="12" rx="2" fill="#065f46"/>
+        <text class="verdict-box" x="256" y="76" fill="#6ee7b7">18/20 PASS</text>
+
+        <!-- Composite Score -->
+        <line x1="0" y1="84" x2="320" y2="84" stroke="#44403c" stroke-width="1"/>
+        <text class="item-title" x="0" y="93" fill="#facc15">TOTAL SCORE: 94/100</text>
+        <rect x="230" y="86" width="90" height="12" rx="2" fill="#14532d"/>
+        <text class="verdict-box" x="236" y="95" fill="#4ade80">EXCEPTIONAL</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Autonomous Steering Loopback Vector from Autonomous mode back up to leads -->
+  <path d="M210 376 H20 V96 H26" fill="none" stroke="#f43f5e" stroke-width="1.4" stroke-dasharray="3 3" marker-end="url(#arrow-red)"/>
+  <rect x="4" y="210" width="80" height="14" rx="3" fill="#1c1917" stroke="#881337" stroke-width="1"/>
+  <text x="8" y="220" font-size="8" fill="#fda4af" font-weight="700">STEER &amp; REVISE</text>
+</svg>
