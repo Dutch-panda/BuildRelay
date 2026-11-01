@@ -223,6 +223,16 @@ To eliminate early misunderstandings and prevent wasted model calls, BuildRelay 
    - **Autonomous Mode (`--supervise autonomous`):** Detects warnings or blocking gaps and autonomously steers the lead with corrective prompts without interrupting human flow.
    - **Off Mode (default):** Keeps execution lean and direct when supervision is not needed.
    - **Override Model:** Configure Dana via `--model-dana` or `MODEL_DANA` in `.env`.
+10. **Automated Multi-Dimensional Deliverable Evaluation & Scoring Harness:**
+   - Evaluates completed deliverables across 5 engineering dimensions (up to 20 pts each, 100 max):
+     - **Dimension 1: Test Integrity & Coverage:** Validates test suites, non-trivial assertions, edge case coverage, and mock service adapters. Flags hollow assertions like `assert True`.
+     - **Dimension 2: Security & Sanitization:** Scans for CSV/spreadsheet formula injection vulnerabilities (`=`, `+`, `-`, `@`), detects hardcoded API secrets/tokens, and verifies environment variable hygiene.
+     - **Dimension 3: UI Surface & Usability:** Validates presence and usability of user entry points (`form.html`, responsive styling, field constraints, interactive CLI).
+     - **Dimension 4: Tier 2 Live Verification Readiness:** Checks for dedicated smoke test scripts (`scripts/verify_live.py`) decoupled from mock fixtures, plus actionable numbered checklists in `README.md`.
+     - **Dimension 5: Architectural Conformance & Hygiene:** Validates separation of concerns, living `PROJECT_PROFILE.md` memory, and documentation.
+   - **CLI Command:** `buildrelay --eval [project_id|task_id]` or `python main.py --eval [project_id|task_id]`.
+   - **Project REPL Command:** `/eval` inside `buildrelay session <project_id>`.
+   - **Persistent Reports:** Saves comprehensive Markdown audit reports in `vault/evaluations/eval-<task_id>.md`.
 
 ## Token usage and cost analytics
 

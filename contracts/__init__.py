@@ -5,6 +5,7 @@ from __future__ import annotations
 __version__ = "0.2.0"
 
 from dataclasses import asdict
+from datetime import datetime
 from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.dataclasses import dataclass
@@ -490,3 +491,85 @@ class DanaCritique(BaseModel):
     def items(self):
         return self.__dict__.items()
 
+
+class DimensionEvaluation(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    dimension: str = Field(description="Unique dimension identifier, e.g. test_integrity, security_sanitization, ui_surface, live_verification, architectural_conformance")
+    label: str = Field(description="Display label, e.g. 'Test Integrity & Coverage'")
+    score: int = Field(default=20, ge=0, le=20, description="Dimension score out of 20")
+    max_score: int = Field(default=20, description="Maximum possible score for this dimension")
+    status: Literal["excellent", "good", "marginal", "fail"] = Field(
+        default="good",
+        description="Rating status for the dimension"
+    )
+    findings: list[str] = Field(default_factory=list, description="Diagnostic observations and findings")
+    recommendations: list[str] = Field(default_factory=list, description="Actionable recommendations to improve this dimension")
+
+    def __getitem__(self, item: str) -> Any:
+        try:
+            return getattr(self, item)
+        except AttributeError:
+            raise KeyError(item)
+
+    def get(self, item: str, default: Any = None) -> Any:
+        val = getattr(self, item, default)
+        return val if val is not None else default
+
+    def __contains__(self, item: str) -> bool:
+        return hasattr(self, item)
+
+    def __iter__(self):
+        return iter(self.__dict__)
+
+    def keys(self):
+        return self.__dict__.keys()
+
+    def values(self):
+        return self.__dict__.values()
+
+    def items(self):
+        return self.__dict__.items()
+
+
+class DeliverableEvaluationReport(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    task_id: str = Field(description="Associated task identifier")
+    project_id: str | None = Field(default=None, description="Parent project identifier if applicable")
+    overall_score: int = Field(default=100, ge=0, le=100, description="Overall deliverable score (0-100)")
+    verdict: Literal["exceptional", "pass", "marginal", "fail"] = Field(
+        default="pass",
+        description="Overall verdict based on score thresholds"
+    )
+    dimensions: dict[str, DimensionEvaluation] = Field(
+        default_factory=dict,
+        description="Mapping of dimension identifier to DimensionEvaluation"
+    )
+    summary: str = Field(default="", description="High-level evaluation assessment summary")
+    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat(), description="Evaluation timestamp")
+
+    def __getitem__(self, item: str) -> Any:
+        try:
+            return getattr(self, item)
+        except AttributeError:
+            raise KeyError(item)
+
+    def get(self, item: str, default: Any = None) -> Any:
+        val = getattr(self, item, default)
+        return val if val is not None else default
+
+    def __contains__(self, item: str) -> bool:
+        return hasattr(self, item)
+
+    def __iter__(self):
+        return iter(self.__dict__)
+
+    def keys(self):
+        return self.__dict__.keys()
+
+    def values(self):
+        return self.__dict__.values()
+
+    def items(self):
+        return self.__dict__.items()

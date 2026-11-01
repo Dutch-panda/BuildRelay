@@ -52,6 +52,11 @@ Your objective is maximum autonomy within strict security boundaries.
 - **Verification Runner & UI Preview**:
   - `buildrelay verify <project_id>` (`tools/live_verifier.py`): Tier 2 live verification smoke test runner executing host scripts with project credentials.
   - `buildrelay preview <project_id>` (`tools/ui_preview.py`): Local web preview server serving generated input forms and web entries.
+- **Automated Deliverable Evaluation Harness**:
+  - `buildrelay eval <project_id|task_id>` (`tools/eval_harness.py`): Multi-dimensional evaluation engine scoring deliverables across 5 dimensions: Test Integrity & Coverage (0-20), Security & Sanitization (0-20), UI Surface & Usability (0-20), Tier 2 Live Verification Readiness (0-20), and Architectural Conformance (0-20).
+  - Terminal Scorecard (`print_evaluation_scorecard` in `tools/ui.py`): Renders structured score (0-100), verdict ('exceptional', 'pass', 'marginal', 'fail'), dimension breakdown table, and actionable recommendations.
+  - REPL Command: `/eval` inside `buildrelay session <project_id>`.
+  - Persistence: Saves markdown evaluation reports under `vault/evaluations/eval-<task_id>.md`.
 - **Meti Architecture**:
   - `agents/meti.py`: Implementation coordinator and Docker tool binding.
   - `agents/execution_policy.py`: Phase validation ordering, retry budgets (3 attempts per phase per run), recovery prompts, and ground-truth result finalization.

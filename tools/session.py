@@ -43,6 +43,7 @@ def print_session_banner(project_id: str, workspace_path: Path) -> None:
         "  [cyan]/verify[/cyan]       Run Tier 2 live verification smoke test against real services\n"
         "  [cyan]/preview[/cyan]      Launch local web server to preview generated forms and UIs\n"
         "  [cyan]/test[/cyan]         Execute local container unit tests in this workspace\n"
+        "  [cyan]/eval[/cyan]         Run multi-dimensional quality & security evaluation harness\n"
         "  [cyan]/help[/cyan]         Show available commands\n"
         "  [cyan]/exit[/cyan]         Exit session [dim](or Ctrl+D / quit)[/dim]\n\n"
         "[dim]Enter any prompt or revision instruction to plan, architect, and execute within this project.[/dim]"
@@ -185,6 +186,17 @@ async def run_project_session(
             ret = os.system(test_cmd)
             status_text = "[bold green]PASS[/bold green]" if ret == 0 else "[bold red]FAIL[/bold red]"
             console.print(f"Test run completed: {status_text}\n")
+            continue
+
+        # Deliverable Evaluation Harness command
+        if cmd in ("/eval", "eval"):
+            from tools.eval_harness import DeliverableEvaluator
+            from tools.ui import print_evaluation_scorecard
+            console.print(f"\n[bold]Running evaluation harness for workspace [cyan]{project_id}[/cyan]...[/bold]")
+            evaluator = DeliverableEvaluator(ws_dir, project_id=project_id)
+            report = evaluator.evaluate()
+            evaluator.save_report(report)
+            print_evaluation_scorecard(report)
             continue
 
         # Task Execution in Project Context

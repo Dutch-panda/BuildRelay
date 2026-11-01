@@ -1162,3 +1162,105 @@ def prompt_dana_gate(
     return "apply", choice
 
 
+def print_evaluation_scorecard(report: Any) -> None:
+    """Render the multi-dimensional deliverable evaluation scorecard in Rich."""
+    from rich.table import Table
+
+    overall_score = getattr(report, "overall_score", 0)
+    verdict = str(getattr(report, "verdict", "fail")).lower()
+    task_id = str(getattr(report, "task_id", "unknown"))
+    project_id = getattr(report, "project_id", None)
+    dimensions = getattr(report, "dimensions", {}) or {}
+    summary = str(getattr(report, "summary", ""))
+
+    if verdict == "exceptional":
+        badge = f"[bold green]🌟 EXCEPTIONAL ({overall_score}/100)[/bold green]"
+        border_col = "green"
+    elif verdict == "pass":
+        badge = f"[bold cyan]✓ PASS ({overall_score}/100)[/bold cyan]"
+        border_col = "cyan"
+    elif verdict == "marginal":
+        badge = f"[bold yellow]⚠ MARGINAL ({overall_score}/100)[/bold yellow]"
+        border_col = "yellow"
+    else:
+        badge = f"[bold red]⛔ FAIL ({overall_score}/100)[/bold red]"
+        border_col = "red"
+
+    table = Table(title=None, expand=True, show_header=True, header_style="bold #10b981", border_style="#334155")
+    table.add_column("Dimension", style="bold white", width=34)
+    table.add_column("Score", justify="center", width=12)
+    table.add_column("Rating", justify="center", width=14)
+    table.add_column("Key Diagnostic Finding", style="dim white")
+
+    icons = {
+        "test_integrity": "🧪",
+        "security_sanitization": "🔒",
+        "ui_surface": "🎨",
+        "live_verification": "🚀",
+        "architectural_conformance": "📐",
+    }
+
+    all_recommendations: list[str] = []
+
+    for dim_key, dim_eval in dimensions.items():
+        score = getattr(dim_eval, "score", 0)
+        label = getattr(dim_eval, "label", dim_key)
+        status = str(getattr(dim_eval, "status", "marginal")).lower()
+        findings = getattr(dim_eval, "findings", []) or []
+        recs = getattr(dim_eval, "recommendations", []) or []
+        all_recommendations.extend(recs)
+
+        icon = icons.get(dim_key, "•")
+        score_str = f"{score} / 20"
+
+        if status == "excellent":
+            status_badge = "[bold green]Excellent[/bold green]"
+        elif status == "good":
+            status_badge = "[bold cyan]Good[/bold cyan]"
+        elif status == "marginal":
+            status_badge = "[bold yellow]Marginal[/bold yellow]"
+        else:
+            status_badge = "[bold red]Gap[/bold red]"
+
+        key_finding = findings[0] if findings else "Verified"
+        table.add_row(f"{icon} {label}", score_str, status_badge, escape(key_finding))
+
+    lines = [
+        f"[bold white]Task ID:[/bold white]      [cyan]{escape(task_id)}[/cyan]" + (f"  |  [bold white]Project:[/bold white] [green]{escape(project_id)}[/green]" if project_id else ""),
+        f"[bold white]Result:[/bold white]       {badge}\n",
+        f"[bold white]Executive Assessment:[/bold white]\n{escape(summary)}\n",
+    ]
+
+    header_text = "\n".join(lines)
+    console.print()
+    console.print(
+        Panel(
+            header_text.strip(),
+            title="[bold #10b981]📊 BuildRelay — Deliverable Evaluation Harness[/bold #10b981]",
+            title_align="left",
+            border_style=border_col,
+            padding=(1, 2),
+        )
+    )
+    console.print(table)
+
+    if all_recommendations:
+        rec_lines = []
+        for idx, rec in enumerate(all_recommendations[:5], 1):
+            rec_lines.append(f"  [cyan]{idx}.[/cyan] {escape(str(rec))}")
+        if len(all_recommendations) > 5:
+            rec_lines.append(f"  [dim]... and {len(all_recommendations) - 5} more in report[/dim]")
+
+        console.print(
+            Panel(
+                "\n".join(rec_lines).strip(),
+                title="[bold #f59e0b]💡 Actionable Quality Recommendations[/bold #f59e0b]",
+                title_align="left",
+                border_style="#f59e0b",
+                padding=(1, 2),
+            )
+        )
+    console.print(f"[dim]Audit Report saved to: vault/evaluations/eval-{escape(task_id)}.md[/dim]\n")
+
+
+

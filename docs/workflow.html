@@ -92,5 +92,21 @@
 <li><strong>Override Model:</strong> Configure Dana via <code>--model-dana</code> or <code>MODEL_DANA</code> in <code>.env</code>.</li>
 </ul>
 </li>
+<li id="automated-multi-dimensional-deliverable-evaluation-scoring-harness"><strong>Automated Multi-Dimensional Deliverable Evaluation &amp; Scoring Harness:</strong>
+<ul>
+<li>Evaluates completed deliverables across 5 engineering dimensions (up to 20 pts each, 100 max):
+<ul>
+<li><strong>Dimension 1: Test Integrity &amp; Coverage:</strong> Validates test suites, non-trivial assertions, edge case coverage, and mock service adapters. Flags hollow assertions like <code>assert True</code>.</li>
+<li><strong>Dimension 2: Security &amp; Sanitization:</strong> Scans for CSV/spreadsheet formula injection vulnerabilities (<code>=</code>, <code>+</code>, <code>-</code>, <code>@</code>), detects hardcoded API secrets/tokens, and verifies environment variable hygiene.</li>
+<li><strong>Dimension 3: UI Surface &amp; Usability:</strong> Validates presence and usability of user entry points (<code>form.html</code>, responsive styling, field constraints, interactive CLI).</li>
+<li><strong>Dimension 4: Tier 2 Live Verification Readiness:</strong> Checks for dedicated smoke test scripts (<code>scripts/verify_live.py</code>) decoupled from mock fixtures, plus actionable numbered checklists in <code>README.md</code>.</li>
+<li><strong>Dimension 5: Architectural Conformance &amp; Hygiene:</strong> Validates separation of concerns, living <code>PROJECT_PROFILE.md</code> memory, and documentation.</li>
+</ul>
+</li>
+<li><strong>CLI Command:</strong> <code>buildrelay --eval [project_id|task_id]</code> or <code>python main.py --eval [project_id|task_id]</code>.</li>
+<li><strong>Project REPL Command:</strong> <code>/eval</code> inside <code>buildrelay session &lt;project_id&gt;</code>.</li>
+<li><strong>Persistent Reports:</strong> Saves comprehensive Markdown audit reports in <code>vault/evaluations/eval-&lt;task_id&gt;.md</code>.</li>
+</ul>
+</li>
 </ol>
 <footer>Early-stage developer tool · Review generated code and validation results.<br><a href="https://github.com/Dutch-panda/BuildRelay/blob/main/README.md">Source guide on GitHub</a></footer></main><aside class="toc"><nav aria-label="On this page"><p>ON THIS PAGE</p><a href="#how-the-workflow-runs">How the workflow runs</a><a href="#interactive-alignment-and-execution-modes">Interactive alignment and execution modes</a></nav></aside></div></body></html>

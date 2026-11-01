@@ -531,6 +531,19 @@ async def run_task(
                     record.token_usage["meti"] = impl_res.token_usage
                     ledger.save(record)
 
+    # Automated deliverable evaluation & scoring
+    if impl_res.status == 'success':
+        workspace_dir = project or task_id
+        workspace_path = Path("workspace") / workspace_dir
+        if workspace_path.is_dir():
+            from tools.eval_harness import DeliverableEvaluator
+            from tools.ui import print_evaluation_scorecard
+            evaluator = DeliverableEvaluator(workspace_path, spec=spec, project_id=project, task_id=task_id)
+            report = evaluator.evaluate()
+            evaluator.save_report(report)
+            if not auto:
+                print_evaluation_scorecard(report)
+
     # Post-implementation delivery confirmation gate & refinement loop
     if impl_res.status == 'success' and not auto:
         workspace_dir = project or task_id
@@ -581,6 +594,7 @@ async def main() -> None:
     parser.add_argument('--session', nargs='?', const='', help='Launch interactive REPL project session')
     parser.add_argument('--verify', nargs='?', const='', help='Execute Tier 2 live verification smoke test for a project')
     parser.add_argument('--preview', nargs='?', const='', help='Launch local web preview server for project input surfaces')
+    parser.add_argument('--eval', nargs='?', const='', help='Execute multi-dimensional evaluation and scoring harness for a task or project')
     parser.add_argument('--port', type=int, default=8080, help='Port for local UI preview server (default 8080)')
     parser.add_argument('--project', type=validate_project_id, help='Parent project ID')
     parser.add_argument('--resume', type=validate_task_id, metavar='TASK_ID', help='Resume a saved local task')
@@ -674,6 +688,42 @@ async def main() -> None:
             )
         except KeyboardInterrupt:
             pass
+        return
+
+    # Deliverable evaluation harness runner: python main.py --eval [TARGET] or python main.py eval [TARGET]
+    is_eval = False
+    eval_target = None
+    if getattr(args, "eval", None) is not None:
+        is_eval = True
+        eval_target = args.eval or args.project or ""
+    elif args.prompt and args.prompt.strip().lower().startswith("eval"):
+        is_eval = True
+        parts = args.prompt.strip().split()
+        eval_target = parts[1] if len(parts) > 1 else (args.project or "")
+
+    if is_eval:
+        from tools.eval_harness import DeliverableEvaluator
+        from tools.ui import print_evaluation_scorecard
+        ws_root = Path("workspace")
+        target_dir = None
+        if eval_target:
+            if (ws_root / eval_target).is_dir():
+                target_dir = ws_root / eval_target
+            elif Path(eval_target).is_dir():
+                target_dir = Path(eval_target)
+        if not target_dir and ws_root.is_dir():
+            dirs = [d for d in ws_root.iterdir() if d.is_dir() and not d.name.startswith((".", "_"))]
+            if dirs:
+                dirs.sort(key=lambda d: d.stat().st_mtime, reverse=True)
+                target_dir = dirs[0]
+        if not target_dir:
+            print_agent('orchestrator', 'No project or task workspace found to evaluate.')
+            sys.exit(1)
+
+        evaluator = DeliverableEvaluator(target_dir, project_id=args.project)
+        report = evaluator.evaluate()
+        evaluator.save_report(report)
+        print_evaluation_scorecard(report)
         return
 
     if args.resume and (args.prompt is not None or args.project is not None):
