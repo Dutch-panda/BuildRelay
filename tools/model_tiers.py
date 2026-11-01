@@ -15,6 +15,7 @@ LEAD_TOKEN_PROFILES: dict[str, dict[str, int]] = {
     "odin": {"input": 2500, "output": 800},
     "taghi": {"input": 3500, "output": 1500},
     "meti": {"input": 10000, "output": 3000},
+    "dana": {"input": 2000, "output": 600},
 }
 
 DEFAULT_TIERS: dict[str, dict[str, str]] = {
@@ -23,18 +24,21 @@ DEFAULT_TIERS: dict[str, dict[str, str]] = {
         "odin": "openai:gpt-4o-mini",
         "taghi": "openai:gpt-4o-mini",
         "meti": "openai:gpt-4o-mini",
+        "dana": "openai:gpt-4o-mini",
     },
     "balanced": {
         "natasha": "openai:gpt-4o-mini",
         "odin": "openai:gpt-4o-mini",
         "taghi": "openai:o3-mini",
         "meti": "openai:gpt-4o",
+        "dana": "openai:gpt-4o",
     },
     "powerful": {
         "natasha": "openai:gpt-4o",
         "odin": "openai:gpt-4o",
         "taghi": "openai:o3-mini",
         "meti": "openai:gpt-4o",
+        "dana": "openai:o3-mini",
     },
 }
 
@@ -44,18 +48,21 @@ ANTHROPIC_TIERS: dict[str, dict[str, str]] = {
         "odin": "anthropic:claude-3-5-haiku",
         "taghi": "anthropic:claude-3-5-haiku",
         "meti": "anthropic:claude-3-5-haiku",
+        "dana": "anthropic:claude-3-5-haiku",
     },
     "balanced": {
         "natasha": "anthropic:claude-3-5-haiku",
         "odin": "anthropic:claude-3-5-haiku",
         "taghi": "anthropic:claude-3-7-sonnet",
         "meti": "anthropic:claude-3-7-sonnet",
+        "dana": "anthropic:claude-3-7-sonnet",
     },
     "powerful": {
         "natasha": "anthropic:claude-3-7-sonnet",
         "odin": "anthropic:claude-3-7-sonnet",
         "taghi": "anthropic:claude-3-7-sonnet",
         "meti": "anthropic:claude-3-7-sonnet",
+        "dana": "anthropic:claude-3-7-sonnet",
     },
 }
 
@@ -65,18 +72,21 @@ GEMINI_TIERS: dict[str, dict[str, str]] = {
         "odin": "google:gemini-2.0-flash",
         "taghi": "google:gemini-2.0-flash",
         "meti": "google:gemini-2.0-flash",
+        "dana": "google:gemini-2.0-flash",
     },
     "balanced": {
         "natasha": "google:gemini-2.0-flash",
         "odin": "google:gemini-2.0-flash",
         "taghi": "google:gemini-2.5-pro",
         "meti": "google:gemini-2.5-pro",
+        "dana": "google:gemini-2.5-pro",
     },
     "powerful": {
         "natasha": "google:gemini-2.5-pro",
         "odin": "google:gemini-2.5-pro",
         "taghi": "google:gemini-2.5-pro",
         "meti": "google:gemini-2.5-pro",
+        "dana": "google:gemini-2.5-pro",
     },
 }
 
@@ -86,18 +96,21 @@ CHATGPT_OAUTH_TIERS: dict[str, dict[str, str]] = {
         "odin": "openai:gpt-4o-mini",
         "taghi": "openai:gpt-4o-mini",
         "meti": "openai:gpt-4o-mini",
+        "dana": "openai:gpt-4o-mini",
     },
     "balanced": {
         "natasha": "openai:gpt-4o-mini",
         "odin": "openai:gpt-4o-mini",
         "taghi": "openai:o3-mini",
         "meti": os.environ.get("OPENAI_MODEL", "openai:gpt-4o"),
+        "dana": os.environ.get("OPENAI_MODEL", "openai:gpt-4o"),
     },
     "powerful": {
         "natasha": "openai:gpt-4o",
         "odin": "openai:gpt-4o",
         "taghi": "openai:o3-mini",
         "meti": os.environ.get("OPENAI_MODEL", "openai:gpt-4o"),
+        "dana": "openai:o3-mini",
     },
 }
 
@@ -195,6 +208,7 @@ def resolve_pipeline_models(
             "odin": global_model,
             "taghi": global_model,
             "meti": global_model,
+            "dana": global_model,
         }
         for lead, mdl in overrides.items():
             if mdl is not None:
@@ -203,7 +217,7 @@ def resolve_pipeline_models(
 
     env_overrides = {
         lead: os.environ.get(f"MODEL_{lead.upper()}")
-        for lead in ("natasha", "odin", "taghi", "meti")
+        for lead in ("natasha", "odin", "taghi", "meti", "dana")
         if os.environ.get(f"MODEL_{lead.upper()}")
     }
     effective_overrides = {**env_overrides, **{k: v for k, v in overrides.items() if v is not None}}
@@ -213,7 +227,7 @@ def resolve_pipeline_models(
         chosen = global_model or os.environ.get("BUILDRELAY_MODEL")
         if chosen:
             return {lead: overrides.get(lead) or (global_model if global_model is not None else env_overrides.get(lead)) or chosen
-                    for lead in ("natasha", "odin", "taghi", "meti")}
+                    for lead in ("natasha", "odin", "taghi", "meti", "dana")}
 
     effective_tier = tier or (os.environ.get("DEFAULT_TIER") if global_model is None else None)
 
@@ -225,6 +239,7 @@ def resolve_pipeline_models(
             "odin": uniform_model,
             "taghi": uniform_model,
             "meti": uniform_model,
+            "dana": uniform_model,
         }
 
     provider = detect_provider(global_model)
@@ -250,6 +265,7 @@ def resolve_pipeline_models(
             "odin": global_model,
             "taghi": global_model,
             "meti": global_model,
+            "dana": global_model,
         }
     else:
         base_models = dict(tier_table[selected_tier])

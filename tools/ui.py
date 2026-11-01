@@ -21,6 +21,7 @@ AGENT_THEMES: dict[str, dict[str, str]] = {
     "odin": {"name": "Odin", "color": "bold #06b6d4", "icon": "🔵", "role": "Researcher"},
     "taghi": {"name": "Taghi", "color": "bold #22c55e", "icon": "🟢", "role": "Architect"},
     "meti": {"name": "Meti", "color": "bold #ffa76c", "icon": "🟠", "role": "Implementer"},
+    "dana": {"name": "Dana", "color": "bold #a855f7", "icon": "🧭", "role": "Quality Supervisor"},
     "docker": {"name": "Docker", "color": "bold #38bdf8", "icon": "🐳", "role": "Sandbox"},
     "orchestrator": {"name": "BuildRelay", "color": "bold #818cf8", "icon": "⚡", "role": "System"},
     "resume": {"name": "Resume", "color": "bold #eab308", "icon": "🔄", "role": "Recovery"},
@@ -846,6 +847,12 @@ def print_model_lineup_card(
         str_right = f"[{t_right['color']}]{t_right['icon']} {t_right['name']}:[/{t_right['color']}] [white]{escape(str(mdl_right))}[/white] [dim]({lbl_right})[/dim]"
         content_lines.append(f"{str_left:<42}  {str_right}")
 
+    if "dana" in models and models["dana"]:
+        t_dana = _get_theme("dana")
+        mdl_dana = models["dana"]
+        lbl_dana = get_tier_label(mdl_dana)
+        content_lines.append(f"[{t_dana['color']}]{t_dana['icon']} {t_dana['name']}:[/{t_dana['color']}] [white]{escape(str(mdl_dana))}[/white] [dim]({lbl_dana})[/dim]")
+
     footer = f"\n[bold cyan]Selection:[/bold cyan] {'Per lead' if tier == 'manual' else tier.title()}  |  [bold yellow]Prompt Caching:[/bold yellow] {'Requested; provider-dependent' if prompt_caching else 'Disabled'}"
     if budget_estimate:
         footer += f"  |  [bold green]Est. Budget:[/bold green] {budget_estimate}"
@@ -1046,4 +1053,112 @@ def prompt_iteration_gate(
     # Freeform user input treated directly as a new feature prompt
     console.print(f"   [dim]↳ Proceeding with new feature prompt: {escape(user_choice)}[/dim]")
     return "feature", user_choice
+
+
+def print_dana_critique_card(critique: Any) -> None:
+    """Render Dana's quality evaluation card for the supervised stage."""
+    lead = str(getattr(critique, "lead", "stage")).capitalize()
+    verdict = str(getattr(critique, "verdict", "approve")).lower()
+    score = getattr(critique, "score", 85)
+    summary = str(getattr(critique, "summary", ""))
+    strengths = getattr(critique, "strengths", []) or []
+    risks = getattr(critique, "risks_or_gaps", []) or []
+    recommendations = getattr(critique, "actionable_recommendations", []) or []
+
+    if verdict == "approve":
+        badge = f"[bold green]✓ APPROVED (Score: {score}/100)[/bold green]"
+        border_col = "green"
+    elif verdict == "suggest":
+        badge = f"[bold cyan]ℹ SUGGESTIONS (Score: {score}/100)[/bold cyan]"
+        border_col = "cyan"
+    elif verdict == "warn":
+        badge = f"[bold yellow]⚠ WARNINGS (Score: {score}/100)[/bold yellow]"
+        border_col = "yellow"
+    else:
+        badge = f"[bold red]⛔ BLOCKED (Score: {score}/100)[/bold red]"
+        border_col = "red"
+
+    lines = [
+        f"[bold white]Supervised Lead:[/bold white]    [cyan]{escape(lead)}[/cyan]",
+        f"[bold white]Supervisor Verdict:[/bold white] {badge}\n",
+        f"[bold white]Evaluation Assessment:[/bold white]\n{escape(summary)}\n",
+    ]
+
+    if strengths:
+        lines.append("[bold green]Strengths Identified:[/bold green]")
+        for s in strengths:
+            lines.append(f"  • {escape(str(s))}")
+        lines.append("")
+
+    if risks:
+        lines.append("[bold yellow]Risks / Gaps Detected:[/bold yellow]")
+        for r in risks:
+            lines.append(f"  • {escape(str(r))}")
+        lines.append("")
+
+    if recommendations:
+        lines.append("[bold cyan]Actionable Recommendations:[/bold cyan]")
+        for idx, rec in enumerate(recommendations, 1):
+            lines.append(f"  [cyan]{idx}.[/cyan] {escape(str(rec))}")
+
+    panel = Panel(
+        "\n".join(lines).strip(),
+        title="[bold #a855f7]🧭 Dana — Quality Supervisor Evaluation[/bold #a855f7]",
+        title_align="left",
+        border_style=border_col,
+        padding=(1, 2),
+    )
+    console.print()
+    console.print(panel)
+
+
+def prompt_dana_gate(
+    critique: Any,
+    auto: bool = False,
+    input_func: Callable[[str], str] | None = None,
+) -> tuple[str, str | None]:
+    """
+    Interactive decision gate for Dana's critique in advisory mode.
+    Returns: ('proceed' | 'apply' | 'skip' | 'quit', feedback_text)
+    """
+    import os
+    import sys
+
+    print_dana_critique_card(critique)
+
+    ask = input_func or input
+    if auto or (
+        input_func is None
+        and (not sys.stdin.isatty() or "pytest" in sys.modules or os.environ.get("BUILDRELAY_TESTING") == "1")
+    ):
+        return "proceed", None
+
+    recs = getattr(critique, "actionable_recommendations", []) or []
+    rec_text = " | ".join(str(r) for r in recs) if recs else "Apply supervisor recommendations"
+
+    console.print(
+        "[bold]👉 Supervisor Action:[/bold] "
+        "[green]\\[Y/enter][/green] Accept & Proceed  |  "
+        "[cyan]\\[a][/cyan] Apply Recommendations to Lead  |  "
+        "[yellow]\\[s][/yellow] Skip Suggestions  |  "
+        "[red]\\[q][/red] Quit"
+    )
+
+    try:
+        choice = ask("> ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        return "quit", None
+
+    if choice in ("", "y", "yes"):
+        return "proceed", None
+    if choice in ("s", "skip"):
+        return "skip", None
+    if choice in ("q", "quit", "exit"):
+        return "quit", None
+    if choice in ("a", "apply"):
+        return "apply", rec_text
+
+    # Freeform user response
+    return "apply", choice
+
 

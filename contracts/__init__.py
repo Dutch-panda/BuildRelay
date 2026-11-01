@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+__version__ = "0.2.0"
+
 from dataclasses import asdict
 from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
@@ -439,3 +441,52 @@ def format_design_context(objective: str, research: ResearchReport | None = None
         )
 
     return "\n\n".join(sections)
+
+
+class DanaCritique(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    lead: Literal["natasha", "odin", "taghi", "meti"] = Field(
+        description="The stage or lead whose deliverable was supervised"
+    )
+    verdict: Literal["approve", "suggest", "warn", "block"] = Field(
+        description=(
+            "Supervisor verdict: 'approve' if sound, 'suggest' if non-critical improvements proposed, "
+            "'warn' if notable gaps/risks identified, 'block' if critical failure/hallucination/security violation"
+        )
+    )
+    summary: str = Field(description="Executive critique summary (2-3 sentences)")
+    strengths: list[str] = Field(default_factory=list, description="What was done well or is technically sound")
+    risks_or_gaps: list[str] = Field(default_factory=list, description="Identified risks, missed edge cases, or gaps")
+    actionable_recommendations: list[str] = Field(
+        default_factory=list,
+        description="Concrete, actionable recommendations or corrective steering instructions"
+    )
+    score: int = Field(default=85, ge=0, le=100, description="Quality score from 0 to 100")
+    token_usage: dict[str, Any] = Field(default_factory=dict, description="Token consumption for this supervision call")
+
+    def __getitem__(self, item: str) -> Any:
+        try:
+            return getattr(self, item)
+        except AttributeError:
+            raise KeyError(item)
+
+    def get(self, item: str, default: Any = None) -> Any:
+        val = getattr(self, item, default)
+        return val if val is not None else default
+
+    def __contains__(self, item: str) -> bool:
+        return hasattr(self, item)
+
+    def __iter__(self):
+        return iter(self.__dict__)
+
+    def keys(self):
+        return self.__dict__.keys()
+
+    def values(self):
+        return self.__dict__.values()
+
+    def items(self):
+        return self.__dict__.items()
+

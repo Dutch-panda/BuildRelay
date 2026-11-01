@@ -20,18 +20,19 @@ Describe your development task. BuildRelay coordinates research, design, impleme
 
 ---
 
-BuildRelay is a Python CLI that coordinates an engineering team built with Pydantic AI. Natasha selects the entry point for each request; Odin researches, Taghi designs, and Meti implements through Docker commands. Each stage saves Markdown artifacts to a local vault, with Graphify providing graph lookup when extraction is available.
+BuildRelay is a Python CLI that coordinates an engineering team built with Pydantic AI. Natasha selects the entry point for each request; Odin researches, Taghi designs, Meti implements through Docker commands, and Dana supervises deliverable quality across all stages. Each stage saves Markdown artifacts to a local vault, with Graphify providing graph lookup when extraction is available.
 
 ## How the workflow runs
 
-<img src="docs/diagrams/workflow.svg" alt="Natasha routes requests through research, design, or direct implementation, ending with Meti and validation." width="760">
+<img src="docs/diagrams/workflow.svg" alt="Natasha routes requests through research, design, or direct implementation, supervised by Dana, ending with Meti and validation." width="760">
 
 - **Natasha — coordinator:** produces a typed task brief, a 5-sentence intent alignment brief, and conducts an interactive Grill-Me interview (up to 10 questions) to clarify goals, entry mechanisms, and edge cases before routing. Prompts with a low-friction clarification wizard, supports mid-way intent pivots, queries existing vault connections, and can look up official library names online.
 - **Odin — researcher:** queries vault graph metadata and external web documentation / package registries (PyPI, npm, Tavily API) to produce technical findings and recommended stacks. Research notes record resolved vault notes and external search-result URLs. Tasks marked with `--research` / `--research-only` complete cleanly after Odin without invoking design or implementation.
 - **Taghi — architect:** produces an architecture overview, user input surface specification (`input_interface_spec`), dependencies, and ordered execution phases with explicit validation commands. Conducts an architectural grill interview and presents an interactive approval gate before Meti implements. Phases are constrained to actionable sandbox validation; conditional gates or unprovided external credentials are documented in architecture overview notes rather than active execution phases.
 - **Meti — implementer:** writes code through Docker commands with live progress spinners and validates phases in order. Generates a workspace `README.md` with run/test instructions, logs execution details to `.state/task.log`, and renders a file tree and `How to Run & Test` banner. A reported success is downgraded to failure if any phase remains unvalidated.
+- **Dana — quality supervisor:** evaluates intermediate deliverables across every stage (Natasha's intent brief, Odin's research report, Taghi's architecture spec, and Meti's Docker deliverable) against 5 core engineering criteria: schema completeness, container isolation, offline determinism, user input ergonomics, and modular architecture. In advisory mode (`--supervise advisory` / `--dana`), presents a structured critique card with scores and actionable guidance; in autonomous mode (`--supervise autonomous`), detects gaps and autonomously steers leads with corrective prompts to revise deliverables before handoff. Audit notes are persisted in `vault/supervision/`.
 
-Agents run sequentially along the selected route. Research requests continue through design and implementation; design requests continue through implementation. Research-only tasks complete immediately after Odin.
+Agents run sequentially along the selected route, overseen by Dana at critical stage boundaries. Research requests continue through design and implementation; design requests continue through implementation. Research-only tasks complete immediately after Odin.
 
 ## Quick start
 
@@ -216,6 +217,12 @@ To eliminate early misunderstandings and prevent wasted model calls, BuildRelay 
    - **`[3]` Open Project REPL Session (`buildrelay session <project_id>`):** Launches the interactive conversational REPL with instant `/profile`, `/env`, `/verify`, `/preview`, and `/test` commands.
    - **`[4]` Run Verification / UI Preview:** Directly runs the Tier 2 live verification smoke test or launches the local web preview server.
    - **`[5]` Exit Cleanly (`[Enter]` or `[q]`):** Concludes the workflow and returns to your shell with all progress safely saved in `.state/tasks.db` and the project workspace.
+9. **Dana Quality Supervisor & Autonomous Steering Engine:**
+   - Evaluates deliverables across every stage (Natasha intent brief, Odin research report, Taghi architecture spec, Meti container deliverable) against 5 core criteria: schema completeness, container isolation, offline determinism, user input ergonomics, and modular architecture.
+   - **Advisory Mode (`--supervise advisory` or `--dana`):** Presents a structured quality critique card with score, strengths, risks/gaps, and actionable recommendations. Allows you to `[Enter]` proceed, `[a]` apply recommendations to the lead for automatic revision, `[s]` skip, or `[q]` abort.
+   - **Autonomous Mode (`--supervise autonomous`):** Detects warnings or blocking gaps and autonomously steers the lead with corrective prompts without interrupting human flow.
+   - **Off Mode (default):** Keeps execution lean and direct when supervision is not needed.
+   - **Override Model:** Configure Dana via `--model-dana` or `MODEL_DANA` in `.env`.
 
 ## Token usage and cost analytics
 

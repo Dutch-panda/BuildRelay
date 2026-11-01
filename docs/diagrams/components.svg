@@ -14,7 +14,7 @@
 <text class="sub" x="140.0" y="188.0" text-anchor="middle">tools/chatgpt_auth.py</text>
 <rect class="box" x="270" y="136" width="220" height="64" rx="7"/>
 <text x="380.0" y="165.0" text-anchor="middle">Agents</text>
-<text class="sub" x="380.0" y="188.0" text-anchor="middle">Natasha · Odin · Taghi · Meti</text>
+<text class="sub" x="380.0" y="188.0" text-anchor="middle">Natasha · Odin · Taghi · Meti · Dana</text>
 <rect class="box" x="510" y="136" width="220" height="64" rx="7"/>
 <text x="620.0" y="165.0" text-anchor="middle">Task ledger</text>
 <text class="sub" x="620.0" y="188.0" text-anchor="middle">tools/task_ledger.py</text>

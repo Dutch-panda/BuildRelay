@@ -16,6 +16,7 @@ from tools.model_tiers import resolve_pipeline_models
 from tools.project_notes import validate_project_id
 from tools.task_ledger import TaskLedger, TaskRecord, validate_task_id
 from contracts import (
+    __version__,
     ExecutionPhase,
     ImplementationCheckpoint,
     ImplementationResult,
@@ -133,6 +134,7 @@ async def run_task(
     tier: str | None = None,
     lead_overrides: dict[str, Any] | None = None,
     research_only: bool = False,
+    supervise: str = "off",
 ) -> ImplementationResult:
     # Reject unreadable stage checkpoints before authentication or external work.
     if record.brief is not None:
@@ -179,6 +181,12 @@ async def run_task(
             model_cache[model_spec] = await get_chatgpt_model(model_name=model_spec)
         return model_cache[model_spec]
 
+    dana_instance = None
+    if supervise in ("advisory", "autonomous"):
+        from agents.dana import DanaQualitySupervisor
+        dana_model = await resolve_agent_model(pipeline_models.get("dana", pipeline_models["taghi"]))
+        dana_instance = DanaQualitySupervisor(model_name=dana_model)
+
     project = record.project_id
     task_id = record.task_id
     record.run_number += 1
@@ -204,6 +212,42 @@ async def run_task(
             record.token_usage["natasha"] = brief.token_usage
         ledger.save(record)
     brief = TaskBrief.model_validate(record.brief)
+
+    # Dana Supervision of Natasha's Intent Brief
+    if dana_instance and not implementation_started:
+        dana_critique = await dana_instance.supervise_stage(
+            "natasha",
+            deliverable=brief,
+            prompt_context=record.prompt,
+            task_id=task_id,
+            project_id=project,
+        )
+        if getattr(dana_critique, "token_usage", None):
+            dana_critique.token_usage["model"] = str(pipeline_models.get("dana", pipeline_models["taghi"]))
+            record.token_usage["dana_natasha"] = dana_critique.token_usage
+            ledger.save(record)
+
+        if supervise == "advisory" and not auto:
+            from tools.ui import prompt_dana_gate
+            gate_action, feedback = prompt_dana_gate(dana_critique, auto=auto)
+            if gate_action == "quit":
+                print_agent("orchestrator", "Task execution cancelled by user at Dana supervision gate.")
+                sys.exit(0)
+            elif gate_action == "apply" and feedback:
+                natasha_model = await resolve_agent_model(pipeline_models["natasha"])
+                brief = await NatashaRouter(model_name=natasha_model).realign_intent(brief, feedback, project_id=project)
+                record.prompt = f"{record.prompt} (Supervisor steering: {feedback})"
+                record.brief = brief
+                ledger.save(record)
+        elif supervise == "autonomous":
+            if dana_critique.verdict in ("warn", "block") and dana_critique.actionable_recommendations:
+                rec_summary = "; ".join(dana_critique.actionable_recommendations)
+                print_agent("dana", f"[bold yellow]Autonomous Steering:[/bold yellow] Realigning Natasha brief: {rec_summary}")
+                natasha_model = await resolve_agent_model(pipeline_models["natasha"])
+                brief = await NatashaRouter(model_name=natasha_model).realign_intent(brief, rec_summary, project_id=project)
+                record.prompt = f"{record.prompt} (Supervisor steering: {rec_summary})"
+                record.brief = brief
+                ledger.save(record)
 
     # Alignment gate: 5-sentence brief and intent confirmation
     if not implementation_started and not auto:
@@ -267,6 +311,34 @@ async def run_task(
                 ledger.save(record)
             research = ResearchReport.model_validate(record.research)
 
+            # Dana Supervision of Odin's Research Report
+            if dana_instance:
+                dana_critique = await dana_instance.supervise_stage(
+                    "odin",
+                    deliverable=research,
+                    prompt_context=objective,
+                    task_id=task_id,
+                    project_id=project,
+                )
+                if getattr(dana_critique, "token_usage", None):
+                    dana_critique.token_usage["model"] = str(pipeline_models.get("dana", pipeline_models["taghi"]))
+                    record.token_usage["dana_odin"] = dana_critique.token_usage
+                    ledger.save(record)
+
+                if supervise == "advisory" and not auto:
+                    from tools.ui import prompt_dana_gate
+                    gate_action, feedback = prompt_dana_gate(dana_critique, auto=auto)
+                    if gate_action == "quit":
+                        print_agent("orchestrator", "Task execution cancelled by user at Dana supervision gate.")
+                        sys.exit(0)
+                    elif gate_action == "apply" and feedback:
+                        objective = f"{objective}\n\nSupervisor Research Recommendations:\n{feedback}"
+                elif supervise == "autonomous":
+                    if dana_critique.verdict in ("warn", "block") and dana_critique.actionable_recommendations:
+                        rec_summary = "; ".join(dana_critique.actionable_recommendations)
+                        print_agent("dana", f"[bold yellow]Autonomous Steering:[/bold yellow] Injecting research guidance into design context: {rec_summary}")
+                        objective = f"{objective}\n\nSupervisor Research Recommendations:\n{rec_summary}"
+
             # Early completion for research-only tasks
             is_research_only = (
                 research_only
@@ -278,7 +350,7 @@ async def run_task(
                 record.status = 'COMPLETED'
                 ledger.save(record)
                 print_completion(task_id, True, f"Research report completed successfully.\n\nSummary: {research.summary}")
-                print_token_summary_table(record.token_usage, default_model=default_model)
+                print_token_summary_table(record.token_usage, default_model=model_override)
                 return ImplementationResult(
                     task_id=task_id,
                     project_id=project,
@@ -317,6 +389,46 @@ async def run_task(
         ledger.save(record)
 
     spec = TechnicalSpec.model_validate(record.specification)
+
+    # Dana Supervision of Taghi's Architectural Specification
+    if dana_instance and not implementation_started:
+        dana_critique = await dana_instance.supervise_stage(
+            "taghi",
+            deliverable=spec,
+            prompt_context=design_context if 'design_context' in locals() else brief.objective,
+            task_id=task_id,
+            project_id=project,
+        )
+        if getattr(dana_critique, "token_usage", None):
+            dana_critique.token_usage["model"] = str(pipeline_models.get("dana", pipeline_models["taghi"]))
+            record.token_usage["dana_taghi"] = dana_critique.token_usage
+            ledger.save(record)
+
+        if supervise == "advisory" and not auto:
+            from tools.ui import prompt_dana_gate
+            gate_action, feedback = prompt_dana_gate(dana_critique, auto=auto)
+            if gate_action == "quit":
+                print_agent("orchestrator", "Task execution cancelled by user at Dana supervision gate.")
+                sys.exit(0)
+            elif gate_action == "apply" and feedback:
+                taghi_model = await resolve_agent_model(pipeline_models["taghi"])
+                revised_context = f"{format_design_context(brief.objective, None)}\n\nSupervisor Architectural Revisions Required:\n{feedback}"
+                spec = await TaghiArchitect(model_name=taghi_model).create_specification(
+                    task_id, revised_context, project_id=project
+                )
+                record.specification = spec
+                ledger.save(record)
+        elif supervise == "autonomous":
+            if dana_critique.verdict in ("warn", "block") and dana_critique.actionable_recommendations:
+                rec_summary = "; ".join(dana_critique.actionable_recommendations)
+                print_agent("dana", f"[bold yellow]Autonomous Steering:[/bold yellow] Requesting Taghi specification revision: {rec_summary}")
+                taghi_model = await resolve_agent_model(pipeline_models["taghi"])
+                revised_context = f"{format_design_context(brief.objective, None)}\n\nSupervisor Architectural Revisions Required:\n{rec_summary}"
+                spec = await TaghiArchitect(model_name=taghi_model).create_specification(
+                    task_id, revised_context, project_id=project
+                )
+                record.specification = spec
+                ledger.save(record)
     print_spec_summary(
         spec.base_image,
         spec.phases,
@@ -371,6 +483,54 @@ async def run_task(
         record.token_usage["meti"] = impl_res.token_usage
         ledger.save(record)
 
+    # Dana Supervision of Meti Deliverable
+    if dana_instance and impl_res.status == 'success':
+        dana_critique = await dana_instance.supervise_stage(
+            "meti",
+            deliverable=impl_res,
+            prompt_context=spec.architecture_overview,
+            task_id=task_id,
+            project_id=project,
+        )
+        if getattr(dana_critique, "token_usage", None):
+            dana_critique.token_usage["model"] = str(pipeline_models.get("dana", pipeline_models["taghi"]))
+            record.token_usage["dana_meti"] = dana_critique.token_usage
+            ledger.save(record)
+
+        if supervise == "advisory" and not auto:
+            from tools.ui import prompt_dana_gate
+            gate_action, feedback = prompt_dana_gate(dana_critique, auto=auto)
+            if gate_action == "quit":
+                print_agent("orchestrator", "Task execution terminated at Dana delivery review.")
+                sys.exit(0)
+            elif gate_action == "apply" and feedback:
+                impl_res = await MetiImplementer(model_name=meti_model).refine_deliverable(
+                    task_id,
+                    feedback,
+                    spec.phases,
+                    project_id=project,
+                    base_image=effective_image,
+                )
+                if getattr(impl_res, "token_usage", None):
+                    impl_res.token_usage["model"] = str(pipeline_models["meti"])
+                    record.token_usage["meti"] = impl_res.token_usage
+                    ledger.save(record)
+        elif supervise == "autonomous":
+            if dana_critique.verdict in ("warn", "block") and dana_critique.actionable_recommendations:
+                rec_summary = "; ".join(dana_critique.actionable_recommendations)
+                print_agent("dana", f"[bold yellow]Autonomous Steering:[/bold yellow] Requesting Meti refinement: {rec_summary}")
+                impl_res = await MetiImplementer(model_name=meti_model).refine_deliverable(
+                    task_id,
+                    rec_summary,
+                    spec.phases,
+                    project_id=project,
+                    base_image=effective_image,
+                )
+                if getattr(impl_res, "token_usage", None):
+                    impl_res.token_usage["model"] = str(pipeline_models["meti"])
+                    record.token_usage["meti"] = impl_res.token_usage
+                    ledger.save(record)
+
     # Post-implementation delivery confirmation gate & refinement loop
     if impl_res.status == 'success' and not auto:
         workspace_dir = project or task_id
@@ -411,7 +571,11 @@ async def run_task(
 
 
 async def main() -> None:
-    parser = argparse.ArgumentParser(description='BuildRelay: plan, build, check, and resume AI development tasks')
+    parser = argparse.ArgumentParser(
+        prog='buildrelay',
+        description='BuildRelay: plan, build, check, and resume AI development tasks',
+    )
+    parser.add_argument('-V', '--version', action='version', version=f'%(prog)s {__version__}')
     parser.add_argument('prompt', nargs='?', help='Task description or prompt')
     parser.add_argument('--config', action='store_true', help='Launch interactive onboarding & configuration wizard')
     parser.add_argument('--session', nargs='?', const='', help='Launch interactive REPL project session')
@@ -426,6 +590,9 @@ async def main() -> None:
     parser.add_argument('--model-odin', help='Model override for Odin (Researcher)')
     parser.add_argument('--model-taghi', help='Model override for Taghi (Architect)')
     parser.add_argument('--model-meti', help='Model override for Meti (Implementer)')
+    parser.add_argument('--model-dana', help='Model override for Dana (Quality Supervisor)')
+    parser.add_argument('--supervise', nargs='?', const='advisory', choices=['advisory', 'autonomous', 'off'], help='Dana Quality Supervisor mode: advisory or autonomous')
+    parser.add_argument('--dana', dest='supervise', nargs='?', const='advisory', choices=['advisory', 'autonomous', 'off'], help='Alias for --supervise')
     parser.add_argument('--image', help='Docker base image override (e.g. python:3.11-slim)')
     parser.add_argument('-y', '--yes', '--auto', dest='auto', action='store_true', help='Headless mode; accept defaults without interactive prompts')
     parser.add_argument('--step', action='store_true', help='Interactive step gates between each agent lead')
@@ -535,7 +702,17 @@ async def main() -> None:
         "odin": args.model_odin,
         "taghi": args.model_taghi,
         "meti": args.model_meti,
+        "dana": args.model_dana,
     }
+    supervise_mode = getattr(args, "supervise", None)
+    if not supervise_mode:
+        env_sup = os.environ.get("BUILDRELAY_SUPERVISE", "off").lower()
+        if env_sup in ("1", "true", "yes", "advisory"):
+            supervise_mode = "advisory"
+        elif env_sup == "autonomous":
+            supervise_mode = "autonomous"
+        else:
+            supervise_mode = "off"
     try:
         ledger = TaskLedger()
         task_id = args.resume or task_id_for(args.prompt.strip(), ledger=ledger)
@@ -560,6 +737,7 @@ async def main() -> None:
                     tier=args.tier,
                     lead_overrides=lead_overrides,
                     research_only=args.research_only,
+                    supervise=supervise_mode,
                 )
             except (Exception, KeyboardInterrupt, asyncio.CancelledError) as error:
                 record.status = 'FAILED'
@@ -678,6 +856,7 @@ async def run_iteration_loop(
                         tier=getattr(args, "tier", None),
                         lead_overrides=lead_overrides,
                         research_only=getattr(args, "research_only", False),
+                        supervise=getattr(args, "supervise", "off") or "off",
                     )
                 except (Exception, KeyboardInterrupt, asyncio.CancelledError) as error:
                     record.status = "FAILED"
