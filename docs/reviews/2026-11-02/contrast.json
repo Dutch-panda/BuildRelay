@@ -1,0 +1,32 @@
+{
+  "body": {
+    "foreground": "#eeeae4",
+    "background": "#111110",
+    "ratio": 15.77
+  },
+  "muted": {
+    "foreground": "#b7b1a8",
+    "background": "#111110",
+    "ratio": 8.88
+  },
+  "link/focus": {
+    "foreground": "#ffa76c",
+    "background": "#111110",
+    "ratio": 9.89
+  },
+  "primary button": {
+    "foreground": "#21160e",
+    "background": "#ffa76c",
+    "ratio": 9.27
+  },
+  "code": {
+    "foreground": "#e1dacf",
+    "background": "#1a1916",
+    "ratio": 12.67
+  },
+  "sidebar label": {
+    "foreground": "#8e887e",
+    "background": "#111110",
+    "ratio": 5.37
+  }
+}

@@ -1,113 +1,47 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>Quick start · BuildRelay</title><meta name="description" content="BuildRelay guides: plan, build, check, and resume development tasks."><link rel="icon" href="brand/logo.svg" type="image/svg+xml"><link rel="stylesheet" href="site.css"><script src="site.js" defer></script><link rel="canonical" href="https://dutch-panda.github.io/BuildRelay/quickstart.html"></head>
-<body><a class="skip" href="#content">Skip to content</a><header><a class="brand" href="index.html"><img src="brand/logo.svg" alt="" width="32" height="32">BuildRelay <span>Docs</span></a><a href="https://github.com/Dutch-panda/BuildRelay">GitHub ↗</a></header><div class="layout"><aside class="sidebar"><details open><summary>Documentation</summary><nav aria-label="Documentation"><p>GET STARTED</p><a href="index.html">Introduction</a><a href="quickstart.html" aria-current="page">Quick start</a><a href="example.html">Terminal example</a><p>USE BUILDRELAY</p><a href="workflow.html">Workflow &amp; alignment</a><a href="configuration.html">Models &amp; configuration</a><a href="execution.html">Execution &amp; web research</a><a href="projects.html">Projects &amp; memory</a><a href="project-tools.html">Sessions, verify &amp; preview</a><a href="resume.html">Resume a task</a><p>INSPECT & VERIFY</p><a href="quality.html">Supervision &amp; evaluation</a><a href="architecture.html">Architecture</a><a href="testing.html">Testing &amp; integration</a><a href="limitations.html">Limits &amp; security</a><a href="troubleshooting.html">Troubleshooting</a></nav></details></aside><main id="content"><div class="breadcrumb">BuildRelay / Quick start</div><h1>Quick start</h1><h2 id="quick-start">Quick start</h2>
-<h3 id="1-prepare-the-environment">1. Prepare the environment</h3>
-<p>You need <strong>Python 3.11+</strong>, <strong>Docker installed and running</strong>, and a configured model provider: API credentials, ChatGPT OAuth, or a compatible local model endpoint. Remote providers need network access for authentication and model calls. Web search and image or dependency downloads also require connectivity; a preconfigured local model can avoid remote inference. Obsidian is optional for viewing notes.</p>
-<p>Clone the repository if you have not already done so:</p>
-<pre><code class="language-bash">git clone https://github.com/Dutch-panda/BuildRelay.git
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>Quick start · BuildRelay 0.2.0</title><meta name="description" content="BuildRelay 0.2.0: setup, task guides, execution boundaries and recorded evidence."><meta property="og:title" content="Quick start · BuildRelay"><meta property="og:description" content="Experimental local AI development workflow. Inspect plans, phase checks and limits."><meta property="og:url" content="https://dutch-panda.github.io/BuildRelay/quickstart.html"><link rel="canonical" href="https://dutch-panda.github.io/BuildRelay/quickstart.html"><link rel="icon" href="brand/logo.svg" type="image/svg+xml"><link rel="stylesheet" href="site.css"><script src="site.js" defer></script></head>
+<body><a class="skip" href="#content">Skip to content</a><header><a class="brand" href="index.html"><img src="brand/logo.svg" alt="" width="32" height="32">BuildRelay <span>Docs · 0.2.0</span></a><a href="https://github.com/Dutch-panda/BuildRelay">GitHub ↗</a></header><div class="layout"><aside class="sidebar"><details open><summary>Documentation</summary><nav aria-label="Documentation"><p>GET STARTED</p><a href="index.html">Introduction</a><a href="task-fit.html">Task fit</a><a href="quickstart.html" aria-current="page">Quick start</a><p>WORK ON A PROJECT</p><a href="workflow.html">Workflow &amp; alignment</a><a href="projects.html">Projects &amp; memory</a><a href="resume.html">Resume a task</a><a href="project-tools.html">Sessions, verify &amp; preview</a><p>REFERENCE</p><a href="configuration.html">Models &amp; configuration</a><a href="commands.html">Command boundaries</a><a href="execution.html">Execution &amp; web research</a><a href="troubleshooting.html">Troubleshooting</a><p>INSPECT THE EVIDENCE</p><a href="example.html">Historical terminal capture</a><a href="showcase.html">Showcase (pending)</a><a href="quality.html">Supervision &amp; evaluation</a><a href="testing.html">Testing &amp; integration</a><p>UNDERSTAND THE DESIGN</p><a href="architecture.html">Architecture</a><a href="design.html">Design rationale (proposed)</a><a href="limitations.html">Limits &amp; security</a></nav></details></aside><main id="content" tabindex="-1"><div class="breadcrumb">BuildRelay / Quick start</div><h1>Quick start</h1><h2 id="quick-start">Quick start</h2>
+<p>For developers comfortable with Python and Docker who want a small, inspectable generated project. This is a suggested tutorial, <strong>not a recorded successful model run</strong>. End-to-end validation with an account is pending.</p>
+<h3 id="1-install-from-the-repository">1. Install from the repository</h3>
+<p>You need Python 3.11+, Git and Docker installed and running. A remote model needs an eligible account/API connection; provider availability, quotas, subscriptions and charges apply. A local model requires a compatible endpoint and sufficient local resources. Obsidian is optional.</p>
+<pre tabindex="0" aria-label="Code block; scroll horizontally if needed"><code class="language-bash">git clone https://github.com/Dutch-panda/BuildRelay.git
 cd BuildRelay
-</code></pre>
-<p>From the repository root:</p>
-<pre><code class="language-bash">python3 -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e .
 docker info
 </code></pre>
-<p>On Windows, activate the environment with <code>.venv\Scripts\Activate.ps1</code> in PowerShell.</p>
-<h3 id="2-configure-credentials--providers">2. Configure credentials &amp; providers</h3>
-<p>BuildRelay provides an interactive setup wizard to configure your preferred LLM provider, models, and execution tiers in seconds.</p>
-<h4 id="interactive-setup-wizard-recommended">Interactive Setup Wizard (Recommended)</h4>
-<p>Run the configuration wizard directly at any time:</p>
-<pre><code class="language-bash">python main.py config
-# Or using the console script:
-buildrelay config
-# Or via CLI flag:
-python main.py --config
+<p>On Windows, replace activation with <code>.venv\Scripts\Activate.ps1</code> in PowerShell. If Docker cannot connect, start Docker and rerun <code>docker info</code> before continuing.</p>
+<p>Inspect the CLI without calling a model:</p>
+<pre tabindex="0" aria-label="Code block; scroll horizontally if needed"><code class="language-bash">python main.py --help
 </code></pre>
-<p>If you launch BuildRelay on a fresh machine without credentials, the CLI automatically detects the zero-config state and prompts:</p>
-<pre><code>⚡ BuildRelay — No AI credentials detected. Launching interactive setup wizard...
+<h3 id="2-configure-one-connection">2. Configure one connection</h3>
+<p>The wizard selects a connection and explicit models for the leads, then writes local configuration. Sign-in, catalog discovery and connectivity checks may contact providers. Setup completion does not guarantee later execution or quota. Never paste credentials into issue reports or recordings.</p>
+<pre tabindex="0" aria-label="Code block; scroll horizontally if needed"><code class="language-bash">python main.py config
 </code></pre>
-<p>The wizard guides you through:</p>
-<ol>
-<li><strong>Provider Selection:</strong>
+<p>Use models supported by your connection. See <a href="configuration.html">configuration and precedence</a> for manual options, discovery limits and overrides; those are not required reading before this first path.</p>
+<h3 id="3-request-one-bounded-task">3. Request one bounded task</h3>
+<p>Review the request, selected models, plan and checks before allowing generated execution. Prompts and retrieved context may be sent to providers. Docker networking remains enabled; images and dependencies may be downloaded. Keep unrelated credentials out of the workspace: its files, including a project <code>.env</code>, are readable by container code.</p>
+<pre tabindex="0" aria-label="Code block; scroll horizontally if needed"><code class="language-bash">python main.py &quot;Build a small Python CSV validator with a CLI. Require name and amount columns, report invalid amounts, and include valid and invalid fixtures, automated tests, and README run instructions.&quot; --project csv-demo --image python:3.11-slim --step
+</code></pre>
+<p>Answer alignment questions and inspect the specification if that route is selected. <code>--step</code> adds handoff confirmations. Simpler tasks can skip research/design; a detailed plan is not proof of correctness. The prompt above is an instruction example, not observed output.</p>
+<h3 id="4-inspect-the-result">4. Inspect the result</h3>
 <ul>
-<li><strong>ChatGPT Web Auth (Codex / Browser Subscription):</strong> Connects to your ChatGPT Plus/Team subscription without entering an API key; provider access and usage limits still apply. Browser model discovery is unavailable; any suggested names are unverified and must be supported by your account.</li>
-<li><strong>OpenAI API:</strong> Direct API key for GPT-4o, GPT-4o-mini, o3-mini, o1.</li>
-<li><strong>Anthropic Claude:</strong> Direct API key for Claude 3.7 Sonnet, Claude 3.5 Haiku.</li>
-<li><strong>Google Gemini:</strong> Direct API key for Gemini 2.0 Flash, Gemini 2.5 Pro.</li>
-<li><strong>Local LLM (Ollama / LocalAI):</strong> Free, local offline models (e.g. <code>llama3.3</code>, <code>qwen2.5-coder</code> at <code>http://localhost:11434/v1</code>).</li>
-<li><strong>Custom / OpenRouter Gateway:</strong> OpenRouter or custom OpenAI-compatible proxies.</li>
+<li>Generated source, fixtures and instructions should appear in <code>workspace/csv-demo/</code>.</li>
+<li>Stage notes live under <code>vault/</code>; implementation reports are in <code>vault/code-reviews/</code>. The ledger is <code>.state/tasks.db</code>.</li>
+<li>Inspect the generated README and phase command/exit-code history. A zero exit code does not establish test completeness or safety.</li>
+<li>For this task, check acceptance of valid input and rejection of missing columns/invalid amounts. Inspect whether automated checks exercise both cases. Review the test command before executing it in the intended sandbox; do not blindly run generated scripts on the host.</li>
 </ul>
-</li>
-<li><strong>Masked Input &amp; Validation:</strong>
-<ul>
-<li>Inputs are masked for security (<code>password=True</code>).</li>
-<li>A short, synchronous reachability check runs for supported providers before saving. Connectivity failures can be treated as skipped checks; setup completion does not prove model access.</li>
-</ul>
-</li>
-<li><strong>Per-Lead Model Selection:</strong>
-<ul>
-<li>Choose Natasha, Odin, Taghi, and Meti models from numbered choices. Enter reuses the previous choice; <code>/text</code> filters the list, <code>m</code> enters an unverified custom ID, and <code>q</code> cancels.</li>
-</ul>
-</li>
-<li><strong>Saved Assignments:</strong>
-<ul>
-<li>Each interactive run displays the saved lineup. Keep it or change an individual lead, then optionally save the new assignments. Changes remain run-only unless saving is explicitly requested.</li>
-</ul>
-</li>
-<li><strong>Safe Atomic Persistence:</strong>
-<ul>
-<li>Saved directly to <code>.env</code> preserving existing comments and settings.</li>
-<li>Enforces strict <code>0600</code> file permissions (owner read/write only).</li>
-</ul>
-</li>
-</ol>
-<h4 id="manual-configuration-via-env-alternative">Manual Configuration via <code>.env</code> (Alternative)</h4>
-<p>If you prefer editing <code>.env</code> directly:</p>
-<p><strong>Option A: ChatGPT Web Auth (Codex Subscription — No API Key Required)</strong></p>
-<pre><code class="language-dotenv">BUILDRELAY_PROVIDER=chatgpt_oauth
-BUILDRELAY_MODEL_MODE=selected
-BUILDRELAY_MODEL=openai:YOUR_ACCOUNT_MODEL_ID
-USE_CHATGPT_OAUTH=1
-CHATGPT_AUTH_FILE=.env.chatgpt-auth.json
-</code></pre>
-<p><strong>Option B: Standard Direct API Keys</strong></p>
-<pre><code class="language-dotenv">BUILDRELAY_PROVIDER=openai
-BUILDRELAY_MODEL_MODE=selected
-BUILDRELAY_MODEL=openai:YOUR_ACCOUNT_MODEL_ID
-OPENAI_API_KEY=sk-...
-USE_CHATGPT_OAUTH=0
-
-# Or Anthropic:
-# ANTHROPIC_API_KEY=sk-ant-...
-# ANTHROPIC_MODEL=claude-3-7-sonnet
-
-# Or Gemini:
-# GEMINI_API_KEY=AIza...
-# GEMINI_MODEL=gemini-2.0-flash
-
-# Optional per-lead overrides:
-# MODEL_NATASHA=openai:YOUR_ROUTER_MODEL_ID
-# MODEL_ODIN=openai:YOUR_RESEARCH_MODEL_ID
-# MODEL_TAGHI=openai:YOUR_DESIGN_MODEL_ID
-# MODEL_METI=openai:YOUR_CODING_MODEL_ID
-</code></pre>
-<p>Replace placeholder model IDs with choices from your connection. Use the wizard to configure another provider; an explicit connection does not silently switch authentication for cross-provider overrides.</p>
-<p>You can also override models at runtime using <code>--model</code> (e.g., <code>--model anthropic:claude-3-7-sonnet</code>) or per-lead flags (<code>--model-taghi</code>, <code>--model-meti</code>).</p>
-<h3 id="explicit-provider-and-model-selection-issue-26">Explicit provider and model selection (issue #26)</h3>
-<p>First-time interactive runs open setup before using any lead. Choose browser authentication or an API/local connection, authenticate, and select a model. API catalogs are queried using that connection; discovery failures and browser-login suggestions are explicitly unverified. Catalog presence does not guarantee tool/structured-output support or account quota.</p>
-<p>Setup saves <code>BUILDRELAY_PROVIDER</code>, <code>BUILDRELAY_MODEL</code>, and <code>BUILDRELAY_MODEL_MODE=selected</code>. Setup saves explicit <code>MODEL_NATASHA</code>, <code>MODEL_ODIN</code>, <code>MODEL_TAGHI</code>, and <code>MODEL_METI</code> assignments. Each lead is selected with a numbered picker; Enter reuses the previous choice. Tiers are not offered in setup or the run-time picker. A changed run-time lineup is saved only after explicit confirmation. The picker retains cached catalogs, saved lead choices, and separately labeled unverified fallback suggestions. Native model IDs containing colons, such as local <code>model:tag</code>, are supported. Reconfiguration replaces previous lead choices; old credentials can remain stored without changing the active connection. Cross-provider overrides require reconfiguration instead of silently switching authentication. Browser login failure leaves setup incomplete. No live account access is established by the offline tests.</p>
-<h3 id="3-give-the-team-a-task">3. Give the team a task</h3>
-<pre><code class="language-bash">python main.py &quot;Build a compound interest calculator&quot; --project my-awesome-app
-</code></pre>
-<p>For a standalone task, omit the project:</p>
-<pre><code class="language-bash">python main.py &quot;Create a small CSV validation utility with tests&quot;
-</code></pre>
-<p>To specify or override the Docker sandbox image:</p>
-<pre><code class="language-bash">python main.py &quot;Build a Python utility&quot; --image python:3.11-slim
-</code></pre>
-<p>Run commands from the repository root so <code>./vault</code> and <code>./workspace</code> resolve correctly. Inspect the CLI without starting a workflow:</p>
-<pre><code class="language-bash">python main.py --help
-</code></pre>
-<p>The first sandbox command pulls the selected container image (defaulting to <code>node:18-bullseye-slim</code> or the configured <code>DEFAULT_SANDBOX_IMAGE</code> / <code>--image</code>) if it is missing locally. Generated files live in <code>workspace/&lt;project_id&gt;/</code> (or <code>workspace/&lt;task_id&gt;/</code> for standalone tasks); implementation summaries and phase results are saved under <code>vault/code-reviews/</code>. A returned failed implementation makes the CLI exit with status <code>1</code>.</p>
-<footer>Early-stage developer tool · Review generated code and validation results.<br><a href="https://github.com/Dutch-panda/BuildRelay/blob/main/README.md">Source guide on GitHub</a></footer></main><aside class="toc"><nav aria-label="On this page"><p>ON THIS PAGE</p><a href="#quick-start">Quick start</a></nav></aside></div></body></html>
+<p>No expected success output or score is supplied because a shareable end-to-end tutorial run has not been verified. The <a href="example.html">historical terminal capture</a> demonstrates only CLI help and offline platform tests.</p>
+<h3 id="stop-or-continue">Stop or continue</h3>
+<p>Press Ctrl+C to request interruption. Saved ledger/workspace data remains, but an in-flight command can have unknown effects and a container can still be running. Inspect before <a href="resume.html">resuming</a>: resume is not exactly-once execution or a workspace backup.</p>
+<p>After delivery, stop, add a feature, or enter a <a href="project-tools.html">project session</a>. Read <a href="commands.html">command boundaries</a> before <code>/test</code>, <code>/verify</code> or preview: they do not share Meti's Docker trust boundary.</p>
+<details><summary>Earlier guide links</summary>
+<p id="1-prepare-the-environment"><a href="#1-install-from-the-repository">Continue to the maintained section →</a></p>
+<p id="2-configure-credentials--providers"><a href="configuration.html#connection-and-model-reference">Continue to the maintained section →</a></p>
+<p id="interactive-setup-wizard-recommended"><a href="configuration.html#interactive-setup-wizard-recommended">Continue to the maintained section →</a></p>
+<p id="manual-configuration-via-env-alternative"><a href="configuration.html#manual-configuration-via-env-alternative">Continue to the maintained section →</a></p>
+<p id="explicit-provider-and-model-selection-issue-26"><a href="configuration.html#explicit-provider-and-model-selection">Continue to the maintained section →</a></p>
+<p id="3-give-the-team-a-task"><a href="#3-request-one-bounded-task">Continue to the maintained section →</a></p>
+</details>
+<footer>BuildRelay 0.2.0 · Experimental developer tool · Review generated code and checks.<br><a href="https://github.com/Dutch-panda/BuildRelay/blob/main/docs/content/quickstart.md">Edit this guide on GitHub</a> · <a href="https://github.com/Dutch-panda/BuildRelay/issues">Report a reproducible issue</a> · <a href="https://github.com/Dutch-panda/BuildRelay/blob/main/LICENSE">MIT license</a></footer></main><aside class="toc"><nav aria-label="On this page"><p>ON THIS PAGE</p><a href="#quick-start">Quick start</a><a href="#1-install-from-the-repository">1. Install from the repository</a><a href="#2-configure-one-connection">2. Configure one connection</a><a href="#3-request-one-bounded-task">3. Request one bounded task</a><a href="#4-inspect-the-result">4. Inspect the result</a><a href="#stop-or-continue">Stop or continue</a></nav></aside></div></body></html>

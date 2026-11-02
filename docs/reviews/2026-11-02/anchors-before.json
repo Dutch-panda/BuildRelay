@@ -1,0 +1,87 @@
+{
+  "quickstart": [
+    "content",
+    "quick-start",
+    "1-prepare-the-environment",
+    "2-configure-credentials--providers",
+    "interactive-setup-wizard-recommended",
+    "manual-configuration-via-env-alternative",
+    "explicit-provider-and-model-selection-issue-26",
+    "3-give-the-team-a-task"
+  ],
+  "resume": [
+    "content",
+    "resume-a-task"
+  ],
+  "execution": [
+    "content",
+    "execution-and-validation",
+    "recovery-and-attempt-history",
+    "web-and-documentation-search-with-guardrails",
+    "dynamic-progress-and-project-delivery"
+  ],
+  "index": [
+    "content",
+    "how-it-works",
+    "quality-signals",
+    "start-here",
+    "before-you-run"
+  ],
+  "configuration": [
+    "content",
+    "tiered-model-routing-and-token-optimization",
+    "token-usage-and-cost-analytics"
+  ],
+  "architecture": [
+    "content",
+    "component-connections",
+    "repository-map",
+    "development-and-documentation",
+    "website-documentation"
+  ],
+  "projects": [
+    "content",
+    "keep-related-tasks-connected",
+    "interactive-project-repl-session",
+    "project-memory-on-disk-project_profilemd--local-env",
+    "research-source-references",
+    "what-stays-on-disk"
+  ],
+  "project-tools": [
+    "content",
+    "project-repl-live-verification-and-ui-preview",
+    "1-interactive-project-repl-session-buildrelay-session",
+    "2-live-verification-runner-buildrelay-verify",
+    "3-local-ui--input-preview-buildrelay-preview"
+  ],
+  "example": [
+    "content",
+    "recorded-output",
+    "try-a-development-task"
+  ],
+  "troubleshooting": [
+    "content",
+    "troubleshooting"
+  ],
+  "quality": [
+    "content",
+    "quality-supervision-and-evaluation",
+    "dana-quality-supervision",
+    "deliverable-evaluation"
+  ],
+  "testing": [
+    "content",
+    "testing",
+    "opt-in-integration-smoke-checks-real-docker--graphify"
+  ],
+  "limitations": [
+    "content",
+    "current-limitations",
+    "security-and-isolation-boundaries"
+  ],
+  "workflow": [
+    "content",
+    "how-the-workflow-runs",
+    "interactive-alignment-and-execution-modes"
+  ]
+}

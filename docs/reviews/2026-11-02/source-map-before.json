@@ -1,0 +1,47 @@
+{
+  "quickstart": [
+    "Quick start"
+  ],
+  "workflow": [
+    "How the workflow runs",
+    "Interactive alignment and execution modes"
+  ],
+  "configuration": [
+    "Tiered model routing and token optimization",
+    "Token usage and cost analytics"
+  ],
+  "execution": [
+    "Execution and validation",
+    "Web and documentation search with guardrails",
+    "Dynamic progress and project delivery"
+  ],
+  "projects": [
+    "Keep related tasks connected",
+    "What stays on disk"
+  ],
+  "resume": [
+    "Resume a task"
+  ],
+  "architecture": [
+    "Component connections",
+    "Repository map",
+    "Development and documentation",
+    "Brand assets"
+  ],
+  "testing": [
+    "Testing"
+  ],
+  "limitations": [
+    "Current limitations",
+    "Security and isolation boundaries"
+  ],
+  "troubleshooting": [
+    "Troubleshooting"
+  ],
+  "project-tools": [
+    "Project REPL, Live Verification, and UI Preview"
+  ],
+  "quality": [
+    "Quality supervision and evaluation"
+  ]
+}

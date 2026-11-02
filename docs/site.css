@@ -6,3 +6,15 @@
 .diagram-link{display:block;margin:24px 0;border-radius:12px;outline-offset:4px}
 .diagram-link img{display:block}
 @media(max-width:760px){.agent-roster{grid-template-columns:1fr}.sidebar nav p:not(:first-child){margin-top:16px}}
+pre{font-size:13px}
+@media(max-width:760px){pre{font-size:12px}}
+/* Copy the original code text; preserve local scrolling rather than token wrapping. */
+.code-controls{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin:16px 0 -12px}
+.code-controls button{font:inherit;font-size:13px;min-height:44px;padding:8px 14px;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:6px;cursor:pointer}
+.code-controls button:hover{border-color:var(--orange)}
+.code-controls button:focus-visible,pre:focus-visible{outline:2px solid var(--orange);outline-offset:4px}
+.code-controls [role=status]{font-size:12px;color:var(--muted)}
+main,.layout,.sidebar{min-width:0}
+pre code{white-space:pre;word-break:normal;overflow-wrap:normal}
+.diagram-link:after{content:'Open original image ↗';display:block;font-size:12px;margin-top:6px}
+@media(max-width:760px){.sidebar nav a{min-height:44px;display:flex;align-items:center}header{gap:12px}.button{min-height:44px}.brand{min-width:0}}

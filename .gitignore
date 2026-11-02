@@ -46,3 +46,8 @@ vault/code-reviews/*.md
 
 # Local marketing materials
 /LinkedIn post/
+
+# Elephant session artifacts & design scratchpad
+docs/designs/
+.elephant/
+
