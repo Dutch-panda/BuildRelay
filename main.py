@@ -359,9 +359,9 @@ async def run_task(
                     executed_phases=[],
                 )
 
-            design_context = format_design_context(objective, research)
+            design_context = format_design_context(objective, research, alignment_brief=brief.alignment_brief)
         else:
-            design_context = format_design_context(objective, None)
+            design_context = format_design_context(objective, None, alignment_brief=brief.alignment_brief)
         if brief.target_lead in ('odin', 'taghi'):
             record.status = 'ARCHITECTING'
             ledger.save(record)
@@ -412,7 +412,7 @@ async def run_task(
                 sys.exit(0)
             elif gate_action == "apply" and feedback:
                 taghi_model = await resolve_agent_model(pipeline_models["taghi"])
-                revised_context = f"{format_design_context(brief.objective, None)}\n\nSupervisor Architectural Revisions Required:\n{feedback}"
+                revised_context = f"{format_design_context(brief.objective, None, alignment_brief=brief.alignment_brief)}\n\nSupervisor Architectural Revisions Required:\n{feedback}"
                 spec = await TaghiArchitect(model_name=taghi_model).create_specification(
                     task_id, revised_context, project_id=project
                 )
@@ -423,7 +423,7 @@ async def run_task(
                 rec_summary = "; ".join(dana_critique.actionable_recommendations)
                 print_agent("dana", f"[bold yellow]Autonomous Steering:[/bold yellow] Requesting Taghi specification revision: {rec_summary}")
                 taghi_model = await resolve_agent_model(pipeline_models["taghi"])
-                revised_context = f"{format_design_context(brief.objective, None)}\n\nSupervisor Architectural Revisions Required:\n{rec_summary}"
+                revised_context = f"{format_design_context(brief.objective, None, alignment_brief=brief.alignment_brief)}\n\nSupervisor Architectural Revisions Required:\n{rec_summary}"
                 spec = await TaghiArchitect(model_name=taghi_model).create_specification(
                     task_id, revised_context, project_id=project
                 )
@@ -458,7 +458,7 @@ async def run_task(
             # Re-generate specification
             taghi_model = await resolve_agent_model(pipeline_models["taghi"])
             spec = await TaghiArchitect(model_name=taghi_model).create_specification(
-                task_id, format_design_context(brief.objective, None), project_id=project
+                task_id, format_design_context(brief.objective, None, alignment_brief=brief.alignment_brief), project_id=project
             )
             record.specification = spec
             ledger.save(record)

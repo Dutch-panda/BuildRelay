@@ -67,7 +67,7 @@ def run_grill_session(
     title: str | None = None,
     auto: bool = False,
     input_func: Callable[[str], str] | None = None,
-    max_questions: int = 10,
+    max_questions: int = 15,
 ) -> tuple[dict[str, str], bool]:
     """
     Run an interactive multi-choice & open-response alignment interview.
@@ -78,7 +78,7 @@ def run_grill_session(
         title: Custom title for the panel header.
         auto: If True, automatically accept all recommended defaults.
         input_func: Custom input function for testability (defaults to input).
-        max_questions: Maximum number of questions to ask in this session (default 10).
+        max_questions: Maximum number of questions to ask in this session (default 15).
 
     Returns:
         tuple[answers, quit_requested]:

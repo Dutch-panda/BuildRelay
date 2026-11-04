@@ -3,6 +3,7 @@ import sqlite3
 import pytest
 
 from contracts import (
+    AlignmentBrief,
     ExecutionPhase,
     ImplementationCheckpoint,
     ImplementationResult,
@@ -73,6 +74,22 @@ def test_format_design_context_without_research_or_sources():
     assert f"Objective: {objective}" in context
     assert "Use argparse." in context
     assert "Retrieved vault context" not in context
+
+
+def test_format_design_context_with_alignment_brief():
+    objective = "Build offline form sync"
+    alignment_brief = AlignmentBrief(
+        goal="Offline form sync engine",
+        core_features="HTML form with Tailwind CDN",
+        tech_stack="Python 3.11",
+        exclusions="Cloud databases",
+        next_actions="Taghi architects system",
+    )
+    context = format_design_context(objective, None, alignment_brief=alignment_brief)
+    assert f"Objective: {objective}" in context
+    assert "Task Alignment Brief:" in context
+    assert "- 1. Goal: Offline form sync engine" in context
+    assert "- 2. Features: HTML form with Tailwind CDN" in context
 
 
 def test_legacy_sqlite_payload_round_trip(tmp_path):

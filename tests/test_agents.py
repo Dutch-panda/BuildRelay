@@ -131,3 +131,37 @@ def test_taghi_and_meti_input_surface_mandate(tmp_path):
     meti_prompt = meti.agent._system_prompts[0] if hasattr(meti.agent, "_system_prompts") else str(meti.agent.system_prompt)
     assert "USER ENTRY POINT & INPUT SURFACE IMPLEMENTATION" in meti_prompt
 
+
+def test_taghi_doc_only_phase_safeguard(tmp_path):
+    doc_phase = ExecutionPhase(
+        phase_name="1-docs",
+        instructions="Draft architecture and markdown documentation",
+        validation_command="cat spec.md",
+    )
+    model = TestModel(
+        call_tools=[],
+        custom_output_args=dict(
+            task_id="model-id",
+            architecture_overview="Design overview",
+            required_dependencies=[],
+            phases=[doc_phase.model_dump()],
+        ),
+    )
+    taghi = TaghiArchitect(vault_path=str(tmp_path / "vault"), model_name=model)
+    spec = asyncio.run(taghi.create_specification("build-web-app", "Research notes", project_id=None))
+
+    assert len(spec.phases) == 1
+    assert spec.phases[0].phase_name == "1-core-implementation"
+    assert "Implement working executable code for build-web-app" in spec.phases[0].instructions
+    assert spec.phases[0].validation_command == "pytest tests"
+
+
+def test_meti_anti_simulation_prompt():
+    from agents.meti import MetiImplementer
+    meti = MetiImplementer(model_name="test")
+    prompt = meti.agent._system_prompts[0] if hasattr(meti.agent, "_system_prompts") else str(meti.agent.system_prompt)
+    assert "Anti-Simulation Rule" in prompt
+    assert "setTimeout" in prompt
+    assert "localStorage" in prompt
+
+

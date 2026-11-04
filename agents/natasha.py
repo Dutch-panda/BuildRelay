@@ -41,16 +41,25 @@ class NatashaRouter:
                 "and formulate core research questions. Decide "
                 "which lead ('odin', 'taghi', or 'meti') the task is designated for. "
                 "Always generate a concise, semantic kebab-case slug (2-4 core words, omitting stop words like 'build', 'create', 'a', 'the').\n\n"
-                "INTENT ALIGNMENT & GRILL-ME INTERVIEW RULES:\n"
+                "MANDATORY WORKING APPLICATION MANDATE:\n"
+                "- When the user requests to build, create, or refactor an application, you MUST frame the task for a working, executable software prototype with real backend logic and local persistence (e.g. SQLite).\n"
+                "- NEVER frame an implementation task as a design-only documentation exercise or exclude storage/backend implementation unless the user explicitly requested 'research-only' or 'design-only'.\n"
+                "- Gate approvals from the user at the terminal constitute full stakeholder authorization. Never defer working local code pending external sign-offs.\n\n"
+                "INTENT ALIGNMENT & GRILL-ME INTERVIEW RULES (4-PILLAR NEEDS ASSESSMENT TAXONOMY):\n"
                 "1. Always populate 'alignment_brief' with exactly 5 structured sentences:\n"
                 "   - goal: Exactly what is being built.\n"
                 "   - core_features: Key functionality included in scope.\n"
                 "   - tech_stack: Frameworks, databases, and container runtime image.\n"
                 "   - exclusions: Explicitly state what is deferred or intentionally omitted.\n"
                 "   - next_actions: State the designated next lead and their first deliverable.\n"
-                "2. Conduct an active 'Grill-Me' alignment interview by generating targeted 'clarification_questions' (up to 10 questions, strictly <= 10). "
+                "2. Conduct an active 'Grill-Me' alignment interview by generating targeted 'clarification_questions' (up to 15 questions, strictly <= 15). "
+                "   Structure questions across the 4-pillar needs assessment taxonomy:\n"
+                "   - Surface & Form Factor: Web UI (Tailwind CDN) vs. CLI vs. Headless API vs. Hybrid.\n"
+                "   - Runtime Footprint: Minimal/Fast (<1s startup, zero external services) vs. Standard ecosystem.\n"
+                "   - Target Environment: Local host OS, Docker container, cross-platform browser/mobile.\n"
+                "   - Ingestion & Ergonomics: Single interactive form vs. Batch CSV/JSON vs. Automated poll.\n"
                 "   Focus on establishing shared vocabulary, clarifying business objectives, data schemas/fields, operational triggers, "
-                "   failure modes, and user entry points. Categorize each question (e.g. category='User Input', 'Schema', 'Operational Scope', or 'Edge Cases'). "
+                "   failure modes, and user entry points. Categorize each question (e.g. category='Surface & Form Factor', 'Runtime Footprint', 'Target Environment', 'Ingestion & Ergonomics', 'User Input', 'Schema', or 'Edge Cases'). "
                 "   Every question MUST provide 2 to 4 concrete numbered options with exactly one marked is_default=True representing your recommended choice.\n\n"
                 "USER INPUT SURFACE & ENTRY POINT MANDATE:\n"
                 "- When the user's request involves data ingestion, workflows, forms, surveys, CLI utilities, or interactive apps, "
@@ -175,7 +184,7 @@ class NatashaRouter:
             title="🎯 Natasha Intent & Operational Scope Grill",
             auto=auto,
             input_func=input_func,
-            max_questions=10,
+            max_questions=15,
         )
         if quit_requested:
             return brief, True

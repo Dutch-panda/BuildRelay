@@ -653,7 +653,7 @@ def print_ui_spec_proposal_card(ui_spec: Any) -> None:
 
     if states:
         lines.append("[bold white]⚡ Dynamic UI States:[/bold white]")
-        for st_name, st_desc in list(states.items())[:4]:
+        for st_name, st_desc in states.items():
             lines.append(f"  • [cyan]{escape(st_name.capitalize())}:[/cyan] {escape(str(st_desc))}")
 
     panel = Panel(
@@ -1116,7 +1116,7 @@ def prompt_iteration_gate(
 
 def print_dana_critique_card(critique: Any) -> None:
     """Render Dana's quality evaluation card for the supervised stage."""
-    lead = str(getattr(critique, "lead", "stage")).capitalize()
+    lead = str(getattr(critique, "lead", "stage")).upper()
     verdict = str(getattr(critique, "verdict", "approve")).lower()
     score = getattr(critique, "score", 85)
     summary = str(getattr(critique, "summary", ""))
@@ -1125,47 +1125,45 @@ def print_dana_critique_card(critique: Any) -> None:
     recommendations = getattr(critique, "actionable_recommendations", []) or []
 
     if verdict == "approve":
-        badge = f"[bold green]✓ APPROVED (Score: {score}/100)[/bold green]"
+        badge = f"[bold green]APPROVED (Score: {score}/100)[/bold green]"
         border_col = "green"
     elif verdict == "suggest":
-        badge = f"[bold cyan]ℹ SUGGESTIONS (Score: {score}/100)[/bold cyan]"
+        badge = f"[bold cyan]SUGGESTIONS (Score: {score}/100)[/bold cyan]"
         border_col = "cyan"
     elif verdict == "warn":
-        badge = f"[bold yellow]⚠ WARNINGS (Score: {score}/100)[/bold yellow]"
+        badge = f"[bold yellow]WARNINGS (Score: {score}/100)[/bold yellow]"
         border_col = "yellow"
     else:
-        badge = f"[bold red]⛔ BLOCKED (Score: {score}/100)[/bold red]"
+        badge = f"[bold red]BLOCKED (Score: {score}/100)[/bold red]"
         border_col = "red"
 
     lines = [
-        f"[bold white]Supervised Lead:[/bold white]    [cyan]{escape(lead)}[/cyan]",
-        f"[bold white]Supervisor Verdict:[/bold white] {badge}\n",
-        f"[bold white]Evaluation Assessment:[/bold white]\n{escape(summary)}\n",
+        f"[bold white]Lead:[/bold white] [cyan]{escape(lead)}[/cyan] [dim]|[/dim] [bold white]Verdict:[/bold white] {badge}",
     ]
+    if summary:
+        lines.append(f"[dim]{escape(summary)}[/dim]")
 
     if strengths:
         lines.append("[bold green]Strengths Identified:[/bold green]")
         for s in strengths:
-            lines.append(f"  • {escape(str(s))}")
-        lines.append("")
+            lines.append(f"  [bold green]+[/bold green] {escape(str(s))}")
 
     if risks:
         lines.append("[bold yellow]Risks / Gaps Detected:[/bold yellow]")
         for r in risks:
-            lines.append(f"  • {escape(str(r))}")
-        lines.append("")
+            lines.append(f"  [bold yellow]▲[/bold yellow] {escape(str(r))}")
 
     if recommendations:
         lines.append("[bold cyan]Actionable Recommendations:[/bold cyan]")
-        for idx, rec in enumerate(recommendations, 1):
-            lines.append(f"  [cyan]{idx}.[/cyan] {escape(str(rec))}")
+        for rec in recommendations:
+            lines.append(f"  [bold cyan]➔[/bold cyan] {escape(str(rec))}")
 
     panel = Panel(
         "\n".join(lines).strip(),
         title="[bold #a855f7]🧭 Dana — Quality Supervisor Evaluation[/bold #a855f7]",
         title_align="left",
         border_style=border_col,
-        padding=(1, 2),
+        padding=(0, 2),
     )
     console.print()
     console.print(panel)

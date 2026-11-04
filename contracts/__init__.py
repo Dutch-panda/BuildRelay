@@ -504,30 +504,55 @@ class ImplementationCheckpoint(BaseModel):
                 raise ValueError("A resumed run must use a new run number")
 
 
-def format_design_context(objective: str, research: ResearchReport | None = None) -> str:
-    """Format design context for Taghi, preserving research findings and vault sources.
+def format_design_context(
+    objective: str,
+    research: Any | None = None,
+    alignment_brief: Any | None = None,
+) -> str:
+    """Format design context for Taghi, preserving research findings, vault sources, and alignment brief.
 
     Distinguishes retrieved vault context (historical graph nodes) from claim-level empirical facts.
     """
-    if research is None:
+    if research is None and alignment_brief is None:
         return objective
 
-    sections = [
-        f"Objective: {objective}",
-        f"Summary: {research.summary}",
-        "Key findings:\n" + "\n".join(f"- {item}" for item in research.key_findings),
-        "Recommended stack:\n" + "\n".join(f"- {item}" for item in research.recommended_stack),
-    ]
+    sections = [f"Objective: {objective}"]
 
-    if research.vault_sources:
-        formatted_sources = "\n".join(
-            f"- [[{source}]]" if not source.startswith("[[") else f"- {source}"
-            for source in research.vault_sources
-        )
-        sections.append(
-            "Retrieved vault context (historical vault notes; not independent empirical facts):\n"
-            + formatted_sources
-        )
+    if research is not None:
+        sections.append(f"Summary: {research.summary}")
+        sections.append("Key findings:\n" + "\n".join(f"- {item}" for item in research.key_findings))
+        sections.append("Recommended stack:\n" + "\n".join(f"- {item}" for item in research.recommended_stack))
+
+        if getattr(research, "vault_sources", None):
+            formatted_sources = "\n".join(
+                f"- [[{source}]]" if not source.startswith("[[") else f"- {source}"
+                for source in research.vault_sources
+            )
+            sections.append(
+                "Retrieved vault context (historical vault notes; not independent empirical facts):\n"
+                + formatted_sources
+            )
+
+    if alignment_brief is not None:
+        lines: list[tuple[str, str]] = []
+        if hasattr(alignment_brief, "to_lines"):
+            lines = alignment_brief.to_lines()
+        elif isinstance(alignment_brief, dict):
+            lines = [
+                ("1. Goal:", alignment_brief.get("goal", "")),
+                ("2. Features:", alignment_brief.get("core_features", "")),
+                ("3. Stack:", alignment_brief.get("tech_stack", "")),
+                ("4. Exclusions:", alignment_brief.get("exclusions", "")),
+                ("5. Next Steps:", alignment_brief.get("next_actions", "")),
+            ]
+
+        if lines:
+            formatted_brief = "\n".join(f"- {label} {val}" for label, val in lines if val)
+            sections.append(f"Task Alignment Brief:\n{formatted_brief}")
+        elif isinstance(alignment_brief, str):
+            sections.append(f"Task Alignment Brief:\n{alignment_brief}")
+        else:
+            sections.append(f"Task Alignment Brief:\n{str(alignment_brief)}")
 
     return "\n\n".join(sections)
 

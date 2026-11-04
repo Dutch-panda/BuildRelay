@@ -44,30 +44,38 @@ class TaghiArchitect:
                 "CRITICAL EXECUTION CONSTRAINTS FOR METI SANDBOX:\n"
                 "- Meti executes and validates all phases autonomously inside an isolated Docker container without host credentials or live external API keys.\n"
                 "- Every phase in 'phases' MUST be fully executable and verifiable inside the container environment using offline test suites, fixtures, or mock adapters.\n"
+                "- You MUST ALWAYS emit at least 1 and up to 5 concrete, actionable execution phases in 'phases'. An empty 'phases' list is strictly prohibited and breaks execution.\n"
                 "- If the task involves third-party services or private APIs where no credentials or endpoints are provided in the brief, specify modular mock implementations and offline test suites.\n"
                 "- NEVER emit speculative, conditional, or blocked phases (e.g., 'Phase 5: authorized-source-integration-gate') that require unprovided credentials, live network access, or manual approvals. "
                 "Document production prerequisites and future live integration gates exclusively in 'architecture_overview', NEVER as an ExecutionPhase.\n\n"
+                "MANDATORY WORKING APPLICATION & EXECUTABLE CODE INVARIANT:\n"
+                "- When the user requests to build, create, or refactor an application, you MUST architect concrete, executable backend code (e.g. backend server 'app.py', real database persistence like SQLite, API endpoints, working form handlers, and offline test suites).\n"
+                "- Emitting phases that only write design documentation, fixture JSON, unapproved decision tables, or passive mock previews while omitting the actual working backend code and persistence is STRICTLY PROHIBITED.\n"
+                "- The user at the keyboard IS the stakeholder. Gate approval constitutes complete authorization. NEVER create phases or documentation declaring decisions 'UNAPPROVED' or deferring implementation pending external sign-offs.\n\n"
                 "USER-FIRST DELIVERY & DOCUMENTATION MANDATE:\n"
                 "- The final documentation/delivery phase MUST instruct creation of a project README.md designed for end-users with zero cognitive friction.\n"
                 "- The README.md MUST include: (1) an intuitive visual architecture or data flow diagram (ASCII or Mermaid), (2) a zero-jargon, step-by-step Quickstart guide explaining exactly how to run or deploy the result in simple numbered steps, and (3) concrete examples.\n"
                 "- If a project requires user-provided configuration (e.g. spreadsheet URLs, API tokens, column mappings, or database paths), DO NOT leave passive markdown questionnaires or expect raw JSON editing: mandate an interactive CLI setup script (e.g. 'scripts/setup.js' or 'setup.py') that guides the user interactively in plain English.\n\n"
-                "MANDATORY USER INPUT SURFACE & ENTRY POINT PHASE (DUAL-DISCIPLINE ARCHITECTURE & PHASE ORDERING):\n"
+                "MANDATORY USER INPUT SURFACE & ENTRY POINT PHASE:\n"
+                "- Scale execution phases flexibly based on the project scope and outcome-driven intent:\n"
+                "  - Simple CLI / Local Utility: 1 phase with executable script and offline tests (e.g. '1-core-implementation').\n"
+                "  - Interactive Form with Persistence: 2 to 3 phases (e.g. backend/storage, frontend UI, verification).\n"
+                "  - Complex Multi-service: up to 5 phases.\n"
                 "- When the task involves user-facing input surfaces, web forms, dashboards, or transaction workflows:\n"
-                "  1. Backend Phases First (Executed and verified in Docker before UI work begins):\n"
-                "     - Phase 1: Database models, schemas, and formula injection sanitizers.\n"
-                "     - Phase 2: Core processing engine, API/webhook handlers, and deterministic unit tests.\n"
-                "  2. Frontend UI/UX Phases Second (Built against the verified backend):\n"
-                "     - Phase 3: Modern UI surface layout (e.g. 'form.html' with Tailwind CSS CDN, responsive card grid, and clear visual hierarchy).\n"
-                "     - Phase 4: Client-side validation, loading spinners on submit, and interactive success/error notification banners.\n"
-                "  3. Live Verification & Delivery Third:\n"
-                "     - Phase 5: Tier 2 Live Verification Smoke Script ('scripts/verify_live.py') and README Live Checklist.\n"
+                "  1. Backend Core First: Database models, schemas, formula injection sanitizers, and deterministic unit tests.\n"
+                "  2. Frontend UI/UX Second: Modern UI surface layout (e.g. 'form.html' with Tailwind CSS CDN, responsive card grid, and clear visual hierarchy) with client-side validation and interactive feedback.\n"
+                "  3. Live Verification & Delivery Third: Tier 2 Live Verification Smoke Script ('scripts/verify_live.py') and README Live Checklist.\n"
                 "- DEDICATED UI/UX DESIGN SPECIFICATION ('ui_spec'):\n"
                 "  Always populate 'ui_spec' with: (1) surface_type, (2) theme & color_palette, (3) component_layout wireframe, "
-                "  (4) form_fields with explicit validation_rules, (5) the 4 interactive UI states (empty, validating, submitting, success, error), "
-                "  and (6) 2 to 4 targeted 'clarification_questions' inside ui_spec covering UI theme, layout, and feedback preferences.\n\n"
-                "ARCHITECTURAL GRILL-ME & USER INTERFACE APPROVAL:\n"
+                "  (4) form_fields with explicit validation_rules, (5) the 5 interactive UI states (empty, validating, submitting, success, error), "
+                "  and (6) up to 6 targeted 'clarification_questions' inside ui_spec covering UI theme, layout, and feedback preferences.\n\n"
+                "ARCHITECTURAL GRILL-ME & USER INTERFACE APPROVAL (3-PILLAR DEFENSIVE MATRIX):\n"
                 "- Always populate 'input_interface_spec' and 'ui_spec' with concrete layout and field validation rules.\n"
-                "- Formulate up to 10 targeted backend 'clarification_questions' (strictly <= 10) covering schema, frameworks, error handling, and offline mocks. "
+                "- Formulate up to 15 targeted backend 'clarification_questions' (strictly <= 15) and up to 6 UI clarification questions in ui_spec. "
+                "  Structure questions across the 3-pillar defensive matrix:\n"
+                "  1. Storage & Lifecycle: SQLite durable file vs. JSON snapshot vs. In-memory ephemeral.\n"
+                "  2. Defensive Edge Cases: Duplicate detection policy (warn vs. reject vs. merge), corrupted input recovery, sanitization rules.\n"
+                "  3. UI Ergonomics & 5 States: Empty state messaging, inline validation timing (blur vs. submit), loading feedback, alert dismissals.\n"
                 "  Every question MUST provide 2 to 4 numbered options with exactly one marked is_default=True.\n\n"
                 "TWO-TIER VERIFICATION ARCHITECTURE & SPECIFICATION MANDATE:\n"
                 "1. Tier 1 (Automated Docker Validation):\n"
@@ -115,6 +123,7 @@ class TaghiArchitect:
             "Keep source files, tests, documentation, validation scripts, and dependencies in this project directory. "
             "Write validation commands relative to this directory or using its absolute container path.\n"
             "Execution Rule: All phases in 'phases' must be actionable and fully verifiable offline within the container. "
+            "You MUST emit at least 1 and up to 5 ordered execution phases in 'phases'. An empty 'phases' list is strictly prohibited. "
             "Do NOT include conditional or blocked phases that depend on unprovided credentials or external authorization; "
             "place any unverified external prerequisites or live deployment notes in architecture_overview."
         )
@@ -126,6 +135,33 @@ class TaghiArchitect:
 
         spec.token_usage = extract_usage(result, model_name=str(self.model_name))
         spec.sanitize_executable_phases()
+
+        if spec.base_image is None and any(kw in f"{research_summary} {project.prompt}".lower() for kw in ("python", "flask", "fastapi", "django", "pytest")):
+            spec.base_image = "python:3.11-slim"
+
+        fallback_image = spec.base_image or "python:3.11-slim"
+        fallback_cmd = "pytest tests" if "python" in fallback_image.lower() else "npm test"
+
+        if not spec.phases:
+            spec.phases = [
+                ExecutionPhase(
+                    phase_name="1-core-implementation",
+                    instructions=f"Implement and verify core components for {task_id} in workspace/{workspace_dir}/ with automated offline tests.",
+                    validation_command=fallback_cmd,
+                )
+            ]
+        elif (
+            any(w in f"{task_id} {project.prompt}".lower() for w in ("build", "create", "implement", "app", "tool", "cli", "server", "gateway", "desk"))
+            and all(re.search(r"\.md\b", p.validation_command) and not re.search(r"\b(pytest|python|node|npm|cargo|go|sh|bash)\b", p.validation_command) for p in spec.phases)
+        ):
+            spec.phases = [
+                ExecutionPhase(
+                    phase_name="1-core-implementation",
+                    instructions=f"Implement working executable code for {task_id} in workspace/{workspace_dir}/ with automated offline unit tests.",
+                    validation_command=fallback_cmd,
+                )
+            ]
+
         spec.architecture_overview = f"{directory_instruction}\n\n{spec.architecture_overview}"
 
         timestamp = datetime.now().strftime("%Y-%m-%d")
@@ -240,7 +276,7 @@ links: ["[[spec-{task_id}]]"]
                     title="🏛 Taghi Architecture & Schema Grill",
                     auto=auto,
                     input_func=input_func,
-                    max_questions=10,
+                    max_questions=15,
                 )
                 if quit_requested:
                     return current_spec, True
@@ -260,7 +296,7 @@ links: ["[[spec-{task_id}]]"]
                     title="🎨 Taghi UI/UX Design & Ergonomics Grill",
                     auto=auto,
                     input_func=input_func,
-                    max_questions=10,
+                    max_questions=6,
                 )
                 if quit_requested:
                     return current_spec, True

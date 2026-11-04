@@ -387,3 +387,55 @@ def test_prompt_delivery_gate_entry_points(capsys, tmp_path):
     assert "node scripts/input.js" in out
     assert "dist/Code.gs" in out
 
+
+def test_print_dana_critique_card(capsys):
+    from contracts import DanaCritique
+    from tools.ui import print_dana_critique_card
+
+    critique = DanaCritique(
+        lead="taghi",
+        verdict="approve",
+        summary="Architecture is sound with clean separation of concerns.",
+        strengths=["Clear state definitions", "Deterministic tests"],
+        risks_or_gaps=["High concurrency on write"],
+        actionable_recommendations=["Add SQLite busy timeout"],
+        score=92,
+    )
+    print_dana_critique_card(critique)
+    out = capsys.readouterr().out
+    assert "TAGHI" in out
+    assert "APPROVED (Score: 92/100)" in out
+    assert "Architecture is sound with clean separation of concerns." in out
+    assert "+" in out
+    assert "Clear state definitions" in out
+    assert "▲" in out
+    assert "High concurrency on write" in out
+    assert "➔" in out
+    assert "Add SQLite busy timeout" in out
+
+
+def test_print_ui_spec_proposal_card_renders_all_5_states(capsys):
+    from contracts import UIDesignSpec
+    from tools.ui import print_ui_spec_proposal_card
+
+    ui_spec = UIDesignSpec(
+        surface_type="web_form",
+        theme="light",
+        color_palette={"primary": "#3b82f6"},
+        component_layout="Single card centered",
+        states={
+            "empty": "Initial blank form with placeholders",
+            "validating": "Inline field validation on blur",
+            "submitting": "Submit button disabled with spinner",
+            "success": "Green check banner with transaction ID",
+            "error": "Red alert box with detailed field error",
+        },
+    )
+    print_ui_spec_proposal_card(ui_spec)
+    out = capsys.readouterr().out
+    assert "Empty:" in out
+    assert "Validating:" in out
+    assert "Submitting:" in out
+    assert "Success:" in out
+    assert "Error:" in out
+

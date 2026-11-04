@@ -172,3 +172,17 @@ def test_prompt_spec_approval_gate_revise():
     action, feedback = prompt_spec_approval_gate(spec, auto=False, input_func=lambda _: inputs.pop(0))
     assert action == "revise"
     assert feedback == "Please add a receipt upload field to the form"
+
+
+def test_grill_session_default_max_questions_is_15():
+    questions = [
+        ClarificationQuestion(
+            id=f"q_{i}",
+            question=f"Question {i}",
+            options=[ClarificationOption(key="1", label=f"Option {i}", is_default=True)],
+        )
+        for i in range(20)
+    ]
+    answers, quit_req = run_grill_session(questions, auto=True)
+    assert quit_req is False
+    assert len(answers) == 15
