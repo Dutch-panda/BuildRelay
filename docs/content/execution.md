@@ -7,6 +7,7 @@ Tier 1 passing does not mean live verification ran. The preview server serves fi
 
 - Each command runs in a **fresh Docker container**, with the project or task workspace mounted at `/app/workspace/<task_id>/`.
 - Files in that mount persist across commands. Container-local installs and changes outside it do not; keep durable dependencies in the mounted directory.
+- **Outcome-Driven Phase Scaling:** Execution phases are scaled dynamically based on task scope (1 phase for focused CLI utilities up to 5 phases for full-stack apps). An anti-doc-only safeguard rejects plans containing only markdown or documentation without functional code and tests.
 - Each phase must pass its **exact validation command**, submitted separately with its phase name, in the declared order. Successful command exit codes are recorded as validation results.
 - Failed phase validation returns combined stdout/stderr to Meti with the remaining attempt count. Meti can repair and rerun the same check, up to **three validation attempts per phase per run** (one initial attempt and two retries). The third failure stops execution before more sandbox commands or later phases.
 - Straightforward tasks receive a fast-track phase that asks Meti to create and run a task-specific validation script.
@@ -39,6 +40,8 @@ Natasha and Odin have documentation search tools; Odin also has package registry
 
 - **Live Progress Spinners:** Active Docker operations and LLM generation phases display animated Rich status spinners (`rich.status.Status`) instead of terminal dumps.
 - **Clean Execution Logs:** Docker stdout and stderr are routed to `.state/task.log`. Set `BUILDRELAY_DEBUG=1` to echo full container outputs directly to the terminal.
+- **Anti-Simulation Invariant & Real Data Flow:** Frontend and CLI surfaces must wire directly to real backend endpoints or verified persistent storage (SQLite, local files, or structured localStorage). Simulating actions with fake `setTimeout` stubs, hollow mock promises, or "preview only" disclaimer messages is strictly prohibited.
+- **5 Discrete UI Interaction States:** Input surfaces must concretely handle all 5 interaction states: `empty` (default clean state), `validating` (inline validation feedback), `submitting` (loading spinner / disabled controls), `success` (confirmation / data saved alert), and `error` (actionable recovery hints).
 - **Meti Delivery Confirmation Gate:** Pauses after phase checks pass to present an interactive delivery summary, file tree, and quickstart commands, letting users accept (`[Enter]`/`[c]`) or request follow-up refinements (`[r]`) in a live loop before closing the task.
 - **User-First Deliverables Mandate:** System prompts mandate beginner-friendly READMEs with visual architecture/dataflow diagrams, plain-language quickstarts and lightweight setup scripts (`scripts/setup.js`). These are prompt instructions, not guaranteed dependency-free delivery.
 - **Auto-Generated Workspace README:** Meti creates a fallback `README.md` in the project or standalone task workspace when one is missing or empty, with architecture, run, and validation guidance. Existing nonempty READMEs are preserved; review the instructions against the generated project.

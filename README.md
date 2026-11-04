@@ -10,7 +10,7 @@ Version <!-- package-version:start -->0.2.0<!-- package-version:end --> · Pytho
 [Documentation](https://dutch-panda.github.io/BuildRelay/) · [Quick start](#quick-start) · [CI results](https://github.com/Dutch-panda/BuildRelay/actions/workflows/tests.yml) · [Issues](https://github.com/Dutch-panda/BuildRelay/issues)
 </div>
 
-BuildRelay routes a request through selected research, architecture and implementation roles. It records plans, Docker phase-check results and checkpoints so you can inspect and continue work. Human alignment and approval points help clarify the task; they do not guarantee correctness. Optional supervision and static scores provide signals, not independent acceptance evidence.
+BuildRelay routes a request through selected research, architecture and implementation roles. It records outcome-driven plans (1–5 phases), Docker phase-check results and checkpoints so you can inspect and continue work. Interactive alignment interviews (up to 15 questions) clarify intent upfront, while an anti-simulation contract ensures real data persistence rather than mock stubs. Optional supervision across 5 technical pillars and static scores provide quality signals, not independent acceptance evidence.
 
 ## Who it is for
 

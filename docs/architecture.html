@@ -11,22 +11,28 @@
 ├── agents/
 │   ├── natasha.py             Structured briefs and routing
 │   ├── odin.py                Research reports
-│   ├── taghi.py               Specifications and execution phases
+│   ├── taghi.py               Specifications and outcome-driven execution phases
 │   ├── execution_policy.py    Phase validation ordering, retry budgets, and recovery policy
 │   ├── review_renderer.py     Markdown code review report rendering
-│   └── meti.py                Implementation coordination and Docker tools
+│   ├── meti.py                Implementation coordination and Docker tools
+│   └── dana.py                Principal Quality Supervisor &amp; autonomous overseer
 ├── tools/
 │   ├── chatgpt_auth.py        OAuth credential storage and model setup
 │   ├── context_pruner.py      Markdown stripping, graph context ranking, and Docker log slicing
 │   ├── docker_runner.py      Container lifecycle and workspace mounts
+│   ├── eval_harness.py       Automated multi-dimensional deliverable evaluation
 │   ├── graphify_tool.py      Graph extraction, node search, and neighbors
+│   ├── grill.py              Interactive Grill-Me interview and alignment engine
+│   ├── live_verifier.py      Tier 2 guided live verification smoke runner
 │   ├── onboarding.py         Interactive provider setup and local .env persistence
 │   ├── web_search.py         Search results, URL checks, page helper, and registry lookup
 │   ├── model_tiers.py        Tiered routing presets, budget estimation, and lead overrides
 │   ├── project_notes.py      Project IDs, note creation, and shared links
+│   ├── session.py            Continuous conversational project REPL
 │   ├── task_ledger.py        SQLite checkpoints and per-task process locks
 │   ├── token_analytics.py    Token usage tracking, model pricing, and summary tables
 │   ├── ui.py                  Terminal styling, agent color badges, panels, and phase tables
+│   ├── ui_preview.py         Local web preview server for generated input surfaces
 │   └── vault_infra.py        Safe Markdown writing, graph tool wiring, and graph updates
 ├── .github/workflows/tests.yml  Automated platform tests
 ├── tests/                    Deterministic platform tests
