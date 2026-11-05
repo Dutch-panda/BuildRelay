@@ -119,7 +119,7 @@ def extract_usage(result_or_usage: Any, model_name: str | None = None) -> dict[s
         }
 
     usage = getattr(result_or_usage, "usage", result_or_usage)
-    if callable(usage):
+    if callable(usage) and not hasattr(usage, "input_tokens") and not hasattr(usage, "request_tokens"):
         try:
             usage = usage()
         except TypeError:
