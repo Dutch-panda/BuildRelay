@@ -391,5 +391,5 @@ def test_taghi_system_prompt_architectural_grill_mandate(tmp_path):
 
     taghi = TaghiArchitect(vault_path=tmp_path / "vault", model_name="test")
     prompt = taghi.agent._system_prompts[0] if hasattr(taghi.agent, "_system_prompts") else str(taghi.agent.system_prompt)
-    assert "ARCHITECTURAL GRILL-ME & USER INTERFACE APPROVAL" in prompt
+    assert "ARCHITECTURAL GRILL-ME & BACKEND CONTRACTS" in prompt
     assert "input_interface_spec" in prompt

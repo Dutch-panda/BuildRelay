@@ -143,11 +143,12 @@ class TaskBrief(BaseModel):
     title: str = Field(description="Short concise title of the user request")
     objective: str = Field(description="Detailed objective of what needs to be accomplished")
     slug: str = Field(description="A short, file-safe kebab-case slug summarizing the task, e.g., 'sqlite-db-research'")
-    target_lead: Literal["odin", "taghi", "meti"] = Field(
+    target_lead: Literal["odin", "taghi", "diba", "meti"] = Field(
         description=(
             "Decide who gets this task next: "
             "'odin' if it requires deep research/investigation; "
             "'taghi' if it requires system design/architecture; "
+            "'diba' if it requires dedicated UI/UX design, visual styling, or ergonomics; "
             "'meti' if it is a straightforward implementation task with clear requirements."
         )
     )
@@ -560,7 +561,7 @@ def format_design_context(
 class DanaCritique(BaseModel):
     model_config = ConfigDict(extra="allow")
 
-    lead: Literal["natasha", "odin", "taghi", "meti"] = Field(
+    lead: Literal["natasha", "odin", "taghi", "diba", "meti"] = Field(
         description="The stage or lead whose deliverable was supervised"
     )
     verdict: Literal["approve", "suggest", "warn", "block"] = Field(

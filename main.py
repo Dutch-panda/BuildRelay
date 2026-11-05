@@ -29,6 +29,7 @@ from contracts import (
 from agents.natasha import NatashaRouter
 from agents.odin import OdinResearcher
 from agents.taghi import TaghiArchitect
+from agents.diba import DibaDesigner
 from agents.meti import MetiImplementer
 from tools.ui import (
     print_agent,
@@ -109,12 +110,13 @@ def fast_track_spec(
     workspace_dir = project_id or task_id
     command = f'sh /app/workspace/{workspace_dir}/validate-{task_id}.sh'
     image = base_image
-    if image is None and any(kw in objective.lower() for kw in ('python', 'pytest', 'pip', 'fastapi', 'flask', 'django', 'pandas', 'numpy')):
+    obj_words = set(re.findall(r"[a-z0-9_-]+", objective.lower()))
+    if image is None and any(kw in obj_words for kw in ('python', 'pytest', 'pip', 'fastapi', 'flask', 'django', 'pandas', 'numpy')):
         image = 'python:3.11-slim'
     ui_spec = None
-    if any(kw in objective.lower() for kw in ('web', 'browser', 'html', 'form', 'ui', 'dashboard', 'frontend', 'app', 'portal', 'screen')):
+    if any(kw in obj_words for kw in ('web', 'browser', 'html', 'form', 'ui', 'dashboard', 'frontend', 'portal', 'screen')):
         ui_spec = UIDesignSpec(
-            surface_type='dashboard' if any(kw in objective.lower() for kw in ('dashboard', 'app', 'erp', 'portal')) else 'web_form',
+            surface_type='dashboard' if any(kw in obj_words for kw in ('dashboard', 'erp', 'portal')) else 'web_form',
             theme='clean_light',
             color_palette={
                 'primary': '#0f766e',
@@ -309,7 +311,7 @@ async def run_task(
             gate_action, gate_feedback = prompt_step_gate(
                 brief.target_lead,
                 f"Next Lead: {brief.target_lead.upper()} will proceed with "
-                f"{'deep research' if brief.target_lead == 'odin' else 'architecture design'}.\n"
+                f"{'deep research' if brief.target_lead == 'odin' else ('UI/UX design' if brief.target_lead == 'diba' else 'architecture design')}.\n"
                 f"Goal: {brief.title}\n"
                 f"Objective: {objective[:180]}...",
                 auto=auto,
@@ -388,17 +390,18 @@ async def run_task(
             design_context = format_design_context(objective, research, alignment_brief=brief.alignment_brief)
         else:
             design_context = format_design_context(objective, None, alignment_brief=brief.alignment_brief)
-        if brief.target_lead in ('odin', 'taghi'):
+        if brief.target_lead in ('odin', 'taghi', 'diba'):
             record.status = 'ARCHITECTING'
             ledger.save(record)
             taghi_model = await resolve_agent_model(pipeline_models["taghi"])
             architect = TaghiArchitect(model_name=taghi_model)
             spec = await architect.create_specification(task_id, design_context, project_id=project)
+            has_ui = (brief.target_lead == 'diba') or DibaDesigner.is_ui_task(record.prompt, spec=spec)
             if not auto and sys.stdin.isatty():
                 review_fn = getattr(architect, "conduct_architectural_review", None)
                 if asyncio.iscoroutinefunction(review_fn):
                     spec, quit_requested = await review_fn(
-                        spec, task_id, design_context, auto=auto, project_id=project
+                        spec, task_id, design_context, auto=auto, project_id=project, skip_ui_grill=has_ui
                     )
                     if quit_requested:
                         print_agent("orchestrator", "Task execution cancelled by user during Taghi architectural review.")
@@ -408,6 +411,23 @@ async def run_task(
                 record.token_usage["taghi"] = spec.token_usage
         else:
             spec = fast_track_spec(task_id, objective, base_image=image_override, project_id=project)
+            has_ui = DibaDesigner.is_ui_task(record.prompt, spec=spec)
+
+        # Diba UI/UX Design Lead (awakened on-demand whenever task involves UI surfaces)
+        if has_ui or (brief.target_lead == 'diba'):
+            diba_model = await resolve_agent_model(pipeline_models.get("diba", pipeline_models["taghi"]))
+            diba = DibaDesigner(model_name=diba_model)
+            ui_spec = await diba.design_ui(task_id, record.prompt, spec=spec, project_id=project)
+            if not auto and sys.stdin.isatty():
+                ui_spec, quit_requested = await diba.conduct_ui_review(
+                    ui_spec, task_id, record.prompt, auto=auto, project_id=project
+                )
+                if quit_requested:
+                    print_agent("orchestrator", "Task execution cancelled by user during Diba UI design review.")
+                    sys.exit(0)
+            spec.ui_spec = ui_spec
+            if getattr(ui_spec, "token_usage", None):
+                record.token_usage["diba"] = ui_spec.token_usage
         if image_override:
             spec.base_image = image_override
         spec.project_id = project
@@ -416,7 +436,7 @@ async def run_task(
 
     spec = TechnicalSpec.model_validate(record.specification)
 
-    # Dana Supervision of Taghi's Architectural Specification
+    # Dana Supervision of Architectural & UI Specifications
     if dana_instance and not implementation_started:
         dana_critique = await dana_instance.supervise_stage(
             "taghi",
@@ -437,6 +457,18 @@ async def run_task(
                 print_agent("orchestrator", "Task execution cancelled by user at Dana supervision gate.")
                 sys.exit(0)
             elif gate_action == "apply" and feedback:
+                # Launch Dana comparison grill if actionable gaps are identified
+                comparison_fn = getattr(dana_instance, "conduct_intent_comparison_grill", None)
+                if callable(comparison_fn):
+                    comp_feedback, quit_req = comparison_fn(
+                        "taghi", brief.objective, dana_critique, auto=auto
+                    )
+                    if quit_req:
+                        print_agent("orchestrator", "Task execution cancelled by user during Dana comparison grill.")
+                        sys.exit(0)
+                    if comp_feedback:
+                        feedback = f"{feedback}; {comp_feedback}"
+
                 taghi_model = await resolve_agent_model(pipeline_models["taghi"])
                 revised_context = f"{format_design_context(brief.objective, None, alignment_brief=brief.alignment_brief)}\n\nSupervisor Architectural Revisions Required:\n{feedback}"
                 spec = await TaghiArchitect(model_name=taghi_model).create_specification(
@@ -447,7 +479,7 @@ async def run_task(
         elif supervise == "autonomous":
             if dana_critique.verdict in ("warn", "block") and dana_critique.actionable_recommendations:
                 rec_summary = "; ".join(dana_critique.actionable_recommendations)
-                print_agent("dana", f"[bold yellow]Autonomous Steering:[/bold yellow] Requesting Taghi specification revision: {rec_summary}")
+                print_agent("dana", f"[bold yellow]Autonomous Steering:[/bold yellow] Requesting specification revision: {rec_summary}")
                 taghi_model = await resolve_agent_model(pipeline_models["taghi"])
                 revised_context = f"{format_design_context(brief.objective, None, alignment_brief=brief.alignment_brief)}\n\nSupervisor Architectural Revisions Required:\n{rec_summary}"
                 spec = await TaghiArchitect(model_name=taghi_model).create_specification(
@@ -630,6 +662,7 @@ async def main() -> None:
     parser.add_argument('--model-natasha', help='Model override for Natasha (Coordinator)')
     parser.add_argument('--model-odin', help='Model override for Odin (Researcher)')
     parser.add_argument('--model-taghi', help='Model override for Taghi (Architect)')
+    parser.add_argument('--model-diba', help='Model override for Diba (UI/UX Designer)')
     parser.add_argument('--model-meti', help='Model override for Meti (Implementer)')
     parser.add_argument('--model-dana', help='Model override for Dana (Quality Supervisor)')
     parser.add_argument('--supervise', nargs='?', const='advisory', choices=['advisory', 'autonomous', 'off'], help='Dana Quality Supervisor mode: advisory or autonomous')
@@ -778,6 +811,7 @@ async def main() -> None:
         "natasha": args.model_natasha,
         "odin": args.model_odin,
         "taghi": args.model_taghi,
+        "diba": args.model_diba,
         "meti": args.model_meti,
         "dana": args.model_dana,
     }

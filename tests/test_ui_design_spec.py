@@ -68,28 +68,14 @@ def test_ui_design_spec_contract():
 
 def test_taghi_dual_spec_vault_persistence(tmp_path):
     async def _run():
+        from agents.diba import DibaDesigner
+        from pydantic_ai.models.test import TestModel
+
         vault_dir = tmp_path / "vault"
         specs_dir = vault_dir / "specs"
         specs_dir.mkdir(parents=True, exist_ok=True)
 
         taghi = TaghiArchitect(vault_path=vault_dir, specs_dir=specs_dir, model_name="test")
-
-        mock_ui = UIDesignSpec(
-            surface_type="web_form",
-            theme="clean_light",
-            color_palette={"primary": "#2563eb", "surface": "#ffffff"},
-            component_layout="Centered card layout with input fields and submit button",
-            form_fields=[
-                UIFieldSpec(id="client", label="Client Name", input_type="text", required=True),
-            ],
-            states={
-                "empty": "Empty form",
-                "validating": "Highlight missing required fields",
-                "submitting": "Spinner active",
-                "success": "Success confirmation alert",
-                "error": "Error alert banner",
-            },
-        )
 
         mock_spec = TechnicalSpec(
             task_id="task-dual-spec-01",
@@ -99,15 +85,37 @@ def test_taghi_dual_spec_vault_persistence(tmp_path):
                 ExecutionPhase(phase_name="1-backend", instructions="Write models", validation_command="pytest"),
                 ExecutionPhase(phase_name="2-ui", instructions="Write form.html", validation_command="test -f form.html"),
             ],
-            ui_spec=mock_ui,
         )
 
-        # Mock agent run
+        # Mock agent run for Taghi
         mock_run = AsyncMock()
         mock_run.return_value = MagicMock(output=mock_spec, usage=lambda: None)
         taghi.agent.run = mock_run
 
         res = await taghi.create_specification("task-dual-spec-01", "Research: Invoice pipeline")
+
+        # Diba designs and writes the UI specification
+        output_ui = dict(
+            surface_type="web_form",
+            theme="clean_light",
+            archetype="linear_dark",
+            component_layout="Centered card layout with input fields and submit button",
+            form_fields=[
+                dict(id="client", label="Client Name", input_type="text", required=True),
+            ],
+            states={
+                "empty": "Empty form",
+                "validating": "Highlight missing required fields",
+                "submitting": "Spinner active",
+                "success": "Success confirmation alert",
+                "error": "Error alert banner",
+            },
+            responsive_breakpoints="Mobile-first",
+            clarification_questions=[],
+        )
+        test_model = TestModel(call_tools=[], custom_output_args=output_ui)
+        diba = DibaDesigner(vault_path=vault_dir, specs_dir=specs_dir, model_name=test_model)
+        await diba.design_ui("task-dual-spec-01", "Create an invoice form", spec=res)
 
         # Verify both notes were written to vault
         backend_note = specs_dir / "spec-task-dual-spec-01.md"
@@ -125,6 +133,7 @@ def test_taghi_dual_spec_vault_persistence(tmp_path):
         assert "clean_light" in ui_text
         assert "Client Name" in ui_text
         assert "Success confirmation alert" in ui_text
+        assert 'agent: "diba"' in ui_text
 
     asyncio.run(_run())
 

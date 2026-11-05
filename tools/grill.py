@@ -208,12 +208,15 @@ def run_grill_session(
                     console.print("   [dim]No input provided; please choose an option or enter text.[/dim]")
                     continue
 
-            # Check if user entered one of the option keys (e.g. "1", "2")
+            # Check if user entered a 1-based numeric index or one of the option keys
             matched_opt = None
-            for opt in q.options:
-                if str(opt.key).strip().lower() == low:
-                    matched_opt = opt
-                    break
+            if low.isdigit() and 1 <= int(low) <= len(q.options):
+                matched_opt = q.options[int(low) - 1]
+            else:
+                for opt in q.options:
+                    if str(opt.key).strip().lower() == low:
+                        matched_opt = opt
+                        break
 
             if matched_opt:
                 q.selected_option = matched_opt.key
