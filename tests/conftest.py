@@ -17,6 +17,10 @@ def isolate_external_services(monkeypatch, tmp_path, request):
     monkeypatch.delenv("BUILDRELAY_PROVIDER", raising=False)
     monkeypatch.delenv("BUILDRELAY_MODEL", raising=False)
     monkeypatch.delenv("USE_CHATGPT_OAUTH", raising=False)
+    monkeypatch.delenv("USE_CLAUDE_OAUTH", raising=False)
+    monkeypatch.delenv("CLAUDE_CODE_OAUTH_TOKEN", raising=False)
+    monkeypatch.delenv("ANTHROPIC_AUTH_TOKEN", raising=False)
+    monkeypatch.delenv("CLAUDE_AUTH_FILE", raising=False)
     for lead in ("NATASHA", "ODIN", "TAGHI", "METI", "DANA"):
         monkeypatch.delenv(f"MODEL_{lead}", raising=False)
     monkeypatch.chdir(tmp_path)

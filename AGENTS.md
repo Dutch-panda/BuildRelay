@@ -73,7 +73,7 @@ Your objective is maximum autonomy within strict security boundaries.
 ## Model Configuration & Research
 - Explicit per-lead models are selected through `tools/model_tiers.py` and discovered via `tools/model_catalog.py`; interactive onboarding lives in `tools/onboarding.py`.
 - Setup saves `BUILDRELAY_PROVIDER`, `BUILDRELAY_MODEL`, `BUILDRELAY_MODEL_MODE=selected`, and explicit assignments (`MODEL_NATASHA`, `MODEL_ODIN`, `MODEL_TAGHI`, `MODEL_METI`).
-- Web Browser Login connects directly via `login_with_chatgpt_browser` with zero API charges, while API connections query provider catalogs.
+- Web Browser Login connects directly via `login_with_chatgpt_browser` (ChatGPT Codex) or `login_with_claude_browser` (Claude Pro/Max subscription / `claude setup-token`) with zero API charges, while API connections query provider catalogs.
 - Natasha and Odin use web search snippets from `tools/web_search.py`; queries prioritize Tavily API (`TAVILY_API_KEY` in `.env`) with automated fallback to DuckDuckGo HTML scraping. Odin can query PyPI/npm and records search-result URLs.
 - Odin has three search calls per research invocation. Registry lookups and Natasha searches are outside that budget.
 - URL checks do not resolve DNS or revalidate redirects. Page fetching is a helper, not a registered agent tool. Registry connectivity failures do not establish successful verification.

@@ -154,8 +154,11 @@ async def get_model(model_name: str | None = None) -> Model:
         raw = qualify_model(requested, selected).split(":", 1)[1]
         key_name = {"anthropic": "ANTHROPIC_API_KEY", "gemini": "GEMINI_API_KEY"}.get(selected, "OPENAI_API_KEY")
         key = os.environ.get(key_name) or (os.environ.get("GOOGLE_API_KEY") if selected == "gemini" else None)
-        if selected != "chatgpt_oauth" and not key:
+        if selected not in ("chatgpt_oauth", "claude_oauth") and not key:
             raise ValueError("Selected provider credentials are missing. Run buildrelay config.")
+        if selected == "claude_oauth":
+            from tools.claude_auth import get_claude_oauth_model
+            return await get_claude_oauth_model(raw)
         if selected == "anthropic":
             return AnthropicModel(raw, provider=AnthropicProvider(api_key=key))
         if selected == "gemini":

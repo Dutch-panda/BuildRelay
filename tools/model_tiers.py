@@ -7,6 +7,7 @@ import re
 from typing import Any
 
 from tools.chatgpt_auth import is_chatgpt_oauth_available
+from tools.claude_auth import is_claude_oauth_available
 from tools.token_analytics import calculate_token_cost, is_local_model, normalize_model_name
 
 # Standard token consumption profiles per lead for budget estimation
@@ -43,6 +44,30 @@ DEFAULT_TIERS: dict[str, dict[str, str]] = {
 }
 
 ANTHROPIC_TIERS: dict[str, dict[str, str]] = {
+    "fast": {
+        "natasha": "anthropic:claude-3-5-haiku",
+        "odin": "anthropic:claude-3-5-haiku",
+        "taghi": "anthropic:claude-3-5-haiku",
+        "meti": "anthropic:claude-3-5-haiku",
+        "dana": "anthropic:claude-3-5-haiku",
+    },
+    "balanced": {
+        "natasha": "anthropic:claude-3-5-haiku",
+        "odin": "anthropic:claude-3-5-haiku",
+        "taghi": "anthropic:claude-3-7-sonnet",
+        "meti": "anthropic:claude-3-7-sonnet",
+        "dana": "anthropic:claude-3-7-sonnet",
+    },
+    "powerful": {
+        "natasha": "anthropic:claude-3-7-sonnet",
+        "odin": "anthropic:claude-3-7-sonnet",
+        "taghi": "anthropic:claude-3-7-sonnet",
+        "meti": "anthropic:claude-3-7-sonnet",
+        "dana": "anthropic:claude-3-7-sonnet",
+    },
+}
+
+CLAUDE_OAUTH_TIERS: dict[str, dict[str, str]] = {
     "fast": {
         "natasha": "anthropic:claude-3-5-haiku",
         "odin": "anthropic:claude-3-5-haiku",
@@ -122,6 +147,8 @@ def detect_provider(model_hint: str | None = None) -> str:
     if model_hint:
         hint = str(model_hint).lower()
         if "claude" in hint or "anthropic" in hint:
+            if not os.environ.get("ANTHROPIC_API_KEY") and is_claude_oauth_available():
+                return "claude_oauth"
             return "anthropic"
         if "gemini" in hint or "google" in hint:
             return "gemini"
@@ -132,12 +159,16 @@ def detect_provider(model_hint: str | None = None) -> str:
 
     if os.environ.get("ANTHROPIC_API_KEY") and not os.environ.get("OPENAI_API_KEY"):
         return "anthropic"
+    if not os.environ.get("ANTHROPIC_API_KEY") and is_claude_oauth_available() and not os.environ.get("OPENAI_API_KEY"):
+        return "claude_oauth"
     if os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"):
         if not os.environ.get("OPENAI_API_KEY") and not os.environ.get("ANTHROPIC_API_KEY"):
             return "gemini"
 
     if not os.environ.get("OPENAI_API_KEY") and is_chatgpt_oauth_available():
         return "chatgpt_oauth"
+    if not os.environ.get("ANTHROPIC_API_KEY") and is_claude_oauth_available():
+        return "claude_oauth"
 
     return "openai"
 
@@ -160,6 +191,10 @@ def get_available_models_for_active_provider() -> tuple[str, list[str]]:
         # deduplicate while preserving order
         unique_models = list(dict.fromkeys(models))
         return "ChatGPT Subscription (Codex)", unique_models
+
+    if provider == "claude_oauth":
+        models = [os.environ.get("ANTHROPIC_MODEL", "claude-3-7-sonnet"), "claude-3-7-sonnet", "claude-3-5-sonnet", "claude-3-5-haiku"]
+        return "Claude Subscription (Anthropic)", list(dict.fromkeys(models))
 
     if provider == "anthropic":
         return "Anthropic Claude", ["claude-3-7-sonnet", "claude-3-5-sonnet", "claude-3-5-haiku"]
@@ -247,6 +282,8 @@ def resolve_pipeline_models(
         raise ValueError("Tier presets are not defined for this endpoint; select a model or explicit lead overrides.")
     if provider == "anthropic":
         tier_table = ANTHROPIC_TIERS
+    elif provider == "claude_oauth":
+        tier_table = CLAUDE_OAUTH_TIERS
     elif provider == "gemini":
         tier_table = GEMINI_TIERS
     elif provider == "chatgpt_oauth":
@@ -286,6 +323,10 @@ def estimate_pipeline_budget(models: dict[str, Any]) -> tuple[float, str]:
     if is_chatgpt_oauth_available() and not os.environ.get("OPENAI_API_KEY"):
         if all("openai" in str(mdl).lower() or is_local_model(str(mdl)) for mdl in models.values()):
             return 0.0, "$0.00 (ChatGPT Subscription)"
+
+    if is_claude_oauth_available() and not os.environ.get("ANTHROPIC_API_KEY"):
+        if all("anthropic" in str(mdl).lower() or "claude" in str(mdl).lower() or is_local_model(str(mdl)) for mdl in models.values()):
+            return 0.0, "$0.00 (Claude Subscription)"
 
     total_cost = 0.0
     all_local = True

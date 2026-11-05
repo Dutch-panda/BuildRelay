@@ -15,6 +15,7 @@ from rich.table import Table
 
 from tools.model_catalog import discover_models, pick_model, qualify_model
 from tools.chatgpt_auth import is_chatgpt_oauth_available
+from tools.claude_auth import is_claude_oauth_available
 
 
 SUPPORTED_PROVIDERS: list[dict[str, Any]] = [
@@ -71,6 +72,14 @@ SUPPORTED_PROVIDERS: list[dict[str, Any]] = [
         "models": ["anthropic/claude-3.7-sonnet", "openai/gpt-4o", "meta-llama/llama-3.3-70b-instruct"],
         "default_model": "anthropic/claude-3.7-sonnet",
     },
+    {
+        "id": "claude_oauth",
+        "name": "Claude Web Auth (Browser / Pro / Max Subscription)",
+        "badge": "Claude / Subscription",
+        "description": "Browser authentication or claude setup-token; subscription limits apply.",
+        "models": ["claude-3-7-sonnet", "claude-3-5-sonnet", "claude-3-5-haiku"],
+        "default_model": "claude-3-7-sonnet",
+    },
 ]
 
 
@@ -84,6 +93,8 @@ def check_credentials_configured() -> bool:
     if selected:
         if selected == "chatgpt_oauth":
             return is_chatgpt_oauth_available()
+        if selected == "claude_oauth":
+            return is_claude_oauth_available()
         key = {"openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY", "gemini": "GEMINI_API_KEY", "ollama": "OPENAI_API_KEY", "openrouter": "OPENAI_API_KEY"}.get(selected)
         credentials = bool(key and os.environ.get(key, "").strip()) or (selected == "gemini" and bool(os.environ.get("GOOGLE_API_KEY", "").strip()))
         if selected in ("ollama", "openrouter"):
@@ -103,8 +114,8 @@ def check_credentials_configured() -> bool:
         if val and val.strip():
             return True
 
-    # 3. ChatGPT OAuth session file
-    if is_chatgpt_oauth_available():
+    # 3. OAuth session files (ChatGPT & Claude)
+    if is_chatgpt_oauth_available() or is_claude_oauth_available():
         return True
 
     return False
@@ -113,6 +124,7 @@ def check_credentials_configured() -> bool:
 def get_credential_status() -> dict[str, Any]:
     """Return detailed status of configured providers and active models."""
     chatgpt = is_chatgpt_oauth_available()
+    claude_oauth = is_claude_oauth_available()
     openai_key = bool(os.environ.get("OPENAI_API_KEY", "").strip())
     anthropic_key = bool(os.environ.get("ANTHROPIC_API_KEY", "").strip())
     gemini_key = bool(os.environ.get("GEMINI_API_KEY", "").strip() or os.environ.get("GOOGLE_API_KEY", "").strip())
@@ -121,6 +133,8 @@ def get_credential_status() -> dict[str, Any]:
     configured: list[str] = []
     if chatgpt:
         configured.append("ChatGPT OAuth (Codex)")
+    if claude_oauth:
+        configured.append("Claude OAuth (Subscription)")
     if openai_key:
         configured.append("OpenAI API")
     if anthropic_key:
@@ -133,6 +147,8 @@ def get_credential_status() -> dict[str, Any]:
     active_provider = "none"
     if chatgpt and not openai_key:
         active_provider = "chatgpt_oauth"
+    elif claude_oauth and not anthropic_key:
+        active_provider = "claude_oauth"
     elif openai_key:
         active_provider = "openai"
     elif anthropic_key:
@@ -143,10 +159,12 @@ def get_credential_status() -> dict[str, Any]:
         active_provider = "local"
     elif chatgpt:
         active_provider = "chatgpt_oauth"
+    elif claude_oauth:
+        active_provider = "claude_oauth"
 
     active_provider = os.environ.get("BUILDRELAY_PROVIDER") or active_provider
 
-    if active_provider == "anthropic":
+    if active_provider in ("anthropic", "claude_oauth"):
         active_model = os.environ.get("ANTHROPIC_MODEL", "claude-3-7-sonnet")
     elif active_provider == "gemini":
         active_model = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
@@ -160,6 +178,7 @@ def get_credential_status() -> dict[str, Any]:
         "configured_providers": configured,
         "active_provider": active_provider,
         "chatgpt_oauth": chatgpt,
+        "claude_oauth": claude_oauth,
         "openai": openai_key,
         "anthropic": anthropic_key,
         "gemini": gemini_key,
@@ -385,11 +404,17 @@ def run_onboarding_wizard(
         "      • Model suggestions are unverified; select an account-supported model\n"
     )
     ui.print("[bold cyan]── Direct API Key / Local Authentication ────────────────────────[/bold cyan]")
-    for idx, prov in enumerate(SUPPORTED_PROVIDERS[1:], start=2):
+    for idx, prov in enumerate(SUPPORTED_PROVIDERS[1:6], start=2):
         ui.print(
             f"  [cyan][{idx}][/cyan] [bold]{prov['name']}[/bold] [dim]({prov['badge']})[/dim]\n"
             f"      [dim]{prov['description']}[/dim]"
         )
+    ui.print("[bold cyan]── Additional Subscription Options ─────────────────────────────[/bold cyan]")
+    prov_claude = SUPPORTED_PROVIDERS[6]
+    ui.print(
+        f"  [cyan][7][/cyan] [bold]{prov_claude['name']}[/bold] [dim]({prov_claude['badge']})[/dim]\n"
+        f"      [dim]{prov_claude['description']}[/dim]\n"
+    )
     ui.print("  [red][q][/red] [dim]Cancel and exit[/dim]\n")
 
     choice = ask("Select provider or authentication method", choices=[str(i) for i in range(1, len(SUPPORTED_PROVIDERS) + 1)] + ["q"], default="1")
@@ -402,6 +427,7 @@ def run_onboarding_wizard(
     entries_to_save: dict[str, str] = {
         "BUILDRELAY_PROVIDER": prov_id,
         "USE_CHATGPT_OAUTH": "1" if prov_id == "chatgpt_oauth" else "0",
+        "USE_CLAUDE_OAUTH": "1" if prov_id == "claude_oauth" else "0",
         "BUILDRELAY_MODEL_MODE": "selected",
         **{f"MODEL_{lead}": "" for lead in ("NATASHA", "ODIN", "TAGHI", "METI")},
     }
@@ -435,6 +461,23 @@ def run_onboarding_wizard(
         ui.print(f"  [bold green]✓ {login_msg}[/bold green]")
 
         entries_to_save["CHATGPT_AUTH_FILE"] = os.environ.get("CHATGPT_AUTH_FILE", ".env.chatgpt-auth.json")
+
+        load_catalog()
+
+    elif prov_id == "claude_oauth":
+        ui.print(
+            "BuildRelay connects directly to your Claude Pro/Max subscription via browser PKCE or token import.\n"
+            "[green]✓ Browser login or claude setup-token; subscription limits apply[/green]"
+        )
+        from tools.claude_auth import login_with_claude_browser
+        do_login = login_func or login_with_claude_browser
+        login_ok, login_msg = do_login(ui=ui)
+        if not login_ok:
+            ui.print("[yellow]Setup incomplete. In headless Linux/SSH, paste the token from 'claude setup-token'.[/yellow]")
+            return False
+        ui.print(f"  [bold green]✓ {login_msg}[/bold green]")
+
+        entries_to_save["CLAUDE_AUTH_FILE"] = os.environ.get("CLAUDE_AUTH_FILE", ".env.claude-auth.json")
 
         load_catalog()
 

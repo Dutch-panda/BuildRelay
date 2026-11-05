@@ -34,7 +34,7 @@ docker info
 python main.py config
 ```
 
-On Windows, use `.venv\Scripts\Activate.ps1` for activation. The wizard selects one connection and models for the leads. Discovery/sign-in can contact providers; setup does not guarantee model availability or successful execution. Do not share credentials in prompts or recordings.
+On Windows, use `.venv\Scripts\Activate.ps1` for activation. The wizard selects one connection and models for the leads, supporting direct API keys, local endpoints, or flat-rate browser subscription logins (ChatGPT Codex & Claude Pro/Max). Discovery/sign-in can contact providers; setup does not guarantee model availability or successful execution. Do not share credentials in prompts or recordings.
 
 Before accepting a generated plan, review its scope/checks. Docker networking remains enabled. Workspace files—including a project `.env`—are readable by code in the container mount.
 

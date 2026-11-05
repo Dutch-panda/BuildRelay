@@ -58,7 +58,16 @@ BUILDRELAY_MODEL=openai:YOUR_ACCOUNT_MODEL_ID
 USE_CHATGPT_OAUTH=1
 CHATGPT_AUTH_FILE=.env.chatgpt-auth.json
 </code></pre>
-<p><strong>Option B: Standard Direct API Keys</strong></p>
+<p><strong>Option B: Claude Web Auth (Pro / Max Subscription — No API Key Required)</strong></p>
+<pre tabindex="0" aria-label="Code block; scroll horizontally if needed"><code class="language-dotenv">BUILDRELAY_PROVIDER=claude_oauth
+BUILDRELAY_MODEL_MODE=selected
+BUILDRELAY_MODEL=anthropic:claude-3-7-sonnet
+USE_CLAUDE_OAUTH=1
+CLAUDE_AUTH_FILE=.env.claude-auth.json
+# In headless Linux/SSH, import from 'claude setup-token':
+# CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-...
+</code></pre>
+<p><strong>Option C: Standard Direct API Keys</strong></p>
 <pre tabindex="0" aria-label="Code block; scroll horizontally if needed"><code class="language-dotenv">BUILDRELAY_PROVIDER=openai
 BUILDRELAY_MODEL_MODE=selected
 BUILDRELAY_MODEL=openai:YOUR_ACCOUNT_MODEL_ID
