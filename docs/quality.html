@@ -8,7 +8,7 @@
 <li><strong>Executable Backend &amp; Intent Fulfillment:</strong> Verifies genuine working backend logic, real data handlers, and client persistence (strictly rejecting simulated stubs, mock <code>setTimeout</code> handlers, or &quot;preview only&quot; fake flows).</li>
 <li><strong>Test Rigor &amp; Offline Determinism:</strong> Enforces containerized unit tests with strict deterministic assertions; flags hollow assertions like <code>assert True</code>.</li>
 <li><strong>Security &amp; Sanitization:</strong> Checks for formula injection sanitization (<code>=</code>, <code>+</code>, <code>-</code>, <code>@</code>), credential protection, and environment hygiene.</li>
-<li><strong>UI/UX Usability &amp; 5 Discrete States:</strong> Requires full coverage of interactive states (<code>empty</code>, <code>validating</code>, <code>submitting</code>, <code>success</code>, and <code>error</code>) with responsive layouts and clear validation messages.</li>
+<li><strong>UI/UX Usability &amp; 5 Discrete States:</strong> Enforces modern frontend standards (Tailwind tokens, elevated cards, focus rings, styled tables with status badges, and centered empty-state cards), penalizing raw unstyled HTML and verifying all 5 interactive states (<code>empty</code>, <code>validating</code>, <code>submitting</code>, <code>success</code>, <code>error</code>).</li>
 <li><strong>Code Modularity &amp; Living Memory:</strong> Enforces clear separation of concerns, clean file layout, and alignment with <code>PROJECT_PROFILE.md</code>.</li>
 </ol>
 </li>

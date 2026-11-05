@@ -28,7 +28,7 @@ Project IDs accept letters, digits, underscores, and hyphens, and must start wit
 
 Open **`vault/` as an Obsidian vault** to browse the notes and project wikilinks. Those links work independently of Graphify.
 
-Graph updates are attempted after stage artifacts are saved. Graphify Markdown extraction requires its own supported backend; if extraction fails, BuildRelay logs a warning and continues with saved notes. Without a usable graph, knowledge queries may return no context.
+Graph updates are automatically synchronized after stage artifacts are saved. In addition to Graphify extraction, BuildRelay includes an offline wikilink graph parser that indexes Markdown notes without external LLM dependencies, automatically injecting connected tasks, specifications, and code-review nodes into Natasha and Taghi's prompt context during repeated project workflows.
 
 ### Research source references
 

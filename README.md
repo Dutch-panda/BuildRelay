@@ -10,7 +10,7 @@ Version <!-- package-version:start -->0.2.0<!-- package-version:end --> · Pytho
 [Documentation](https://dutch-panda.github.io/BuildRelay/) · [Quick start](#quick-start) · [CI results](https://github.com/Dutch-panda/BuildRelay/actions/workflows/tests.yml) · [Issues](https://github.com/Dutch-panda/BuildRelay/issues)
 </div>
 
-BuildRelay routes a request through selected research, architecture and implementation roles. It records outcome-driven plans (1–5 phases), Docker phase-check results and checkpoints so you can inspect and continue work. Interactive alignment interviews (up to 15 questions) clarify intent upfront, while an anti-simulation contract ensures real data persistence rather than mock stubs. Optional supervision across 5 technical pillars and static scores provide quality signals, not independent acceptance evidence.
+BuildRelay routes a request through selected research, architecture and implementation roles. It records outcome-driven plans (1–5 phases), Docker phase-check results and checkpoints so you can inspect and continue work. Interactive alignment interviews (up to 15 questions with visible hotkey controls) clarify intent upfront, while an anti-simulation contract ensures real data persistence rather than mock stubs. Ground-truth execution policy ensures passing validation commands establish real completion, with standard-library fallbacks avoiding offline wheelhouse traps. An offline knowledge graph parser connects project history across iterations, and opinionated UI/UX specifications enforce modern Tailwind design standards across 5 discrete interactive states. Optional supervision across 5 technical pillars and static scores provide quality signals, not independent acceptance evidence.
 
 ## Who it is for
 
@@ -58,7 +58,7 @@ Press Ctrl+C to request interruption. Inspect files, running containers and side
 python main.py --resume YOUR_PRINTED_TASK_ID
 ```
 
-Back up ledger, workspace and vault together. Reuse the project ID for follow-up tasks, or use `buildrelay --session csv-demo`. Read [resume](docs/content/resume.md), [project tools](docs/content/project-tools.md) and [command boundaries](docs/content/commands.md) first: **REPL `/test` runs host commands, not Docker tests**, and may execute a generated live script.
+Back up ledger, workspace and vault together. Reuse the project ID for follow-up tasks, or use `buildrelay --session csv-demo`. Follow-up tasks automatically inherit living memory from `PROJECT_PROFILE.md` and connected Obsidian knowledge graph notes. Read [resume](docs/content/resume.md), [project tools](docs/content/project-tools.md) and [command boundaries](docs/content/commands.md) first: **REPL `/test` runs host commands, not Docker tests**, and may execute a generated live script.
 
 ## Critical boundaries
 

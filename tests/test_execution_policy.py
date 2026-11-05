@@ -152,3 +152,13 @@ def test_finalize_result_rules(sample_phases):
     )
     assert ok_res.status == "success"
     assert ok_res.executed_phases == ["1-test", "2-test"]
+
+    # 4. Upgrades self-critical failed status to success when all phases passed validation
+    self_critical = ImplementationResult(
+        task_id="t1", status="failed", summary="Tests passed but missing stretch feature", executed_phases=["1-test", "2-test"]
+    )
+    upgraded_res = ExecutionPolicy.finalize_result(
+        "t1", "p1", state, sample_phases, model_result=self_critical
+    )
+    assert upgraded_res.status == "success"
+    assert upgraded_res.executed_phases == ["1-test", "2-test"]

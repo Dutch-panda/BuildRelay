@@ -21,38 +21,105 @@ class GraphifyVaultManager:
             self.vault_path.mkdir(parents=True, exist_ok=True)
             self.output_dir.mkdir(parents=True, exist_ok=True)
 
+    def _build_local_vault_graph(self) -> Dict[str, Any]:
+        """
+        Fast local fallback parser extracting wikilinks and YAML frontmatter directly from Obsidian Markdown files.
+        Runs 100% offline with zero external dependencies and zero LLM calls.
+        """
+        import re
+        nodes: List[Dict[str, Any]] = []
+        edges: List[Dict[str, Any]] = []
+        node_ids = set()
+
+        if not self.vault_path.exists():
+            return {"nodes": [], "edges": []}
+
+        for md_path in self.vault_path.rglob("*.md"):
+            if not md_path.is_file() or md_path.name.startswith("."):
+                continue
+            rel_path = md_path.relative_to(self.vault_path).as_posix()
+            stem = md_path.stem
+            node_id = stem
+
+            content = ""
+            properties: Dict[str, Any] = {}
+            label = stem
+            try:
+                content = md_path.read_text(encoding="utf-8", errors="ignore")
+                if content.startswith("---"):
+                    parts = content.split("---", 2)
+                    if len(parts) >= 3:
+                        for line in parts[1].splitlines():
+                            if ":" in line:
+                                k, v = line.split(":", 1)
+                                properties[k.strip()] = v.strip().strip("'\"")
+                        if "id" in properties:
+                            node_id = properties["id"]
+
+                for line in content.splitlines():
+                    if line.startswith("# "):
+                        label = line[2:].strip()
+                        break
+            except Exception:
+                pass
+
+            if node_id not in node_ids:
+                node_ids.add(node_id)
+                nodes.append({
+                    "id": node_id,
+                    "label": label,
+                    "source_file": rel_path,
+                    "properties": properties,
+                })
+
+            targets = re.findall(r'\[\[(.*?)\]\]', content)
+            for target in targets:
+                clean_target = target.split("|")[0].strip()
+                if clean_target:
+                    edges.append({
+                        "source": node_id,
+                        "target": clean_target,
+                    })
+
+        graph_data = {"nodes": nodes, "edges": edges}
+        try:
+            self.output_dir.mkdir(parents=True, exist_ok=True)
+            with open(self.graph_json_path, "w", encoding="utf-8") as f:
+                json.dump(graph_data, f, indent=2)
+        except Exception:
+            pass
+        return graph_data
+
     def build_graph(self, incremental: bool = True) -> bool:
         """
-        Triggers the graphify CLI to parse the Obsidian vault and build/update the knowledge graph.
+        Triggers the graphify CLI to parse the Obsidian vault, falling back to local wikilink graph parsing if unavailable.
         """
         if not self.vault_path.exists():
             raise FileNotFoundError(f"Vault path does not exist: {self.vault_path}")
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        cmd = [sys.executable, "-m", "graphify", "extract", str(self.vault_path)]
+        cmd = [
+            sys.executable, "-m", "graphify", "extract", str(self.vault_path),
+            "--no-cluster", "--no-gitignore", "--out", str(self.output_dir)
+        ]
         if not incremental:
             cmd.append("--force")
         environment = {**os.environ, "GRAPHIFY_OUT": str(self.output_dir)}
 
         try:
-            # Run graphify process safely
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
                 check=True,
                 env=environment,
-                timeout=300,
+                timeout=60,
             )
-            if not self.graph_json_path.is_file():
-                if os.environ.get("BUILDRELAY_DEBUG"):
-                    print(f"[GraphifyTool Error] Graph output missing: {self.graph_json_path}")
-                return False
-            return True
+            if self.graph_json_path.is_file():
+                return True
         except subprocess.TimeoutExpired:
             if os.environ.get("BUILDRELAY_DEBUG"):
-                print("[GraphifyTool Error] Graph build timed out after 300 seconds")
-            return False
+                print("[GraphifyTool Error] Graph build timed out after 60 seconds")
         except subprocess.CalledProcessError as e:
             if os.environ.get("BUILDRELAY_DEBUG"):
                 print(f"[GraphifyTool Error] Subprocess failed with code {e.returncode}")
@@ -68,11 +135,12 @@ class GraphifyVaultManager:
                     )
                 except Exception:
                     pass
-            return False
-        except FileNotFoundError:
-            if os.environ.get("BUILDRELAY_DEBUG"):
-                print("[GraphifyTool Error] 'graphify' CLI command not found. Ensure 'graphifyy' is installed in your .venv.")
-            return False
+        except Exception:
+            pass
+
+        # Robust local vault fallback parser
+        fallback_data = self._build_local_vault_graph()
+        return bool(fallback_data.get("nodes"))
 
     def load_graph(self) -> Dict[str, Any]:
         """
@@ -83,7 +151,7 @@ class GraphifyVaultManager:
             print_tool_call("orchestrator", "Graphify", f"Indexing knowledge graph at {self.output_dir.name}...")
             success = self.build_graph(incremental=False)
             if not success or not self.graph_json_path.exists():
-                return {"nodes": [], "edges": []}
+                return self._build_local_vault_graph()
 
         try:
             with open(self.graph_json_path, "r", encoding="utf-8") as f:

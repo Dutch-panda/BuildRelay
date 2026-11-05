@@ -13,6 +13,12 @@ from tools.graphify_tool import GraphifyVaultManager
 def isolate_external_services(monkeypatch, tmp_path, request):
     monkeypatch.setattr(models, "ALLOW_MODEL_REQUESTS", False)
     monkeypatch.setenv("BUILDRELAY_TESTING", "1")
+    monkeypatch.delenv("BUILDRELAY_MODEL_MODE", raising=False)
+    monkeypatch.delenv("BUILDRELAY_PROVIDER", raising=False)
+    monkeypatch.delenv("BUILDRELAY_MODEL", raising=False)
+    monkeypatch.delenv("USE_CHATGPT_OAUTH", raising=False)
+    for lead in ("NATASHA", "ODIN", "TAGHI", "METI", "DANA"):
+        monkeypatch.delenv(f"MODEL_{lead}", raising=False)
     monkeypatch.chdir(tmp_path)
 
     # Check for opt-in integration smoke test markers

@@ -199,5 +199,7 @@ class ExecutionPolicy:
         if model_result.status == "success" and len(state.validated_phases) != len(phases):
             model_result.status = "failed"
             model_result.summary += "\nNot all phases passed sandbox validation."
+        elif model_result.status == "failed" and len(state.validated_phases) == len(phases) and phases:
+            model_result.status = "success"
 
         return model_result

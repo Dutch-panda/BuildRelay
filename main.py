@@ -23,6 +23,7 @@ from contracts import (
     ResearchReport,
     TaskBrief,
     TechnicalSpec,
+    UIDesignSpec,
     format_design_context,
 )
 from agents.natasha import NatashaRouter
@@ -110,9 +111,34 @@ def fast_track_spec(
     image = base_image
     if image is None and any(kw in objective.lower() for kw in ('python', 'pytest', 'pip', 'fastapi', 'flask', 'django', 'pandas', 'numpy')):
         image = 'python:3.11-slim'
+    ui_spec = None
+    if any(kw in objective.lower() for kw in ('web', 'browser', 'html', 'form', 'ui', 'dashboard', 'frontend', 'app', 'portal', 'screen')):
+        ui_spec = UIDesignSpec(
+            surface_type='dashboard' if any(kw in objective.lower() for kw in ('dashboard', 'app', 'erp', 'portal')) else 'web_form',
+            theme='clean_light',
+            color_palette={
+                'primary': '#0f766e',
+                'background': '#f8fafc',
+                'surface': '#ffffff',
+                'text': '#0f172a',
+                'border': '#e2e8f0',
+                'success': '#10b981',
+                'error': '#ef4444',
+            },
+            component_layout='Sticky header with brand title & navigation tabs; main container with rounded-xl bordered cards, clean data tables with status badges, and interactive form modals with focus rings.',
+            states={
+                'empty': 'Centered empty state with icon, friendly guidance, and primary action button.',
+                'validating': 'Inline red helper text and border highlights on invalid field inputs.',
+                'submitting': 'Disabled submit button with spinning loader indicator to prevent double-clicks.',
+                'success': 'Dismissible green alert banner confirming data saved successfully.',
+                'error': 'Dismissible red alert banner displaying actionable error details.',
+            },
+            responsive_breakpoints='Mobile-first single column below 640px; multi-column responsive grid on tablet and desktop (>=768px).'
+        )
     return TechnicalSpec(
         task_id=task_id, architecture_overview=objective, required_dependencies=[],
         base_image=image,
+        ui_spec=ui_spec,
         phases=[ExecutionPhase(
             phase_name='1-fast-track',
             instructions=(f'{objective}\n\nCreate your project directory at workspace/{workspace_dir}/ and place all modules there. '

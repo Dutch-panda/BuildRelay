@@ -19,6 +19,7 @@ class ProjectContext:
     project_id: str | None
     workspace_path: Path | None = None
     profile_text: str | None = None
+    graph_context: str | None = None
 
     @property
     def link(self) -> str:
@@ -40,13 +41,24 @@ class ProjectContext:
             f"Project ID: {self.project_id}\nParent project: {self.link}\n"
             "Keep this project ID unchanged.\n"
         )
+        extra: list[str] = []
         if self.profile_text:
-            return (
-                f"{base}\n"
+            extra.append(
                 f"--- EXISTING PROJECT PROFILE & MEMORY ---\n"
                 f"{self.profile_text}\n"
-                "--- END PROJECT PROFILE ---\n"
-                "Respect existing data schemas and project decisions unless explicitly requested to change.\n"
+                "--- END PROJECT PROFILE ---"
+            )
+        if self.graph_context:
+            extra.append(
+                f"--- CONNECTED KNOWLEDGE GRAPH CONTEXT (Vault) ---\n"
+                f"{self.graph_context}\n"
+                "--- END KNOWLEDGE GRAPH CONTEXT ---"
+            )
+        if extra:
+            return (
+                f"{base}\n"
+                + "\n\n".join(extra)
+                + "\nRespect existing data schemas and project decisions unless explicitly requested to change.\n"
             )
         return base
 
@@ -252,4 +264,25 @@ def prepare_project(
     # Initialize workspace memory and profile
     ws_dir, _ = init_project_workspace(project_id, workspace_root=workspace_root)
     profile_text = load_project_profile(project_id, workspace_root=workspace_root)
-    return ProjectContext(project_id, workspace_path=ws_dir, profile_text=profile_text)
+
+    # Automatically query connected vault knowledge graph
+    graph_context = None
+    try:
+        from tools.graphify_tool import GraphifyVaultManager
+        gm = GraphifyVaultManager(vault_path=str(vault_path))
+        matches = gm.query_nodes(project_id)
+        if matches:
+            lines = []
+            for m in matches[:10]:
+                node_id = m.get("id", "")
+                props = m.get("properties") or {}
+                note_type = props.get("type", "note")
+                source = m.get("source_file", "")
+                label = m.get("label", node_id)
+                lines.append(f"- [{note_type}] {label} ({source})")
+            if lines:
+                graph_context = "\n".join(lines)
+    except Exception:
+        pass
+
+    return ProjectContext(project_id, workspace_path=ws_dir, profile_text=profile_text, graph_context=graph_context)

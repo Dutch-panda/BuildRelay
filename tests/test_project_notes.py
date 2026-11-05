@@ -102,6 +102,21 @@ class ProjectNotesTests(unittest.IsolatedAsyncioTestCase):
                 else:
                     taghi.return_value.create_specification.assert_not_called()
 
+    def test_prepare_project_injects_graph_context(self):
+        with tempfile.TemporaryDirectory() as td:
+            vault = Path(td) / "vault"
+            vault.mkdir()
+            (vault / "projects").mkdir()
+            (vault / "tasks").mkdir()
+            (vault / "projects" / "crm-app.md").write_text("# crm-app\n")
+            (vault / "tasks" / "task-1-brief.md").write_text(
+                '---\nid: "task-1"\ntype: "task-brief"\nproject: "[[projects/crm-app]]"\n---\n# Task 1\n'
+            )
+            ctx = prepare_project(vault, "crm-app", workspace_root=Path(td) / "workspace")
+            self.assertIsNotNone(ctx.graph_context)
+            self.assertIn("task-1", ctx.graph_context)
+            self.assertIn("CONNECTED KNOWLEDGE GRAPH CONTEXT", ctx.prompt)
+
 
 if __name__ == "__main__":
     unittest.main()

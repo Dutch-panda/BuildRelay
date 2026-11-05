@@ -117,7 +117,7 @@ def run_grill_session(
     banner_text = (
         f"[{theme['color']}][bold]{theme['icon']} {theme['name']}[/bold] ({theme['role']})[/] "
         f"wants to clarify [cyan]{len(active_questions)} specifications[/cyan] to ensure the build matches your intent.\n"
-        "[dim]Controls: [green][Enter][/green] Accept Default | [cyan][1, 2...][/cyan] Select | [yellow][c][/yellow] Custom text | [magenta][a][/magenta] Accept all remaining | [red][q][/red] Quit[/dim]"
+        "[dim]Controls: [green]\\[Enter][/green] Accept Default | [cyan]\\[1, 2...][/cyan] Select | [yellow]\\[c][/yellow] Custom text | [magenta]\\[a][/magenta] Accept all remaining | [red]\\[q][/red] Quit[/dim]"
     )
     console.print()
     console.print(
@@ -151,11 +151,11 @@ def run_grill_session(
             console.print(f"     [bold cyan]\\[{escape(str(opt.key))}][/bold cyan] {escape(opt.label)}{tag}{desc}")
 
         console.print(
-            f"     [dim]Key commands: [green][Enter][/green] Default  |  "
-            f"[cyan][1, 2...][/cyan] Pick  |  "
-            f"[yellow][e/c][/yellow] Custom  |  "
-            f"[magenta][a][/magenta] Accept All  |  "
-            f"[red][q][/red] Quit[/dim]"
+            f"     [dim]Key commands: [green]\\[Enter][/green] Default  |  "
+            f"[cyan]\\[1, 2...][/cyan] Pick  |  "
+            f"[yellow]\\[e/c][/yellow] Custom  |  "
+            f"[magenta]\\[a][/magenta] Accept All  |  "
+            f"[red]\\[q][/red] Quit[/dim]"
         )
 
         while True:
