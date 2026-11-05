@@ -261,19 +261,22 @@ class DibaDesigner:
 
         archetype_name = getattr(ui_spec, "archetype", "linear_dark")
 
+        from tools.taxonomy import get_taxonomic_classification
+        classification = get_taxonomic_classification(f"{task_id} {ui_spec.surface_type}")
+        diba_tags = [t for t in ["ui", "ux", "design", "diba", classification.target, *classification.keywords] if t]
+        diba_tags = list(dict.fromkeys(diba_tags))
+        tags_block = "tags:\n" + "\n".join(f"  - {t}" for t in diba_tags) + "\n"
+
         markdown_content = f"""---
 id: "spec-{task_id}-ui"
 type: "ui-design-spec"
 agent: "diba"
 task_id: "{task_id}"
 domain: "ui"
+action: "{classification.action or 'implement'}"
+target: "{classification.target}"
 archetype: "{archetype_name}"
-tags:
-  - ui
-  - ux
-  - design
-  - diba
-{project.frontmatter}created_at: "{timestamp}"
+{tags_block}{project.frontmatter}created_at: "{timestamp}"
 links: ["[[spec-{task_id}]]"]
 ---
 # UI/UX Design Specification: {task_id}

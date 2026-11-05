@@ -44,6 +44,7 @@ def print_session_banner(project_id: str, workspace_path: Path) -> None:
         "  [cyan]/preview[/cyan]      Launch local web server to preview generated forms and UIs\n"
         "  [cyan]/test[/cyan]         Execute local container unit tests in this workspace\n"
         "  [cyan]/eval[/cyan]         Run multi-dimensional quality & security evaluation harness\n"
+        "  [cyan]/graph <query>[/cyan] Search knowledge base & vault graph by keywords\n"
         "  [cyan]/help[/cyan]         Show available commands\n"
         "  [cyan]/exit[/cyan]         Exit session [dim](or Ctrl+D / quit)[/dim]\n\n"
         "[dim]Enter any prompt or revision instruction to plan, architect, and execute within this project.[/dim]"
@@ -197,6 +198,32 @@ async def run_project_session(
             report = evaluator.evaluate()
             evaluator.save_report(report)
             print_evaluation_scorecard(report)
+            continue
+
+        # Knowledge Graph Query command
+        if cmd.startswith(("/graph", "graph")):
+            parts = user_input.split(maxsplit=1)
+            query = parts[1].strip() if len(parts) > 1 else ""
+            if not query:
+                console.print("[yellow]Usage: /graph <keywords or search phrase>[/yellow]")
+            else:
+                from tools.graphify_tool import GraphifyVaultManager
+                gm = GraphifyVaultManager(vault_path=str(vault_path_obj))
+                matches = gm.query_by_keywords(query, top_k=5)
+                if not matches:
+                    console.print(f"[yellow]No graph nodes matching '{escape(query)}' found.[/yellow]")
+                else:
+                    console.print(f"\n[bold white]Knowledge Graph Results for '[cyan]{escape(query)}[/cyan]':[/bold white]")
+                    for node, score in matches:
+                        nid = node.get("id", "")
+                        lbl = node.get("label", nid)
+                        dom = node.get("domain") or "core"
+                        tags = ", ".join(node.get("tags", []))
+                        console.print(f"  • [bold cyan]{escape(nid)}[/bold cyan] [dim](score: {score:.2f}, domain: {escape(dom)})[/dim]")
+                        console.print(f"    [white]{escape(lbl)}[/white]")
+                        if tags:
+                            console.print(f"    [dim]tags: {escape(tags)}[/dim]")
+                    console.print()
             continue
 
         # Task Execution in Project Context

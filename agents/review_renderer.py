@@ -43,12 +43,21 @@ def render_review_markdown(
         else ""
     )
 
+    from tools.taxonomy import get_taxonomic_classification
+    classification = get_taxonomic_classification(f"{task_id} {result.summary[:200]}")
+    tags = [t for t in [classification.domain, classification.action, classification.target, *classification.keywords] if t]
+    tags = list(dict.fromkeys(tags))
+    tags_block = "tags:\n" + "\n".join(f"  - {t}" for t in tags) + "\n" if tags else "tags: []\n"
+
     markdown_content = f"""---
 id: "review-{task_id}"
 type: "code-review"
 agent: "meti"
 task_id: "{task_id}"
-{project_frontmatter}created_at: "{timestamp}"
+domain: "{classification.domain or 'core'}"
+action: "{classification.action or 'implement'}"
+target: "{classification.target}"
+{tags_block}{project_frontmatter}created_at: "{timestamp}"
 links: ["[[spec-{task_id}]]", "[[{task_id}-brief]]"]
 ---
 # Implementation Code Review: {task_id}

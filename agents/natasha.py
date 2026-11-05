@@ -114,7 +114,27 @@ class NatashaRouter:
                 "Preserve existing files, data schemas, and validated interfaces. "
                 "Extend the existing architecture rather than rebuilding from scratch.\n\n"
             )
-        result = await self.agent.run(f"Task ID: {task_id}\n{incremental_header}{project.prompt}User request: {user_prompt}")
+        prior_art_section = ""
+        if self.graph_manager and hasattr(self.graph_manager, "query_by_keywords"):
+            try:
+                from tools.taxonomy import extract_keywords
+                keywords = extract_keywords(user_prompt)
+                if keywords:
+                    matches = self.graph_manager.query_by_keywords(keywords, top_k=3, min_score=0.20)
+                    prior_matches = [
+                        (n, s) for n, s in matches
+                        if n.get("id") != task_id and not str(n.get("id", "")).startswith(f"task-{task_id}")
+                    ]
+                    if prior_matches:
+                        prior_lines = [
+                            f"- `{n.get('id')}` (Relevance: {s:.2f}, Domain: {n.get('domain', 'core')}): {n.get('label', '')}"
+                            for n, s in prior_matches
+                        ]
+                        prior_art_section = "### Prior Art Discovered in Knowledge Graph\n" + "\n".join(prior_lines) + "\n\n"
+            except Exception:
+                pass
+
+        result = await self.agent.run(f"Task ID: {task_id}\n{incremental_header}{project.prompt}{prior_art_section}User request: {user_prompt}")
         task_brief = result.output
         task_brief.task_id = task_id
         task_brief.project_id = project_id
@@ -123,7 +143,8 @@ class NatashaRouter:
         task_brief.token_usage = extract_usage(result, model_name=str(self.model_name))
         self._ensure_alignment_brief(task_brief, user_prompt)
 
-        await self._write_brief_note(task_brief, project)
+        saved_path = await self._write_brief_note(task_brief, project)
+        await update_vault_graph(self.graph_manager, saved_path)
         return task_brief
 
     def _ensure_alignment_brief(self, brief: TaskBrief, prompt: str) -> None:
@@ -166,7 +187,8 @@ class NatashaRouter:
 
         new_brief.token_usage = extract_usage(result, model_name=str(self.model_name))
         self._ensure_alignment_brief(new_brief, user_feedback)
-        await self._write_brief_note(new_brief, project)
+        saved_path = await self._write_brief_note(new_brief, project)
+        await update_vault_graph(self.graph_manager, saved_path)
         return new_brief
 
     async def conduct_grill_session(
@@ -205,12 +227,21 @@ class NatashaRouter:
         note_filename = self.tasks_dir / f"{task_brief.task_id}-brief.md"
         note_filename.parent.mkdir(parents=True, exist_ok=True)
 
+        from tools.taxonomy import get_taxonomic_classification
+        classification = get_taxonomic_classification(f"{task_brief.title} {task_brief.objective or ''}")
+        tags = [t for t in [classification.domain, classification.action, classification.target, *classification.keywords] if t]
+        tags = list(dict.fromkeys(tags))
+        tags_block = "tags:\n" + "\n".join(f"  - {t}" for t in tags) + "\n" if tags else "tags: []\n"
+
         markdown_content = f"""---
 id: "{task_brief.task_id}"
 type: "task-brief"
 agent: "natasha"
 target_lead: "{task_brief.target_lead}"
-{project.frontmatter}created_at: "{timestamp}"
+domain: "{classification.domain or 'core'}"
+action: "{classification.action or 'implement'}"
+target: "{classification.target}"
+{tags_block}{project.frontmatter}created_at: "{timestamp}"
 links: []
 ---
 # Task: {task_brief.title}

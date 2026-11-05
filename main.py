@@ -86,8 +86,8 @@ def slugify_task_prompt(prompt: str, max_words: int = 4, max_chars: int = 32) ->
 
 
 def task_id_for(prompt: str, ledger: TaskLedger | None = None) -> str:
-    slug = slugify_task_prompt(prompt)
-    base_id = f'task-{slug}-{datetime.now():%Y%m%d}'
+    from tools.taxonomy import generate_taxonomic_task_id
+    base_id = generate_taxonomic_task_id(prompt)
     if ledger is None:
         return base_id
     task_id = base_id

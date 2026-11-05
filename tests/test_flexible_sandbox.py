@@ -49,7 +49,7 @@ def test_task_id_format_omits_uuid():
     from datetime import datetime
     task_id = task_id_for("Build a CSV validator with tests")
     today = datetime.now().strftime("%Y%m%d")
-    assert task_id == f"task-csv-validator-tests-{today}"
+    assert task_id == f"task-test-implement-csv-validator-{today}"
     # Verify no hex uuid suffix
     parts = task_id.split("-")
     assert parts[-1] == today
