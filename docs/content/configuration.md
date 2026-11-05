@@ -86,18 +86,20 @@ USE_CHATGPT_OAUTH=0
 # MODEL_NATASHA=openai:YOUR_ROUTER_MODEL_ID
 # MODEL_ODIN=openai:YOUR_RESEARCH_MODEL_ID
 # MODEL_TAGHI=openai:YOUR_DESIGN_MODEL_ID
+# MODEL_DIBA=openai:YOUR_UI_MODEL_ID
 # MODEL_METI=openai:YOUR_CODING_MODEL_ID
+# MODEL_DANA=openai:YOUR_SUPERVISOR_MODEL_ID
 ```
 
 Replace placeholder model IDs with choices from your connection. Use the wizard to configure another provider; an explicit connection does not silently switch authentication for cross-provider overrides.
 
-You can also override models at runtime using `--model` (e.g., `--model anthropic:claude-3-7-sonnet`) or per-lead flags (`--model-taghi`, `--model-meti`).
+You can also override models at runtime using `--model` (e.g., `--model anthropic:claude-3-7-sonnet`) or per-lead flags (`--model-taghi`, `--model-diba`, `--model-meti`, `--model-dana`).
 
 ### Explicit provider and model selection
 
 First-time interactive runs open setup before using any lead. Choose browser authentication or an API/local connection, authenticate, and select a model. API catalogs are queried using that connection; discovery failures and browser-login suggestions are explicitly unverified. Catalog presence does not guarantee tool/structured-output support or account quota.
 
-Setup saves `BUILDRELAY_PROVIDER`, `BUILDRELAY_MODEL`, and `BUILDRELAY_MODEL_MODE=selected`. Setup saves explicit `MODEL_NATASHA`, `MODEL_ODIN`, `MODEL_TAGHI`, and `MODEL_METI` assignments. Each lead is selected with a numbered picker; Enter reuses the previous choice. Tiers are not offered in setup or the run-time picker. A changed run-time lineup is saved only after explicit confirmation. The picker retains cached catalogs, saved lead choices, and separately labeled unverified fallback suggestions. Native model IDs containing colons, such as local `model:tag`, are supported. Reconfiguration replaces previous lead choices; old credentials can remain stored without changing the active connection. Cross-provider overrides require reconfiguration instead of silently switching authentication. Browser login failure leaves setup incomplete. No live account access is established by the offline tests.
+Setup saves `BUILDRELAY_PROVIDER`, `BUILDRELAY_MODEL`, and `BUILDRELAY_MODEL_MODE=selected`. Setup saves explicit `MODEL_NATASHA`, `MODEL_ODIN`, `MODEL_TAGHI`, `MODEL_DIBA`, and `MODEL_METI` assignments. Each lead is selected with a numbered picker; Enter reuses the previous choice. Tiers are not offered in setup or the run-time picker. A changed run-time lineup is saved only after explicit confirmation. The picker retains cached catalogs, saved lead choices, and separately labeled unverified fallback suggestions. Native model IDs containing colons, such as local `model:tag`, are supported. Reconfiguration replaces previous lead choices; old credentials can remain stored without changing the active connection. Cross-provider overrides require reconfiguration instead of silently switching authentication. Browser login failure leaves setup incomplete. No live account access is established by the offline tests.
 
 
 ## Tiered model routing and token optimization
@@ -106,10 +108,10 @@ Normal setup uses explicit per-lead choices, with no tier selection. The legacy 
 
 - **Model Tiers (`--tier`):**
   - **Fast (`--tier fast`):** Routes lightweight, fast models across all leads (`gpt-4o-mini`, `claude-3-5-haiku`, `gemini-2.0-flash`). Ideal for quick scripts, prototyping, and high speed.
-  - **Balanced (`--tier balanced` — default):** Pairs fast models for routing (Natasha) and graph search (Odin) with high-reasoning models for architecture (Taghi: `o3-mini`) and implementation (Meti: `gpt-4o` / `claude-3-7-sonnet`).
+  - **Balanced (`--tier balanced` — default):** Pairs fast models for routing (Natasha) and graph search (Odin) with high-reasoning models for architecture (Taghi: `o3-mini`, Diba: `gpt-4o`) and implementation (Meti: `gpt-4o` / `claude-3-7-sonnet`).
   - **Powerful (`--tier powerful`):** Assigns top-tier frontier models across all design and execution phases.
 - **Lead-Specific Overrides:**
-  - Override individual leads via CLI flags: `--model-natasha`, `--model-odin`, `--model-taghi`, `--model-meti`.
+  - Override individual leads via CLI flags: `--model-natasha`, `--model-odin`, `--model-taghi`, `--model-diba`, `--model-meti`, `--model-dana`.
   - In selected-model mode, precedence is explicit per-lead CLI choice, global `--model`, saved lead choice, then the saved default model. Legacy `--tier` behavior is retained separately.
 - **Model Lineup Approval Gate:**
   - On launch, BuildRelay renders a 2-column model lineup card displaying the active model for each lead, cost tier label, caching status, and estimated budget.

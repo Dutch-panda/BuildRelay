@@ -20,6 +20,7 @@ AGENT_THEMES: dict[str, dict[str, str]] = {
     "natasha": {"name": "Natasha", "color": "bold #d946ef", "icon": "🟣", "role": "Coordinator"},
     "odin": {"name": "Odin", "color": "bold #06b6d4", "icon": "🔵", "role": "Researcher"},
     "taghi": {"name": "Taghi", "color": "bold #22c55e", "icon": "🟢", "role": "Architect"},
+    "diba": {"name": "Diba", "color": "bold #ec4899", "icon": "🎨", "role": "UI/UX Designer"},
     "meti": {"name": "Meti", "color": "bold #ffa76c", "icon": "🟠", "role": "Implementer"},
     "dana": {"name": "Dana", "color": "bold #a855f7", "icon": "🧭", "role": "Quality Supervisor"},
     "docker": {"name": "Docker", "color": "bold #38bdf8", "icon": "🐳", "role": "Sandbox"},
@@ -887,30 +888,29 @@ def print_model_lineup_card(
     from tools.model_tiers import get_tier_label
 
     content_lines = []
-    leads = [
-        ("natasha", "Natasha"),
-        ("taghi", "Taghi"),
-        ("odin", "Odin"),
-        ("meti", "Meti"),
+    pairs = [
+        (("natasha", "Natasha"), ("odin", "Odin")),
+        (("taghi", "Taghi"), ("diba", "Diba")),
     ]
+    if "dana" in models and models.get("dana"):
+        pairs.append((("meti", "Meti"), ("dana", "Dana")))
+    else:
+        pairs.append((("meti", "Meti"), None))
 
-    for left_lead, right_lead in [(leads[0], leads[1]), (leads[2], leads[3])]:
+    for left_lead, right_lead in pairs:
         t_left = _get_theme(left_lead[0])
-        t_right = _get_theme(right_lead[0])
         mdl_left = models.get(left_lead[0], "gpt-4o")
-        mdl_right = models.get(right_lead[0], "gpt-4o")
         lbl_left = get_tier_label(mdl_left)
-        lbl_right = get_tier_label(mdl_right)
-
         str_left = f"[{t_left['color']}]{t_left['icon']} {t_left['name']}:[/{t_left['color']}] [white]{escape(str(mdl_left))}[/white] [dim]({lbl_left})[/dim]"
-        str_right = f"[{t_right['color']}]{t_right['icon']} {t_right['name']}:[/{t_right['color']}] [white]{escape(str(mdl_right))}[/white] [dim]({lbl_right})[/dim]"
-        content_lines.append(f"{str_left:<42}  {str_right}")
 
-    if "dana" in models and models["dana"]:
-        t_dana = _get_theme("dana")
-        mdl_dana = models["dana"]
-        lbl_dana = get_tier_label(mdl_dana)
-        content_lines.append(f"[{t_dana['color']}]{t_dana['icon']} {t_dana['name']}:[/{t_dana['color']}] [white]{escape(str(mdl_dana))}[/white] [dim]({lbl_dana})[/dim]")
+        if right_lead:
+            t_right = _get_theme(right_lead[0])
+            mdl_right = models.get(right_lead[0], "gpt-4o")
+            lbl_right = get_tier_label(mdl_right)
+            str_right = f"[{t_right['color']}]{t_right['icon']} {t_right['name']}:[/{t_right['color']}] [white]{escape(str(mdl_right))}[/white] [dim]({lbl_right})[/dim]"
+            content_lines.append(f"{str_left:<42}  {str_right}")
+        else:
+            content_lines.append(str_left)
 
     footer = f"\n[bold cyan]Selection:[/bold cyan] {'Per lead' if tier == 'manual' else tier.title()}  |  [bold yellow]Prompt Caching:[/bold yellow] {'Requested; provider-dependent' if prompt_caching else 'Disabled'}"
     if budget_estimate:

@@ -14,7 +14,7 @@
 <path class="line" d="M380 141 V164 H136 V190"/>
 <rect x="268" y="190" width="224" height="104" rx="8" fill="#23221f" stroke="#565048"/>
 <text x="284" y="219" class="" text-anchor="start">Agent workflow</text>
-<text x="284" y="244" class="sub" text-anchor="start">4 leads + optional Dana</text>
+<text x="284" y="244" class="sub" text-anchor="start">5 leads + optional Dana</text>
 <text x="284" y="266" class="sub" text-anchor="start">Shared typed contracts</text>
 <path class="line" d="M380 141 V164 H380 V190"/>
 <rect x="512" y="190" width="224" height="104" rx="8" fill="#23221f" stroke="#565048"/>

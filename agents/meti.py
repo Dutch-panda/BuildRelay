@@ -371,7 +371,8 @@ class MetiImplementer:
             f"\"{refinement_request}\"\n\n"
             f"Please use your sandbox execution tool to inspect existing files, apply the requested documentation, "
             f"usability, or code refinements in workspace/{workspace_dir}/, and re-run necessary validation checks. "
-            f"Ensure the project README includes clear, step-by-step instructions and visual flowcharts where helpful."
+            f"Ensure the project README includes clear, step-by-step instructions and visual flowcharts where helpful.\n"
+            f"Note: You operate inside an isolated Docker container with access only to workspace/{workspace_dir}/. Host vault notes and browser hardware are not present in Docker; execute all requested refinements and offline tests directly within the workspace files."
         )
 
         state = ExecutionState(

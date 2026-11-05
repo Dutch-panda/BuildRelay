@@ -17,13 +17,16 @@ Arrows show which component uses another. Shared contracts define stage outputs,
 │   ├── natasha.py             Structured briefs and routing
 │   ├── odin.py                Research reports
 │   ├── taghi.py               Specifications and outcome-driven execution phases
+│   ├── diba.py                UI/UX design systems, Tailwind tokens, and interactive states
 │   ├── execution_policy.py    Phase validation ordering, retry budgets, and recovery policy
 │   ├── review_renderer.py     Markdown code review report rendering
 │   ├── meti.py                Implementation coordination and Docker tools
 │   └── dana.py                Principal Quality Supervisor & autonomous overseer
 ├── tools/
 │   ├── chatgpt_auth.py        OAuth credential storage and model setup
+│   ├── claude_auth.py         Claude OAuth web subscription and headless login
 │   ├── context_pruner.py      Markdown stripping, graph context ranking, and Docker log slicing
+│   ├── design_system.py       Curated visual blueprints and Tailwind design archetypes
 │   ├── docker_runner.py      Container lifecycle and workspace mounts
 │   ├── eval_harness.py       Automated multi-dimensional deliverable evaluation
 │   ├── graphify_tool.py      Graph extraction, node search, and neighbors

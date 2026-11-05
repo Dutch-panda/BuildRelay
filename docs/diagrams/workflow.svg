@@ -1,33 +1,38 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="760" height="446" viewBox="0 0 760 446" role="img" aria-labelledby="title desc">
-<title id="title">BuildRelay workflow</title><desc id="desc">Four sequential leads with optional Dana supervision. The full research route is shown; simpler tasks skip stages and research-only ends after Odin.</desc>
+<title id="title">BuildRelay workflow</title><desc id="desc">Sequential leads with on-demand UI/UX design and optional Dana supervision. The full research route is shown; simpler tasks skip stages and research-only ends after Odin.</desc>
 <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8" fill="#b7b1a8"/></marker></defs>
 <rect width="760" height="446" rx="12" fill="#151514"/>
 <style>text{font-family:Arial,Helvetica,sans-serif;fill:#eeeae4;font-size:16px}.title{font-size:22px;font-weight:600}.sub{fill:#c4bdb2;font-size:14px}.accent{fill:#ffac75}.line{fill:none;stroke:#b7b1a8;stroke-width:1.6;marker-end:url(#arrow)}</style>
-<text x="24" y="38" class="title" text-anchor="start">Four leads. Optional quality supervision.</text>
-<text x="24" y="64" class="sub" text-anchor="start">Full route shown; Natasha selects the starting point.</text>
-<rect x="24" y="92" width="160" height="110" rx="8" fill="#23221f" stroke="#565048"/>
-<text x="40" y="121" class="" text-anchor="start">Natasha</text>
-<text x="40" y="146" class="sub" text-anchor="start">Align intent</text>
-<text x="40" y="168" class="sub" text-anchor="start">Choose route</text>
-<rect x="208" y="92" width="160" height="110" rx="8" fill="#23221f" stroke="#565048"/>
-<text x="224" y="121" class="" text-anchor="start">Odin</text>
-<text x="224" y="146" class="sub" text-anchor="start">Vault + web search</text>
-<text x="224" y="168" class="sub" text-anchor="start">Research report</text>
-<rect x="392" y="92" width="160" height="110" rx="8" fill="#23221f" stroke="#565048"/>
-<text x="408" y="121" class="" text-anchor="start">Taghi</text>
-<text x="408" y="146" class="sub" text-anchor="start">Backend + UI specs</text>
-<text x="408" y="168" class="sub" text-anchor="start">Approval gate</text>
-<rect x="576" y="92" width="160" height="110" rx="8" fill="#23221f" stroke="#565048"/>
-<text x="592" y="121" class="" text-anchor="start">Meti</text>
-<text x="592" y="146" class="sub" text-anchor="start">Docker commands</text>
-<text x="592" y="168" class="sub" text-anchor="start">Phase checks</text>
-<path class="line" d="M184 147 H208"/>
-<path class="line" d="M368 147 H392"/>
-<path class="line" d="M552 147 H576"/>
-<text x="24" y="233" class="sub" text-anchor="start">Research-only: stop after Odin. Design: Taghi → Meti. Direct build: Meti.</text>
+<text x="24" y="38" class="title" text-anchor="start">Sequential leads. On-demand design &amp; quality supervision.</text>
+<text x="24" y="64" class="sub" text-anchor="start">Full route shown; Diba awakens for UI tasks, Natasha selects the entry point.</text>
+<rect x="24" y="92" width="132" height="110" rx="8" fill="#23221f" stroke="#565048"/>
+<text x="36" y="121" class="" text-anchor="start">Natasha</text>
+<text x="36" y="146" class="sub" text-anchor="start">Align intent</text>
+<text x="36" y="168" class="sub" text-anchor="start">Choose route</text>
+<rect x="169" y="92" width="132" height="110" rx="8" fill="#23221f" stroke="#565048"/>
+<text x="181" y="121" class="" text-anchor="start">Odin</text>
+<text x="181" y="146" class="sub" text-anchor="start">Vault + web</text>
+<text x="181" y="168" class="sub" text-anchor="start">Research report</text>
+<rect x="314" y="92" width="132" height="110" rx="8" fill="#23221f" stroke="#565048"/>
+<text x="326" y="121" class="" text-anchor="start">Taghi</text>
+<text x="326" y="146" class="sub" text-anchor="start">Backend spec</text>
+<text x="326" y="168" class="sub" text-anchor="start">Docker phases</text>
+<rect x="459" y="92" width="132" height="110" rx="8" fill="#23221f" stroke="#db2777"/>
+<text x="471" y="121" class="" text-anchor="start">Diba (UI/UX)</text>
+<text x="471" y="146" class="sub" text-anchor="start">Design systems</text>
+<text x="471" y="168" class="sub" text-anchor="start">5-state UI spec</text>
+<rect x="604" y="92" width="132" height="110" rx="8" fill="#23221f" stroke="#565048"/>
+<text x="616" y="121" class="" text-anchor="start">Meti</text>
+<text x="616" y="146" class="sub" text-anchor="start">Docker build</text>
+<text x="616" y="168" class="sub" text-anchor="start">Phase checks</text>
+<path class="line" d="M156 147 H169"/>
+<path class="line" d="M301 147 H314"/>
+<path class="line" d="M446 147 H459"/>
+<path class="line" d="M591 147 H604"/>
+<text x="24" y="233" class="sub" text-anchor="start">Research-only: stop after Odin. Architecture: Taghi → Diba → Meti. Direct build: Meti.</text>
 <rect x="24" y="259" width="712" height="84" rx="8" fill="#30251d" stroke="#9f704c"/>
-<text x="40" y="288" class="accent" text-anchor="start">Dana · optional supervisor</text>
-<text x="40" y="313" class="sub" text-anchor="start">Advisory critique or autonomous steering at stage boundaries.</text>
+<text x="40" y="288" class="accent" text-anchor="start">Dana · quality supervisor &amp; intent comparison grill</text>
+<text x="40" y="313" class="sub" text-anchor="start">Advisory critique, intent comparison questions, or autonomous steering at stage boundaries.</text>
 <text x="24" y="380" class="accent" text-anchor="start">Delivery → live verification / preview → next feature or project session</text>
 <text x="24" y="414" class="sub" text-anchor="start">Checkpoints preserve stages and phase history; review generated work.</text>
 </svg>

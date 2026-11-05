@@ -25,13 +25,18 @@ Your objective is maximum autonomy within strict security boundaries.
 # BuildRelay Project Guidelines for Antigravity (AGY)
 
 ## Architecture & Conventions
-- **Sequential 4-lead flow**: Natasha (Routing & Alignment) → Odin (Research) → Taghi (Architecture & Review) → Meti (Phased Docker Execution).
+- **Sequential 4-lead flow with on-demand specialization**: Natasha (Routing & Alignment) → Odin (Research, on-demand) → Taghi (Architecture & Review) → Diba (UI/UX Design & Ergonomics, on-demand) → Meti (Phased Docker Execution).
 - **Interactive Grill-Me Alignment**:
   - `tools/grill.py`: Unified multi-choice and open-ended interview engine with quick keyboard shortcuts (`[Enter]` for default, `[1, 2...]` to pick, `[c]` for custom text, `[a]` to accept all remaining, `[q]` to quit).
   - Natasha conducts an intent/scope grill interview (up to 10 questions covering entry points, schemas, triggers, edge cases) before final routing.
-  - Taghi conducts an architectural grill interview (covering schemas, mocks, failure modes) AND a dedicated UI/UX Design & Ergonomics grill interview (`ui_spec` covering surface type, theme, layout hierarchy, validation feedback). Taghi presents a dual architecture & UI review card (`prompt_spec_approval_gate`) requiring user approval before Meti begins implementation.
+  - Taghi conducts an architectural grill interview (covering schemas, mocks, failure modes).
+  - Diba conducts a dedicated UI/UX Design & Ergonomics grill interview (`ui_spec` covering visual archetypes, Tailwind palettes, layout hierarchy, validation feedback, and 5 discrete states).
+- **Diba UI/UX & Product Design Lead (`agents/diba.py`)**:
+  - On-Demand Awakening: Automatically awakened when a task involves frontend or user entry surfaces (`is_ui_task`), completely freeing Taghi to focus on backend architecture and Docker validation.
+  - Curated Design Archetypes (`tools/design_system.py`): Studio-grade visual blueprints ('Linear Dark Minimalist', 'Executive Bento Dashboard', 'Stripe Enterprise Clean', 'Split-Pane Studio Workspace') that prevent ugly blank-canvas HTML generation.
+  - Dual-Specification Output: Diba persists `vault/specs/<task_id>-ui.md` with explicit Tailwind hex tokens, component wireframes, input validation rules, and 5 interactive states (`empty`, `validating`, `submitting`, `success`, `error`).
 - **Dual-Specification Architecture & UI/UX Standards**:
-  - Taghi persists both `vault/specs/<task_id>-spec.md` (backend models, APIs, and phases) and `vault/specs/<task_id>-ui.md` (visual layout, Tailwind palette tokens, field validation rules, and 4 interactive states: empty, validating, submitting spinner, and success/error alerts).
+  - Taghi persists backend technical specifications in `vault/specs/<task_id>-spec.md` (models, APIs, sanitizers, and validation phases), while Diba persists studio-grade UI/UX specifications in `vault/specs/<task_id>-ui.md` (archetypes, Tailwind hex tokens, component wireframes, input validation rules, and 5 interactive states).
   - Phased Execution Ordering: Meti executes and verifies backend core logic and Tier 1 unit tests first in Docker, and only implements frontend UI/UX surfaces after backend logic passes.
 - **Shared Contracts**: All stage inputs, outputs, attempts, and checkpoints live in `contracts/`. Do not introduce circular dependencies between agents. `TechnicalSpec` includes `ui_spec` (`UIDesignSpec`), `input_interface_spec`, and `clarification_questions`.
 - **Two-Tier Verification Architecture**:
@@ -46,8 +51,9 @@ Your objective is maximum autonomy within strict security boundaries.
   - `prompt_iteration_gate` (`tools/ui.py`) & `run_iteration_loop` (`main.py`): Post-delivery gate allowing users to seamlessly add sequential feature milestones (`[1]`), refactor code (`[2]`), launch the project REPL session (`[3]`), or run live verification/preview (`[4]`).
   - Iteration tasks inherit project identity and inject living memory from `PROJECT_PROFILE.md` into Natasha's and Taghi's agent prompts (`[INCREMENTAL FEATURE EVOLUTION]` and `[INCREMENTAL ARCHITECTURE SPECIFICATION]`), preserving existing schemas, file structures, and verified interfaces.
 - **Dana Quality Supervisor Agent**:
-  - `agents/dana.py` (`DanaQualitySupervisor`): Principal Quality Supervisor evaluating intermediate deliverables across Natasha, Odin, Taghi, and Meti.
+  - `agents/dana.py` (`DanaQualitySupervisor`): Principal Quality Supervisor evaluating intermediate deliverables across Natasha, Odin, Taghi, Diba, and Meti.
   - Contract: `DanaCritique` (`contracts/`) providing structured `verdict` ('approve', 'suggest', 'warn', 'block'), `score` (0-100), `strengths`, `risks_or_gaps`, and `actionable_recommendations`.
+  - Intent Comparison Grilling: `conduct_intent_comparison_grill` actively detects discrepancies between the user's initial prompt and the lead's deliverable, launching interactive comparison questions to empower the user to enforce requirements before execution.
   - Operating Modes:
     - `Advisory Mode` (`--supervise advisory` / `--dana`): Presents Rich critique card and gate (`prompt_dana_gate`), allowing developers to inspect suggestions, apply steering to the lead, skip, or abort.
     - `Autonomous Mode` (`--supervise autonomous`): Detects warnings or blocking gaps and autonomously steers leads to revise specifications and code without human intervention.
@@ -72,7 +78,7 @@ Your objective is maximum autonomy within strict security boundaries.
 
 ## Model Configuration & Research
 - Explicit per-lead models are selected through `tools/model_tiers.py` and discovered via `tools/model_catalog.py`; interactive onboarding lives in `tools/onboarding.py`.
-- Setup saves `BUILDRELAY_PROVIDER`, `BUILDRELAY_MODEL`, `BUILDRELAY_MODEL_MODE=selected`, and explicit assignments (`MODEL_NATASHA`, `MODEL_ODIN`, `MODEL_TAGHI`, `MODEL_METI`).
+- Setup saves `BUILDRELAY_PROVIDER`, `BUILDRELAY_MODEL`, `BUILDRELAY_MODEL_MODE=selected`, and explicit assignments (`MODEL_NATASHA`, `MODEL_ODIN`, `MODEL_TAGHI`, `MODEL_DIBA`, `MODEL_METI`).
 - Web Browser Login connects directly via `login_with_chatgpt_browser` (ChatGPT Codex) or `login_with_claude_browser` (Claude Pro/Max subscription / `claude setup-token`) with zero API charges, while API connections query provider catalogs.
 - Natasha and Odin use web search snippets from `tools/web_search.py`; queries prioritize Tavily API (`TAVILY_API_KEY` in `.env`) with automated fallback to DuckDuckGo HTML scraping. Odin can query PyPI/npm and records search-result URLs.
 - Odin has three search calls per research invocation. Registry lookups and Natasha searches are outside that budget.

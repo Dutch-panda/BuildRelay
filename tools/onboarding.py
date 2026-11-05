@@ -429,7 +429,7 @@ def run_onboarding_wizard(
         "USE_CHATGPT_OAUTH": "1" if prov_id == "chatgpt_oauth" else "0",
         "USE_CLAUDE_OAUTH": "1" if prov_id == "claude_oauth" else "0",
         "BUILDRELAY_MODEL_MODE": "selected",
-        **{f"MODEL_{lead}": "" for lead in ("NATASHA", "ODIN", "TAGHI", "METI")},
+        **{f"MODEL_{lead}": "" for lead in ("NATASHA", "ODIN", "TAGHI", "DIBA", "METI")},
     }
     selected_prov = dict(selected_prov)
     def load_catalog(api_key="", base_url=None):
@@ -529,7 +529,7 @@ def run_onboarding_wizard(
     current = qualify(selected_prov["default_model"])
     ui.print("\n[bold]Choose a model for each lead. Enter reuses the previous choice.[/bold]")
     try:
-        for lead in ("natasha", "odin", "taghi", "meti"):
+        for lead in ("natasha", "odin", "taghi", "diba", "meti"):
             current = pick_model(catalog, current, lead.title(), ask, ui.print)
             current = qualify(current)
             entries_to_save[f"MODEL_{lead.upper()}"] = current

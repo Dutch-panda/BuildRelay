@@ -10,7 +10,7 @@ Version <!-- package-version:start -->0.2.0<!-- package-version:end --> · Pytho
 [Documentation](https://dutch-panda.github.io/BuildRelay/) · [Quick start](#quick-start) · [CI results](https://github.com/Dutch-panda/BuildRelay/actions/workflows/tests.yml) · [Issues](https://github.com/Dutch-panda/BuildRelay/issues)
 </div>
 
-BuildRelay routes a request through selected research, architecture and implementation roles. It records outcome-driven plans (1–5 phases), Docker phase-check results and checkpoints so you can inspect and continue work. Interactive alignment interviews (up to 15 questions with visible hotkey controls) clarify intent upfront, while an anti-simulation contract ensures real data persistence rather than mock stubs. Ground-truth execution policy ensures passing validation commands establish real completion, with standard-library fallbacks avoiding offline wheelhouse traps. An offline knowledge graph parser connects project history across iterations, and opinionated UI/UX specifications enforce modern Tailwind design standards across 5 discrete interactive states. Optional supervision across 5 technical pillars and static scores provide quality signals, not independent acceptance evidence.
+BuildRelay routes a request through selected research, architecture, UI/UX design, and implementation roles. It records outcome-driven plans (1–5 phases), Docker phase-check results and checkpoints so you can inspect and continue work. Interactive alignment interviews (up to 15 questions with visible hotkey controls) clarify intent upfront, while an anti-simulation contract ensures real data persistence rather than mock stubs. Ground-truth execution policy ensures passing validation commands establish real completion, with standard-library fallbacks avoiding offline wheelhouse traps. An offline knowledge graph parser connects project history across iterations, and Diba's dedicated UI/UX specifications enforce curated design archetypes (Linear dark, Bento dashboard, Stripe enterprise, Split-pane workspace) and modern Tailwind design standards across 5 discrete interactive states. Optional supervision across 5 technical pillars, intent comparison grilling, and static scores provide quality signals, not independent acceptance evidence.
 
 ## Who it is for
 
@@ -18,7 +18,7 @@ For developers able to review generated code who want a local planning, executio
 
 Consider a simpler coding session for a tiny known edit, and a different process for production deployment, compliance or independently audited security. See [task fit](docs/content/task-fit.md) and the [proposed rationale, pending owner review](docs/content/design.md).
 
-<img src="docs/diagrams/workflow.svg" alt="Four sequential development leads, selected routes, research-only exit and optional supervision." width="760">
+<img src="docs/diagrams/workflow.svg" alt="Sequential development leads with on-demand UI/UX design, selected routes, research-only exit, and optional Dana supervision." width="760">
 
 ## Quick start
 

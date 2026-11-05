@@ -17,7 +17,7 @@ from tools.onboarding import run_onboarding_wizard, check_credentials_configured
 def connection_env(monkeypatch):
     before = dict(os.environ)
     for name in ('BUILDRELAY_PROVIDER', 'BUILDRELAY_MODEL', 'BUILDRELAY_MODEL_MODE', 'USE_CHATGPT_OAUTH',
-                 'MODEL_NATASHA', 'MODEL_ODIN', 'MODEL_TAGHI', 'MODEL_METI'):
+                 'MODEL_NATASHA', 'MODEL_ODIN', 'MODEL_TAGHI', 'MODEL_DIBA', 'MODEL_METI'):
         monkeypatch.delenv(name, raising=False)
     yield
     os.environ.clear()
@@ -95,7 +95,7 @@ def test_discovery_failure_does_not_leak_secrets(monkeypatch):
 def test_onboarding_selected_catalog_model_reaches_all_leads(monkeypatch, tmp_path):
     monkeypatch.setattr('tools.onboarding.discover_models', lambda *a, **k: (['account-model'], 'Account catalog'))
     monkeypatch.setattr('tools.onboarding.ping_provider_connectivity', lambda *a, **k: (True, 'OK'))
-    inputs = iter(['2', 'sk-' + 'x'*30, '1', '', '', ''])
+    inputs = iter(['2', 'sk-' + 'x'*30, '1', '', '', '', ''])
     assert run_onboarding_wizard(console=Mock(), env_path=tmp_path / '.env',
                                  prompt_ask=lambda *a, **k: next(inputs), confirm_ask=lambda *a, **k: False)
     assert set(resolve_pipeline_models().values()) == {'openai:account-model'}
@@ -216,7 +216,7 @@ def test_first_run_continues_original_prompt_after_real_wizard(monkeypatch, tmp_
     monkeypatch.setattr('tools.onboarding.check_credentials_configured', lambda: False)
     monkeypatch.setattr('tools.onboarding.discover_models', lambda *a, **k: (['account-model'], 'Retrieved'))
     monkeypatch.setattr('tools.onboarding.ping_provider_connectivity', lambda *a, **k: (True, 'OK'))
-    answers = iter(['2', 'sk-' + 'x'*30, '1', '', '', ''])
+    answers = iter(['2', 'sk-' + 'x'*30, '1', '', '', '', ''])
     wizard = run_onboarding_wizard
     monkeypatch.setattr('tools.onboarding.run_onboarding_wizard', lambda: wizard(
         console=Mock(), env_path=tmp_path / '.env', prompt_ask=lambda *a, **k: next(answers)))

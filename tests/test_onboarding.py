@@ -45,6 +45,7 @@ def clean_credentials(monkeypatch, tmp_path):
         "MODEL_NATASHA",
         "MODEL_ODIN",
         "MODEL_TAGHI",
+        "MODEL_DIBA",
         "MODEL_METI",
     ]
     for k in keys_to_clear:
@@ -217,7 +218,7 @@ def test_run_onboarding_wizard_chatgpt_oauth(tmp_path, clean_credentials):
     # 2: Select model "1" (gpt-4o)
     # 3: Select tier "1" (balanced)
     # Confirm lead customization: False
-    inputs = iter(["1", "1", "", "", ""])
+    inputs = iter(["1", "1", "", "", "", ""])
     confirms = iter([False])
 
     result = run_onboarding_wizard(
@@ -248,8 +249,9 @@ def test_run_onboarding_wizard_openai_with_lead_overrides(tmp_path, clean_creden
     # Natasha: openai:gpt-4o-mini
     # Odin: openai:gpt-4o-mini
     # Taghi: openai:o3-mini
+    # Diba: openai:o3-mini (reuses previous)
     # Meti: openai:gpt-4o
-    inputs = iter(["2", "sk-proj-1234567890abcdef12345", "2", "", "3", "2"])
+    inputs = iter(["2", "sk-proj-1234567890abcdef12345", "2", "", "3", "", "2"])
     confirms = iter([True, True])  # 1st confirm for format/ping, 2nd confirm for lead customization
 
     result = run_onboarding_wizard(
@@ -344,7 +346,7 @@ def test_run_onboarding_wizard_triggers_browser_login(tmp_path, clean_credential
     # 2: Select Model "1" (gpt-4o)
     # 3: Select Tier "1" (balanced)
     # Confirm lead customization: False
-    inputs = iter(["1", "1", "", "", ""])
+    inputs = iter(["1", "1", "", "", "", ""])
     confirms = iter([False])
 
     result = run_onboarding_wizard(

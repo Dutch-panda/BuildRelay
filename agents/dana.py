@@ -49,6 +49,7 @@ class DanaQualitySupervisor:
                 "CRITICAL SUPERVISOR INVARIANTS (ANTI-PARALYSIS RULES):\n"
                 "- The developer at the keyboard IS the stakeholder. Gate approvals constitute full authorization.\n"
                 "- NEVER steer leads to delay implementation, demand external corporate/legal sign-offs, or mark working local features as 'unapproved'.\n"
+                "- CONTAINER ISOLATION & OFFLINE SANDBOX REALITY: Meti executes inside an isolated Docker container mounting ONLY workspace/<project_id>/ with zero host vault or network access. NEVER instruct Meti to access or retrieve files from the host 'vault' directly. Demand deterministic offline tests (unit tests, HTML/CSS inspection, regression scripts) rather than live browser/screen-reader device drivers.\n"
                 "- MANDATORY WORKING CODE RULE: Dana MUST issue a 'block' or 'warn' verdict if Taghi or Meti delivers documentation-only proposals, fixture mocks, or unpersisted previews when an application was requested.\n"
                 "- CONSTRUCTIVE TECHNICAL STEERING: When formulating 'actionable_recommendations' or steering leads, emit CONCRETE TECHNICAL ACTIONS (e.g. 'Implement SQLite persistence with unique email constraint and pytest tests'), NEVER defensive procedural stalling (e.g. 'obtain approval before implementing').\n\n"
                 "EVALUATION CRITERIA (5 TECHNICAL PILLARS):\n"
@@ -75,7 +76,7 @@ class DanaQualitySupervisor:
 
     async def supervise_stage(
         self,
-        stage_name: Literal["natasha", "odin", "taghi", "meti"],
+        stage_name: Literal["natasha", "odin", "taghi", "diba", "meti"],
         deliverable: Any,
         prompt_context: str,
         task_id: str,
@@ -168,3 +169,70 @@ class DanaQualitySupervisor:
             category="Supervision",
             directory_name="supervision",
         )
+
+    def conduct_intent_comparison_grill(
+        self,
+        stage_name: str,
+        original_prompt: str,
+        critique: DanaCritique,
+        auto: bool = False,
+        input_func: Callable[[str], str] | None = None,
+    ) -> tuple[str | None, bool]:
+        """
+        Compare user intent with lead deliverable and launch a targeted grill session
+        to let the developer steer discrepancies interactively.
+        Returns: (steering_feedback, quit_requested)
+        """
+        from contracts import ClarificationOption, ClarificationQuestion
+        from tools.grill import run_grill_session
+
+        recs = critique.actionable_recommendations or []
+        gaps = critique.risks_or_gaps or []
+        if not recs and not gaps:
+            return None, False
+
+        questions: list[ClarificationQuestion] = []
+        for idx, rec in enumerate(recs[:3], 1):
+            q_id = f"dana_gap_{idx}"
+            label = rec[:80] + ("..." if len(rec) > 80 else "")
+            questions.append(
+                ClarificationQuestion(
+                    id=q_id,
+                    category="intent_comparison",
+                    question=f"Discrepancy #{idx} in [{stage_name.upper()}]: {rec}",
+                    options=[
+                        ClarificationOption(
+                            key="1",
+                            label=f"[Recommended] Enforce requirement: {label}",
+                            is_default=True,
+                        ),
+                        ClarificationOption(
+                            key="2",
+                            label="Accept current lead design as-is (defer refinement)",
+                            is_default=False,
+                        ),
+                    ],
+                )
+            )
+
+        answers, quit_requested = run_grill_session(
+            questions,
+            agent_name="dana",
+            title=f"🧭 Dana Intent & Quality Comparison Grill ({stage_name.upper()})",
+            auto=auto,
+            input_func=input_func,
+            max_questions=3,
+        )
+        if quit_requested:
+            return None, True
+
+        enforced_recs = []
+        for q in questions:
+            selected = str(q.selected_option or "").lower()
+            ans_val = str(answers.get(q.id, "")).lower()
+            if selected in ("1", "enforce") or "enforce" in ans_val:
+                enforced_recs.append(q.question.split(": ", 1)[-1])
+
+        if enforced_recs:
+            return "; ".join(enforced_recs), False
+        return None, False

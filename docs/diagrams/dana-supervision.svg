@@ -10,7 +10,7 @@
 <text x="40" y="154" class="sub" text-anchor="start">approve / suggest / warn / block</text>
 <text x="40" y="176" class="sub" text-anchor="start">Advisory: developer chooses</text>
 <text x="40" y="198" class="sub" text-anchor="start">Autonomous: steering prompts</text>
-<text x="40" y="220" class="sub" text-anchor="start"></text>
+<text x="40" y="220" class="sub" text-anchor="start">Intent comparison grill</text>
 <text x="40" y="242" class="sub" text-anchor="start">Model judgment, not a proof.</text>
 <text x="40" y="264" class="sub" text-anchor="start">vault/supervision/</text>
 <rect x="396" y="78" width="340" height="264" rx="8" fill="#23221f" stroke="#565048"/>
