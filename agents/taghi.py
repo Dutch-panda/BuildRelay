@@ -271,6 +271,8 @@ links: ["[[research-{task_id}]]", "[[{task_id}-brief]]"]
                 grill_completed = True
 
                 if not auto and has_non_default_answers(current_spec.clarification_questions, answers):
+                    from tools.ui import print_agent
+                    print_agent("taghi", "Re-synthesizing architecture specification with user decisions (AI analyzing)...")
                     formatted_decisions = format_grill_answers_for_prompt(answers, current_spec.clarification_questions)
                     updated_context = f"{design_context}\n\n{formatted_decisions}"
                     current_spec = await self.create_specification(task_id, updated_context, project_id=project_id)

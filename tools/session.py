@@ -45,6 +45,7 @@ def print_session_banner(project_id: str, workspace_path: Path) -> None:
         "  [cyan]/test[/cyan]         Execute local container unit tests in this workspace\n"
         "  [cyan]/eval[/cyan]         Run multi-dimensional quality & security evaluation harness\n"
         "  [cyan]/graph <query>[/cyan] Search knowledge base & vault graph by keywords\n"
+        "  [cyan]/cockpit[/cyan]      Launch split-pane developer cockpit dashboard\n"
         "  [cyan]/help[/cyan]         Show available commands\n"
         "  [cyan]/exit[/cyan]         Exit session [dim](or Ctrl+D / quit)[/dim]\n\n"
         "[dim]Enter any prompt or revision instruction to plan, architect, and execute within this project.[/dim]"
@@ -224,6 +225,13 @@ async def run_project_session(
                         if tags:
                             console.print(f"    [dim]tags: {escape(tags)}[/dim]")
                     console.print()
+            continue
+
+        # Cockpit Dashboard command
+        if cmd in ("/cockpit", "cockpit", "/tui", "tui"):
+            from tools.cockpit import get_cockpit
+            cockpit = get_cockpit()
+            cockpit.run_standalone(project_id, workspace_root=workspace_root, input_func=input_func)
             continue
 
         # Task Execution in Project Context

@@ -14,6 +14,8 @@ from rich.table import Table
 from rich.text import Text
 from rich.tree import Tree
 
+from tools.cockpit import BuildRelayCockpit, CockpitTelemetry, get_cockpit, is_tui_enabled
+
 console = Console(highlight=False)
 
 AGENT_THEMES: dict[str, dict[str, str]] = {
@@ -37,8 +39,71 @@ def _get_theme(agent_key: str) -> dict[str, str]:
     )
 
 
+def _ask_with_cockpit(raw_func: Callable[[str], str] | None = None) -> Callable[[str], str]:
+    """Wrap an input function so that active cockpit dashboard alerts and pauses during user interaction."""
+    import sys
+    fn = raw_func or input
+
+    def ask(prompt: str) -> str:
+        from tools.cockpit import get_cockpit
+        cockpit = get_cockpit()
+        cockpit.telemetry.awaiting_input = True
+        cockpit.telemetry.current_action = f"Awaiting input: {prompt.strip() or 'Press Enter or choose option'}"
+        if getattr(cockpit, "_pause_depth", 0) == 0:
+            cockpit.refresh()
+        try:
+            with cockpit.pause():
+                try:
+                    sys.stdout.write('\a')
+                    sys.stdout.flush()
+                except Exception:
+                    pass
+
+                # Flush any pending/buffered keystrokes pressed while LLM or Docker was processing
+                if sys.stdin.isatty():
+                    try:
+                        import termios
+                        termios.tcflush(sys.stdin, termios.TCIFLUSH)
+                    except Exception:
+                        pass
+
+                clean_prompt = prompt.strip()
+                prompt_display = f" [bold]{clean_prompt}[/bold]" if clean_prompt else ""
+
+                # Explicitly close style and emit ANSI reset before input() to prevent BCE orange bar
+                console.print(
+                    f"\n[bold black on #f59e0b] 🔔 ACTION REQUIRED [/bold black on #f59e0b]{prompt_display}\033[0m",
+                    end=" ",
+                )
+                sys.stdout.flush()
+                try:
+                    sys.stdout.write("\033[0m")
+                    sys.stdout.flush()
+                except Exception:
+                    pass
+
+                return fn("")
+        finally:
+            if getattr(cockpit, "_pause_depth", 0) == 0:
+                cockpit.telemetry.awaiting_input = False
+                cockpit.refresh()
+
+    return ask
+
+
 def print_agent(agent: str, message: str, detail: str | None = None) -> None:
     """Print a role-badged message with agent icon and color."""
+    from tools.cockpit import get_cockpit
+    cockpit = get_cockpit()
+    if cockpit.is_active:
+        cockpit.telemetry.update_stage(agent, "running")
+        cockpit.telemetry.set_action(f"[{agent.upper()}] {message}")
+        cockpit.telemetry.add_log(f"[{agent.upper()}] {message}")
+        if detail:
+            cockpit.telemetry.add_log(f"   {detail}")
+        cockpit.refresh()
+        return
+
     theme = _get_theme(agent)
     console.print(f"[{theme['color']}]{theme['icon']} \\[{escape(theme['name'])}\\][/] {escape(message)}")
     if detail:
@@ -47,6 +112,13 @@ def print_agent(agent: str, message: str, detail: str | None = None) -> None:
 
 def print_tool_call(agent: str, action: str, detail: str) -> None:
     """Print a subtle, dimmed tool invocation line to prevent clutter."""
+    from tools.cockpit import get_cockpit
+    cockpit = get_cockpit()
+    if cockpit.is_active:
+        cockpit.telemetry.add_log(f"↳ [{agent}] {action}: {detail}")
+        cockpit.refresh()
+        return
+
     theme = _get_theme(agent)
     detail_str = str(detail).strip()
     lines = detail_str.splitlines()
@@ -81,6 +153,14 @@ def print_tool_call(agent: str, action: str, detail: str) -> None:
 @contextmanager
 def agent_status(agent: str, message: str):
     """Display an animated spinner with the agent's role icon and theme."""
+    from tools.cockpit import get_cockpit
+    cockpit = get_cockpit()
+    if cockpit.is_active:
+        cockpit.telemetry.set_action(f"[{agent.upper()}] {message}")
+        cockpit.refresh()
+        yield None
+        return
+
     theme = _get_theme(agent)
     status_text = f"[{theme['color']}]{theme['icon']} [{escape(theme['name'])}][/] {escape(message)}"
     status = console.status(status_text, spinner="dots")
@@ -121,6 +201,17 @@ def print_brief_summary(
     model: str | None = None,
 ) -> None:
     """Display Natasha's routing decision in a compact box."""
+    from tools.cockpit import get_cockpit
+    cockpit = get_cockpit()
+    if cockpit.is_active:
+        cockpit.telemetry.update_stage("natasha", "passed", detail=target_lead)
+        cockpit.telemetry.update_stage(target_lead, "running")
+        cockpit.telemetry.add_log(f"[NATASHA] Routed task to {target_lead.upper()}")
+        if token_usage:
+            cockpit.telemetry.record_token_usage(token_usage, model)
+        cockpit.refresh()
+        return
+
     lead_theme = _get_theme(target_lead)
     content = f"[bold]Assigned Lead:[/bold] [{lead_theme['color']}]{lead_theme['icon']} {lead_theme['name']} ({lead_theme['role']})[/]\n"
     if token_usage:
@@ -147,6 +238,17 @@ def print_spec_summary(
     model: str | None = None,
 ) -> None:
     """Display Taghi's execution roadmap in a styled summary."""
+    from tools.cockpit import get_cockpit
+    cockpit = get_cockpit()
+    if cockpit.is_active:
+        cockpit.telemetry.update_stage("taghi", "passed")
+        cockpit.telemetry.set_phases(phases)
+        cockpit.telemetry.add_log(f"[TAGHI] Generated specification with {len(phases)} execution phases")
+        if token_usage:
+            cockpit.telemetry.record_token_usage(token_usage, model)
+        cockpit.refresh()
+        return
+
     image = base_image or "node:18-bullseye-slim (default)"
     header = f"[bold]Runtime Image:[/bold] [cyan]{image}[/cyan]\n"
     if token_usage:
@@ -178,6 +280,24 @@ def print_phase_table(
     failed_phase: str | None = None,
 ) -> None:
     """Render a structured status table for all execution phases."""
+    from tools.cockpit import get_cockpit
+    cockpit = get_cockpit()
+    if cockpit.is_active:
+        cockpit.telemetry.set_phases(phases)
+        completed_set = set(completed_phases or ())
+        for p in phases:
+            name = (
+                getattr(p, "phase_name", None)
+                or (p.get("phase_name") if isinstance(p, dict) else str(p))
+            )
+            if name in completed_set:
+                cockpit.telemetry.update_phase(name, "passed")
+            elif name == failed_phase:
+                cockpit.telemetry.update_phase(name, "failed")
+            elif name == current_phase:
+                cockpit.telemetry.update_phase(name, "running")
+        cockpit.refresh()
+        return
     table = Table(
         title="[bold #ffa76c]Execution & Validation Phases[/bold #ffa76c]",
         title_justify="left",
@@ -491,7 +611,7 @@ def prompt_alignment_gate(
                 break
 
     # If headless / automated / non-interactive: automatically proceed with defaults
-    ask = input_func or input
+    ask = _ask_with_cockpit(input_func)
     if auto or (input_func is None and not sys.stdin.isatty()):
         return "confirm", None, answers
 
@@ -585,7 +705,7 @@ def prompt_step_gate(
     console.print()
     console.print(panel)
 
-    ask = input_func or input
+    ask = _ask_with_cockpit(input_func)
     if auto or (input_func is None and not sys.stdin.isatty()):
         return "confirm", None
 
@@ -730,7 +850,7 @@ def prompt_spec_approval_gate(
 
     print_spec_proposal_card(spec)
 
-    ask = input_func or input
+    ask = _ask_with_cockpit(input_func)
     if auto or (input_func is None and not sys.stdin.isatty()):
         return "confirm", None
 
@@ -846,7 +966,7 @@ def prompt_delivery_gate(
     console.print()
     console.print(panel)
 
-    ask = input_func or input
+    ask = _ask_with_cockpit(input_func)
     if auto or (input_func is None and not sys.stdin.isatty()):
         return "confirm", None
 
@@ -943,7 +1063,7 @@ def prompt_model_approval_gate(
     from tools.model_tiers import estimate_pipeline_budget, get_available_models_for_active_provider
     from tools.model_catalog import pick_model
 
-    ask = input_func or input
+    ask = _ask_with_cockpit(input_func)
     selected = dict(models)
     changed = False
     while True:
@@ -1024,7 +1144,7 @@ def prompt_iteration_gate(
     import os
     import sys
 
-    ask = input_func or input
+    ask = _ask_with_cockpit(input_func)
     if auto or (
         input_func is None
         and (not sys.stdin.isatty() or "pytest" in sys.modules or os.environ.get("BUILDRELAY_TESTING") == "1")
@@ -1183,7 +1303,7 @@ def prompt_dana_gate(
 
     print_dana_critique_card(critique)
 
-    ask = input_func or input
+    ask = _ask_with_cockpit(input_func)
     if auto or (
         input_func is None
         and (not sys.stdin.isatty() or "pytest" in sys.modules or os.environ.get("BUILDRELAY_TESTING") == "1")

@@ -216,6 +216,8 @@ class NatashaRouter:
             return brief, True
 
         if not auto and has_non_default_answers(brief.clarification_questions, answers):
+            from tools.ui import print_agent
+            print_agent("natasha", "Realigning intent with user selections (AI analyzing)...")
             formatted_decisions = format_grill_answers_for_prompt(answers, brief.clarification_questions)
             realigned_brief = await self.realign_intent(brief, formatted_decisions, project_id=project_id)
             return realigned_brief, False

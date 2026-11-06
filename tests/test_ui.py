@@ -439,3 +439,27 @@ def test_print_ui_spec_proposal_card_renders_all_5_states(capsys):
     assert "Success:" in out
     assert "Error:" in out
 
+
+def test_ask_with_cockpit_sanitation_and_tcflush(capsys, monkeypatch):
+    import sys
+    from tools.ui import _ask_with_cockpit
+    from tools.cockpit import get_cockpit
+
+    cockpit = get_cockpit()
+    cockpit._pause_depth = 0
+
+    tcflush_called = []
+    import termios
+    monkeypatch.setattr(termios, "tcflush", lambda fd, queue: tcflush_called.append((fd, queue)))
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+
+    ask = _ask_with_cockpit(raw_func=lambda _: "user response")
+    res = ask("[Taghi] > ")
+    assert res == "user response"
+    assert len(tcflush_called) == 1
+
+    out = capsys.readouterr().out
+    assert "ACTION REQUIRED" in out
+    assert "[Taghi] >" in out
+
+

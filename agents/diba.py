@@ -215,6 +215,8 @@ class DibaDesigner:
                                 current_ui.states = dict(chosen_arch.state_styling)
 
                 if not auto and has_non_default_answers(current_ui.clarification_questions, answers):
+                    from tools.ui import print_agent
+                    print_agent("diba", "Re-synthesizing UI/UX design with user decisions (AI analyzing)...")
                     formatted_decisions = format_grill_answers_for_prompt(answers, current_ui.clarification_questions)
                     updated_context = f"{prompt_context}\n\nUser UI/UX Decisions:\n{formatted_decisions}"
                     current_ui = await self.design_ui(task_id, updated_context, project_id=project_id)

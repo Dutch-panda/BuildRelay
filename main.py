@@ -221,9 +221,22 @@ async def run_task(
     record.error = None
     ledger.save(record)
 
+    from tools.cockpit import get_cockpit, is_tui_enabled
+    cockpit = get_cockpit()
+    tui_active = is_tui_enabled()
+    if tui_active:
+        cockpit.telemetry.project_id = project or "standalone"
+        cockpit.telemetry.task_id = task_id
+        cockpit.telemetry.prompt = record.prompt
+        cockpit.telemetry.model_name = str(pipeline_models.get("natasha", model_override or "default"))
+
     if record.brief is None:
         record.status = 'PENDING'
         ledger.save(record)
+        if tui_active:
+            cockpit.telemetry.update_stage("natasha", "running")
+            cockpit.telemetry.set_action("Natasha scoping task and alignment brief...")
+            cockpit.refresh()
         natasha_model = await resolve_agent_model(pipeline_models["natasha"])
         router = NatashaRouter(model_name=natasha_model)
         brief = await router.coordinate_request(record.prompt, task_id, project_id=project)
@@ -238,7 +251,12 @@ async def run_task(
         if getattr(brief, "token_usage", None):
             brief.token_usage["model"] = str(pipeline_models["natasha"])
             record.token_usage["natasha"] = brief.token_usage
+            if tui_active:
+                cockpit.telemetry.record_token_usage(brief.token_usage, model_name=str(pipeline_models["natasha"]))
         ledger.save(record)
+        if tui_active:
+            cockpit.telemetry.update_stage("natasha", "passed", "[Aligned]")
+            cockpit.refresh()
     brief = TaskBrief.model_validate(record.brief)
 
     # Dana Supervision of Natasha's Intent Brief
@@ -280,7 +298,8 @@ async def run_task(
     # Alignment gate: 5-sentence brief and intent confirmation
     if not implementation_started and not auto:
         while True:
-            action, feedback, _ = prompt_alignment_gate(brief, auto=auto)
+            with cockpit.pause():
+                action, feedback, _ = prompt_alignment_gate(brief, auto=auto)
             if action == "quit":
                 print_agent("orchestrator", "Task execution cancelled by user.")
                 sys.exit(0)
@@ -393,6 +412,11 @@ async def run_task(
         if brief.target_lead in ('odin', 'taghi', 'diba'):
             record.status = 'ARCHITECTING'
             ledger.save(record)
+            print_agent("orchestrator", f"⚡ Handoff: Natasha (Intent Aligned) ➔ {brief.target_lead.upper()} (Execution Lead)")
+            if tui_active:
+                cockpit.telemetry.update_stage("taghi", "running")
+                cockpit.telemetry.set_action("Taghi synthesizing architecture specification & roadmap (AI analyzing)...")
+                cockpit.refresh()
             taghi_model = await resolve_agent_model(pipeline_models["taghi"])
             architect = TaghiArchitect(model_name=taghi_model)
             spec = await architect.create_specification(task_id, design_context, project_id=project)
@@ -415,6 +439,11 @@ async def run_task(
 
         # Diba UI/UX Design Lead (awakened on-demand whenever task involves UI surfaces)
         if has_ui or (brief.target_lead == 'diba'):
+            print_agent("orchestrator", "⚡ Handoff: Architecture Specification ➔ DIBA (UI/UX Product Designer)")
+            if tui_active:
+                cockpit.telemetry.update_stage("diba", "running")
+                cockpit.telemetry.set_action("Diba crafting UI archetypes & Tailwind design specs (AI analyzing)...")
+                cockpit.refresh()
             diba_model = await resolve_agent_model(pipeline_models.get("diba", pipeline_models["taghi"]))
             diba = DibaDesigner(model_name=diba_model)
             ui_spec = await diba.design_ui(task_id, record.prompt, spec=spec, project_id=project)
@@ -452,7 +481,8 @@ async def run_task(
 
         if supervise == "advisory" and not auto:
             from tools.ui import prompt_dana_gate
-            gate_action, feedback = prompt_dana_gate(dana_critique, auto=auto)
+            with cockpit.pause():
+                gate_action, feedback = prompt_dana_gate(dana_critique, auto=auto)
             if gate_action == "quit":
                 print_agent("orchestrator", "Task execution cancelled by user at Dana supervision gate.")
                 sys.exit(0)
@@ -460,9 +490,10 @@ async def run_task(
                 # Launch Dana comparison grill if actionable gaps are identified
                 comparison_fn = getattr(dana_instance, "conduct_intent_comparison_grill", None)
                 if callable(comparison_fn):
-                    comp_feedback, quit_req = comparison_fn(
-                        "taghi", brief.objective, dana_critique, auto=auto
-                    )
+                    with cockpit.pause():
+                        comp_feedback, quit_req = comparison_fn(
+                            "taghi", brief.objective, dana_critique, auto=auto
+                        )
                     if quit_req:
                         print_agent("orchestrator", "Task execution cancelled by user during Dana comparison grill.")
                         sys.exit(0)
@@ -523,6 +554,11 @@ async def run_task(
 
     record.status = 'IMPLEMENTING'
     ledger.save(record)
+    print_agent("orchestrator", "⚡ Handoff: Architecture Approved ➔ METI (Docker Sandbox Implementation)")
+    if tui_active:
+        cockpit.telemetry.update_stage("meti", "running")
+        cockpit.telemetry.set_action("Meti preparing Docker sandbox & executing phases...")
+        cockpit.refresh()
 
     def save_implementation(state: ImplementationCheckpoint | dict) -> None:
         record.implementation = state
@@ -601,19 +637,21 @@ async def run_task(
             report = evaluator.evaluate()
             evaluator.save_report(report)
             if not auto:
-                print_evaluation_scorecard(report)
+                with cockpit.pause():
+                    print_evaluation_scorecard(report)
 
     # Post-implementation delivery confirmation gate & refinement loop
     if impl_res.status == 'success' and not auto:
         workspace_dir = project or task_id
         workspace_path = Path("workspace") / workspace_dir
         while True:
-            gate_action, gate_feedback = prompt_delivery_gate(
-                task_id,
-                workspace_path,
-                impl_res.summary,
-                auto=auto,
-            )
+            with cockpit.pause():
+                gate_action, gate_feedback = prompt_delivery_gate(
+                    task_id,
+                    workspace_path,
+                    impl_res.summary,
+                    auto=auto,
+                )
             if gate_action == "quit":
                 print_agent("orchestrator", "Task execution terminated at delivery gate.")
                 sys.exit(0)
@@ -648,7 +686,7 @@ async def main() -> None:
         description='BuildRelay: plan, build, check, and resume AI development tasks',
     )
     parser.add_argument('-V', '--version', action='version', version=f'%(prog)s {__version__}')
-    parser.add_argument('prompt', nargs='?', help='Task description or prompt')
+    parser.add_argument('prompt', nargs='*', help='Task description or prompt')
     parser.add_argument('--config', action='store_true', help='Launch interactive onboarding & configuration wizard')
     parser.add_argument('--session', nargs='?', const='', help='Launch interactive REPL project session')
     parser.add_argument('--verify', nargs='?', const='', help='Execute Tier 2 live verification smoke test for a project')
@@ -671,12 +709,37 @@ async def main() -> None:
     parser.add_argument('-y', '--yes', '--auto', dest='auto', action='store_true', help='Headless mode; accept defaults without interactive prompts')
     parser.add_argument('--step', action='store_true', help='Interactive step gates between each agent lead')
     parser.add_argument('--research', '--research-only', dest='research_only', action='store_true', help='Complete after research stage; do not execute Taghi or Meti')
+    parser.add_argument('--cockpit', '--tui', nargs='?', const='', dest='cockpit', help='Launch split-pane terminal cockpit dashboard')
+    parser.add_argument('--plain', action='store_true', help='Disable split-pane TUI and use linear output')
     args = parser.parse_args()
+
+    if isinstance(args.prompt, list):
+        args.prompt = " ".join(args.prompt).strip() if args.prompt else None
 
     # Direct config command: python main.py config or python main.py --config
     if getattr(args, "config", False) or (args.prompt is not None and args.prompt.strip().lower() == "config"):
         from tools.onboarding import run_onboarding_wizard
         run_onboarding_wizard(is_reconfig=True)
+        return
+
+    # Standalone Cockpit dashboard: python main.py cockpit [PROJECT_ID] or python main.py --cockpit [PROJECT_ID]
+    is_cockpit = False
+    cockpit_proj = None
+    if getattr(args, "cockpit", None) is not None:
+        if not args.prompt:
+            is_cockpit = True
+            cockpit_proj = args.cockpit or args.project or "default-project"
+        else:
+            os.environ["BUILDRELAY_TUI"] = "1"
+    elif args.prompt and args.prompt.strip().lower().startswith("cockpit"):
+        is_cockpit = True
+        parts = args.prompt.strip().split()
+        cockpit_proj = parts[1] if len(parts) > 1 else (args.project or "default-project")
+
+    if is_cockpit:
+        from tools.cockpit import get_cockpit
+        cockpit = get_cockpit()
+        cockpit.run_standalone(cockpit_proj)
         return
 
     # Interactive project session: python main.py --session [PROJECT_ID] or python main.py session [PROJECT_ID]
@@ -837,29 +900,57 @@ async def main() -> None:
             if record.status == 'COMPLETED':
                 print_agent('orchestrator', 'Task is already completed; no stages were run.')
                 return
+            if getattr(args, "plain", False):
+                os.environ["BUILDRELAY_PLAIN"] = "1"
+            has_tui = getattr(args, "tui", False) or (getattr(args, "cockpit", None) is not None)
+            if has_tui:
+                os.environ["BUILDRELAY_TUI"] = "1"
+            from tools.cockpit import get_cockpit
+            cockpit = get_cockpit()
+            cockpit.telemetry.project_id = record.project_id or "default-project"
+            cockpit.telemetry.task_id = task_id
+            cockpit.telemetry.prompt = record.prompt
+            cockpit.telemetry.model_name = str(args.model or "default")
             try:
-                result = await run_task(
-                    record,
-                    ledger,
-                    model_override=args.model,
-                    image_override=args.image,
-                    auto=args.auto,
-                    step=args.step,
-                    tier=args.tier,
-                    lead_overrides=lead_overrides,
-                    research_only=args.research_only,
-                    supervise=supervise_mode,
-                )
+                with cockpit.live_context(screen=False):
+                    result = await run_task(
+                        record,
+                        ledger,
+                        model_override=args.model,
+                        image_override=args.image,
+                        auto=args.auto,
+                        step=args.step,
+                        tier=args.tier,
+                        lead_overrides=lead_overrides,
+                        research_only=args.research_only,
+                        supervise=supervise_mode,
+                    )
             except (Exception, KeyboardInterrupt, asyncio.CancelledError) as error:
                 record.status = 'FAILED'
                 record.error = f'{type(error).__name__}: {error}'
                 ledger.save(record)
                 raise
+            finally:
+                if has_tui:
+                    os.environ.pop("BUILDRELAY_TUI", None)
+                if getattr(args, "plain", False):
+                    os.environ.pop("BUILDRELAY_PLAIN", None)
             record.result = result
             record.status = 'COMPLETED' if result.status == 'success' else 'FAILED'
             record.error = None if result.status == 'success' else result.summary
             ledger.save(record)
             print_completion(task_id, result.status == 'success', result.summary)
+            if result.status == 'success':
+                workspace_dir = record.project_id or record.task_id
+                workspace_path = Path("workspace") / workspace_dir
+                if workspace_path.is_dir():
+                    from tools.eval_harness import DeliverableEvaluator
+                    from tools.ui import print_evaluation_scorecard
+                    evaluator = DeliverableEvaluator(workspace_path, project_id=record.project_id, task_id=task_id)
+                    report = evaluator.evaluate()
+                    evaluator.save_report(report)
+                    if not args.auto:
+                        print_evaluation_scorecard(report)
             if record.token_usage:
                 print_token_summary_table(record.token_usage, default_model=args.model)
             if result.status == 'success':
@@ -979,10 +1070,16 @@ async def run_iteration_loop(
                 record.error = None if result.status == "success" else result.summary
                 ledger.save(record)
                 print_completion(next_task_id, result.status == "success", result.summary)
-                if record.token_usage:
-                    print_token_summary_table(record.token_usage, default_model=getattr(args, "model", None))
                 if result.status == "success":
                     workspace_path = Path("workspace") / current_project
+                    if workspace_path.is_dir():
+                        from tools.eval_harness import DeliverableEvaluator
+                        from tools.ui import print_evaluation_scorecard
+                        evaluator = DeliverableEvaluator(workspace_path, project_id=current_project, task_id=next_task_id)
+                        report = evaluator.evaluate()
+                        evaluator.save_report(report)
+                        if not getattr(args, "auto", False):
+                            print_evaluation_scorecard(report)
                     print_workspace_tree(workspace_path)
                     print_how_to_run(workspace_path)
                 else:
