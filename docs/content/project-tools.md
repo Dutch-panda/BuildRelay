@@ -26,6 +26,22 @@ buildrelay --preview my-project
 
 Use the printed loopback address, inspect what is served and stop the server when finished. File serving is not UI behavior testing. See [command boundaries](commands.md) for canonical dispatch and caveats.
 
+### Split-Pane Terminal Cockpit
+
+Launch the interactive split-pane terminal cockpit to inspect project health, telemetry logs, and workflow status:
+
+```bash
+buildrelay cockpit my-project
+```
+
+Inside an active REPL session (`buildrelay --session my-project`), type `/cockpit` to launch the dashboard at any time.
+
+The Cockpit features:
+- **Header Bar HUD:** Live elapsed timer, token metrics, model tier, and preview state.
+- **Workflow Sidebar:** Pipeline progression stepper (`Natasha ➔ Taghi ➔ Diba ➔ Meti`), phase validation roadmap, and living memory schemas.
+- **Container Telemetry Buffer:** Real-time scrolling stdout/stderr logs from Docker execution.
+- **Interactive Command Dock:** Quick action shortcuts (`[P] Preview`, `[V] Verify`, `[D] Dana`, `[L] Logs`, `[Q] Exit`) and embedded gate alerts.
+
 <details><summary>Earlier guide links</summary>
 
 <p id="1-interactive-project-repl-session-buildrelay-session"><a href="#start-a-project-session">Continue to the maintained section →</a></p>

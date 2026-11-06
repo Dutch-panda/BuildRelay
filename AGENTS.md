@@ -75,6 +75,13 @@ Your objective is maximum autonomy within strict security boundaries.
 - **Dependency Injection**: Agents accept explicit collaborator parameters (`graph_manager`, `sandbox`, artifact directories). Constructors defer Docker client connections and directory creation until operations need them.
 - **Security & Vault Isolation**: Docker containers execute without host environment variables passed and only mount the task workspace. Model-callable vault note tools use `tools/vault_infra.py` safe writers. Application-generated stage artifacts also use direct writes to configured directories; do not assume every artifact write passes through the shared writer.
 - **Terminal UI & Diagnostics**: Console visuals use `rich` via `tools/ui.py` for role-based badges (Natasha, Odin, Taghi, Meti), panels, and phase tables. Diagnostic tool calls are subdued, and Graphify subprocess stderr is suppressed unless `BUILDRELAY_DEBUG=1` is set.
+- **Split-Pane Terminal Cockpit & Live Telemetry Engine (`tools/cockpit.py`)**:
+  - Live TUI dashboard with 4 panes: Header HUD (live elapsed timer, token usage, cost, model), Workflow Sidebar (pipeline progression stepper, phased roadmap, living memory), Container Telemetry (real-time streaming Docker logs), and Interactive Command Dock (action status, hotkeys `[P] Preview [V] Verify [D] Dana [L] Logs [Q] Exit`).
+  - Background Heartbeat Ticker: Daemon thread (`_ticker_loop`) running at 0.5s intervals updating dynamic elapsed timer and rotating Braille activity spinner (`● RUNNING ⠋`) during async LLM calls.
+  - Re-entrant pause reference counting (`cockpit.pause()`) and prompt sanitation: `termios.tcflush(sys.stdin, termios.TCIFLUSH)` discards queued keystrokes before gate/grill prompts, and explicit `\033[0m` ANSI reset prevents BCE orange bar terminal artifacts.
+- **Meti Multi-Phase Implementation Loop (`agents/meti.py`)**:
+  - Automatically advances across turns through all roadmap phases until all declared phases pass sandbox validation.
+  - Telemetry updates dynamically across phases, reflecting phase statuses in real time.
 
 ## Model Configuration & Research
 - Explicit per-lead models are selected through `tools/model_tiers.py` and discovered via `tools/model_catalog.py`; interactive onboarding lives in `tools/onboarding.py`.

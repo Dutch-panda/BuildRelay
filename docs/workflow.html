@@ -86,5 +86,13 @@
 <li><strong><code>[5]</code> Exit Cleanly (<code>[Enter]</code> or <code>[q]</code>):</strong> Concludes the workflow and returns to your shell with all progress safely saved in <code>.state/tasks.db</code> and the project workspace.</li>
 </ul>
 </li>
+<li><strong>Split-Pane Terminal Cockpit &amp; Live Heartbeat Telemetry:</strong>
+<ul>
+<li><strong>Persistent 4-Pane HUD:</strong> Header Bar (elapsed timer, tokens, costs, model), Workflow Sidebar (pipeline progression stepper <code>✔ Natasha ➔ ▶ Taghi ➔ ◻ Diba ➔ ◻ Meti</code>, phased roadmap, and living memory), Container Telemetry (real-time streaming Docker logs), and Interactive Command Dock.</li>
+<li><strong>Background Heartbeat Ticker:</strong> Daemon thread (<code>_ticker_loop</code>) running at 0.5s intervals updating dynamic elapsed time (<code>Time: MM:SS</code>) and rotating the Braille activity spinner (<code>● RUNNING ⠋</code>) during async LLM calls.</li>
+<li><strong>Re-Entrant Pause &amp; Prompt Sanitation:</strong> <code>cockpit.pause()</code> reference counting cleanly suspends live rendering for user prompts. Calls <code>termios.tcflush</code> before interactive prompts to discard queued keystrokes typed during thinking, and emits explicit <code>\033[0m</code> ANSI resets to prevent terminal background color erase (BCE) bleed.</li>
+<li><strong>Multi-Phase Execution Loop:</strong> Meti automatically sequences through all roadmap phases across turns, re-prompting with the next phase's instructions and validation command until all declared phases pass sandbox validation.</li>
+</ul>
+</li>
 </ol>
 <footer>BuildRelay 0.2.0 · Experimental developer tool · Review generated code and checks.<br><a href="https://github.com/Dutch-panda/BuildRelay/blob/main/docs/content/workflow.md">Edit this guide on GitHub</a> · <a href="https://github.com/Dutch-panda/BuildRelay/issues">Report a reproducible issue</a> · <a href="https://github.com/Dutch-panda/BuildRelay/blob/main/LICENSE">MIT license</a></footer></main><aside class="toc"><nav aria-label="On this page"><p>ON THIS PAGE</p><a href="#how-the-workflow-runs">How the workflow runs</a><a href="#interactive-alignment-and-execution-modes">Interactive alignment and execution modes</a></nav></aside></div></body></html>

@@ -25,6 +25,7 @@ Arrows show which component uses another. Shared contracts define stage outputs,
 ├── tools/
 │   ├── chatgpt_auth.py        OAuth credential storage and model setup
 │   ├── claude_auth.py         Claude OAuth web subscription and headless login
+│   ├── cockpit.py             Split-Pane Terminal Cockpit, live telemetry, and heartbeat ticker
 │   ├── context_pruner.py      Markdown stripping, graph context ranking, and Docker log slicing
 │   ├── design_system.py       Curated visual blueprints and Tailwind design archetypes
 │   ├── docker_runner.py      Container lifecycle and workspace mounts

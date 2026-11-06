@@ -12,6 +12,7 @@ Tier 1 passing does not mean live verification ran. The preview server serves fi
 - Each phase must pass its **exact validation command**, submitted separately with its phase name, in the declared order. Ground-truth validation determines final outcome: when all declared phases pass with exit code 0, the execution status is recorded as success. Successful command exit codes are recorded as validation results.
 - Failed phase validation returns combined stdout/stderr to Meti with the remaining attempt count. Meti can repair and rerun the same check, up to **three validation attempts per phase per run** (one initial attempt and two retries). The third failure stops execution before more sandbox commands or later phases.
 - Straightforward tasks receive a fast-track phase that asks Meti to create and run a task-specific validation script.
+- **Multi-Phase Turn Coordination:** When earlier phases pass validation while later roadmap phases remain unvalidated, Meti automatically advances across turns, prompting the agent with the next phase's instructions and validation command until all declared phases succeed.
 - The runner defaults to a **120-second wait timeout** per command and removes the container after execution.
 
 ### Recovery and attempt history

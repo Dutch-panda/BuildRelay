@@ -35,6 +35,13 @@
 <td>Saves new run state; interrupted work may repeat</td>
 </tr>
 <tr>
+<td><code>buildrelay cockpit [ID]</code></td>
+<td>Standalone split-pane TUI cockpit; <code>python main.py --cockpit [ID]</code></td>
+<td>Host</td>
+<td>No inference required; reads project logs/memory</td>
+<td>Real-time multi-pane HUD, Docker telemetry buffer, and interactive command dock</td>
+</tr>
+<tr>
 <td><code>buildrelay --session ID</code></td>
 <td>REPL; <code>python main.py --session ID</code></td>
 <td>Host</td>
@@ -82,6 +89,13 @@
 <td>Host static inspection</td>
 <td>No model/live verification by the evaluator</td>
 <td>Writes <code>vault/evaluations/</code>; heuristic scores are not actual coverage/security/usability measurements</td>
+</tr>
+<tr>
+<td><code>/cockpit</code></td>
+<td>Launch interactive TUI cockpit dashboard</td>
+<td>Host</td>
+<td>No inference required</td>
+<td>Launches full split-pane terminal dashboard for the active project</td>
 </tr>
 <tr>
 <td><code>/exit</code>, <code>/quit</code>, <code>quit</code>, Ctrl+D</td>

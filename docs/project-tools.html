@@ -14,9 +14,21 @@
 <pre tabindex="0" aria-label="Code block; scroll horizontally if needed"><code class="language-bash">buildrelay --preview my-project
 </code></pre>
 <p>Use the printed loopback address, inspect what is served and stop the server when finished. File serving is not UI behavior testing. See <a href="commands.html">command boundaries</a> for canonical dispatch and caveats.</p>
+<h3 id="split-pane-terminal-cockpit">Split-Pane Terminal Cockpit</h3>
+<p>Launch the interactive split-pane terminal cockpit to inspect project health, telemetry logs, and workflow status:</p>
+<pre tabindex="0" aria-label="Code block; scroll horizontally if needed"><code class="language-bash">buildrelay cockpit my-project
+</code></pre>
+<p>Inside an active REPL session (<code>buildrelay --session my-project</code>), type <code>/cockpit</code> to launch the dashboard at any time.</p>
+<p>The Cockpit features:</p>
+<ul>
+<li><strong>Header Bar HUD:</strong> Live elapsed timer, token metrics, model tier, and preview state.</li>
+<li><strong>Workflow Sidebar:</strong> Pipeline progression stepper (<code>Natasha ➔ Taghi ➔ Diba ➔ Meti</code>), phase validation roadmap, and living memory schemas.</li>
+<li><strong>Container Telemetry Buffer:</strong> Real-time scrolling stdout/stderr logs from Docker execution.</li>
+<li><strong>Interactive Command Dock:</strong> Quick action shortcuts (<code>[P] Preview</code>, <code>[V] Verify</code>, <code>[D] Dana</code>, <code>[L] Logs</code>, <code>[Q] Exit</code>) and embedded gate alerts.</li>
+</ul>
 <details><summary>Earlier guide links</summary>
 <p id="1-interactive-project-repl-session-buildrelay-session"><a href="#start-a-project-session">Continue to the maintained section →</a></p>
 <p id="2-live-verification-runner-buildrelay-verify"><a href="#verify-only-after-reviewing-the-generated-script">Continue to the maintained section →</a></p>
 <p id="3-local-ui--input-preview-buildrelay-preview"><a href="#preview-a-sanitized-ui-workspace">Continue to the maintained section →</a></p>
 </details>
-<footer>BuildRelay 0.2.0 · Experimental developer tool · Review generated code and checks.<br><a href="https://github.com/Dutch-panda/BuildRelay/blob/main/docs/content/project-tools.md">Edit this guide on GitHub</a> · <a href="https://github.com/Dutch-panda/BuildRelay/issues">Report a reproducible issue</a> · <a href="https://github.com/Dutch-panda/BuildRelay/blob/main/LICENSE">MIT license</a></footer></main><aside class="toc"><nav aria-label="On this page"><p>ON THIS PAGE</p><a href="#project-repl-live-verification-and-ui-preview">Project REPL, Live Verification, and UI Preview</a><a href="#start-a-project-session">Start a project session</a><a href="#verify-only-after-reviewing-the-generated-script">Verify only after reviewing the generated script</a><a href="#preview-a-sanitized-ui-workspace">Preview a sanitized UI workspace</a></nav></aside></div></body></html>
+<footer>BuildRelay 0.2.0 · Experimental developer tool · Review generated code and checks.<br><a href="https://github.com/Dutch-panda/BuildRelay/blob/main/docs/content/project-tools.md">Edit this guide on GitHub</a> · <a href="https://github.com/Dutch-panda/BuildRelay/issues">Report a reproducible issue</a> · <a href="https://github.com/Dutch-panda/BuildRelay/blob/main/LICENSE">MIT license</a></footer></main><aside class="toc"><nav aria-label="On this page"><p>ON THIS PAGE</p><a href="#project-repl-live-verification-and-ui-preview">Project REPL, Live Verification, and UI Preview</a><a href="#start-a-project-session">Start a project session</a><a href="#verify-only-after-reviewing-the-generated-script">Verify only after reviewing the generated script</a><a href="#preview-a-sanitized-ui-workspace">Preview a sanitized UI workspace</a><a href="#split-pane-terminal-cockpit">Split-Pane Terminal Cockpit</a></nav></aside></div></body></html>

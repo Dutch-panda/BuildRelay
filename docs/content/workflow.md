@@ -62,3 +62,8 @@ To help clarify intent before implementation, BuildRelay provides an interactive
    - **`[3]` Open Project REPL Session (`buildrelay --session <project_id>`):** Launches the interactive conversational REPL with instant `/profile`, `/env`, `/verify`, `/preview`, and `/test` commands.
    - **`[4]` Run Verification / UI Preview:** Directly runs the Tier 2 live verification smoke test or launches the local web preview server.
    - **`[5]` Exit Cleanly (`[Enter]` or `[q]`):** Concludes the workflow and returns to your shell with all progress safely saved in `.state/tasks.db` and the project workspace.
+9. **Split-Pane Terminal Cockpit & Live Heartbeat Telemetry:**
+   - **Persistent 4-Pane HUD:** Header Bar (elapsed timer, tokens, costs, model), Workflow Sidebar (pipeline progression stepper `✔ Natasha ➔ ▶ Taghi ➔ ◻ Diba ➔ ◻ Meti`, phased roadmap, and living memory), Container Telemetry (real-time streaming Docker logs), and Interactive Command Dock.
+   - **Background Heartbeat Ticker:** Daemon thread (`_ticker_loop`) running at 0.5s intervals updating dynamic elapsed time (`Time: MM:SS`) and rotating the Braille activity spinner (`● RUNNING ⠋`) during async LLM calls.
+   - **Re-Entrant Pause & Prompt Sanitation:** `cockpit.pause()` reference counting cleanly suspends live rendering for user prompts. Calls `termios.tcflush` before interactive prompts to discard queued keystrokes typed during thinking, and emits explicit `\033[0m` ANSI resets to prevent terminal background color erase (BCE) bleed.
+   - **Multi-Phase Execution Loop:** Meti automatically sequences through all roadmap phases across turns, re-prompting with the next phase's instructions and validation command until all declared phases pass sandbox validation.

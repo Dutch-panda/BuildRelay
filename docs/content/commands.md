@@ -7,6 +7,7 @@ The canonical project-command reference follows actual dispatch in `main.py`, `t
 | `python main.py config` | Select connection and models | Host | May sign in/query endpoints | Writes local configuration and selected credential file; permissions are not encryption |
 | `python main.py "TASK" --project ID` | New task | Host orchestration; phase commands in Docker | Models, optional search/downloads | Writes ledger, vault and workspace; review code and tests |
 | `python main.py --resume TASK_ID` | Reuse saved stages | Host; possibly Docker | Only executing stages need model access | Saves new run state; interrupted work may repeat |
+| `buildrelay cockpit [ID]` | Standalone split-pane TUI cockpit; `python main.py --cockpit [ID]` | Host | No inference required; reads project logs/memory | Real-time multi-pane HUD, Docker telemetry buffer, and interactive command dock |
 | `buildrelay --session ID` | REPL; `python main.py --session ID` | Host | Setup may be needed; task prompts call models | Creates/loads project workspace and memory |
 | `/profile` | Display `PROJECT_PROFILE.md` | Host | No inference/network needed to display | Recorded context is not guaranteed correct |
 | `/env` | Inspect masked settings; optionally save `NAME=value` | Host | Values may be credentials | Reads/writes project `.env`; partial masking reveals characters. Do not record real values |
@@ -14,6 +15,7 @@ The canonical project-command reference follows actual dispatch in `main.py`, `t
 | `/preview` | `buildrelay --preview ID` / `python main.py --preview ID` | Host local HTTP server | No inference required; HTML can load external assets | Serves workspace files. Not authenticated hosting or browser behavior testing. Review sensitive contents and stop when finished |
 | `/test` | No dedicated CLI equivalent | **Host, not Docker** | Depends on selected command; potentially live | Chooses `npm test` if `package.json` exists; else directly runs `scripts/verify_live.py` if present; else host pytest fallback. Does not use `/verify` environment merge/timeout handling |
 | `/eval` | `buildrelay --eval ID` / `python main.py --eval ID` | Host static inspection | No model/live verification by the evaluator | Writes `vault/evaluations/`; heuristic scores are not actual coverage/security/usability measurements |
+| `/cockpit` | Launch interactive TUI cockpit dashboard | Host | No inference required | Launches full split-pane terminal dashboard for the active project |
 | `/exit`, `/quit`, `quit`, Ctrl+D | Leave REPL | Host | None | Local files remain; `/exit` is not a standalone CLI command |
 
 ### The `/test` banner discrepancy
