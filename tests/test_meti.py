@@ -107,3 +107,42 @@ def test_meti_refine_deliverable(tmp_path, sandbox):
     ))
     assert result.status == "success"
     assert (tmp_path / "workspace" / "task-refine" / "README.md").exists()
+
+
+def test_meti_progresses_to_next_phase_across_turns(tmp_path, sandbox, phases):
+    step = 0
+    prompts = []
+
+    def respond(messages, info):
+        nonlocal step
+        step += 1
+        from pydantic_ai.messages import UserPromptPart
+        prompts.extend(part.content for part in messages[-1].parts if isinstance(part, UserPromptPart))
+        if step == 1:
+            # Turn 1: run phase 1 validation and return
+            return ModelResponse(parts=[
+                ToolCallPart("execute_sandbox_command", dict(shell_command="sh validate-1.sh", phase_name="1-test")),
+            ])
+        elif step == 2:
+            # Model ends turn 1 with output
+            return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, implementation_output())])
+        elif step == 3:
+            # Turn 2: prompted for phase 2, run phase 2 validation
+            return ModelResponse(parts=[
+                ToolCallPart("execute_sandbox_command", dict(shell_command="sh validate-2.sh", phase_name="2-test")),
+            ])
+        else:
+            # Turn 2 ends with output
+            return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, implementation_output())])
+
+    sandbox.execute_code.side_effect = [
+        dict(success=True, exit_code=0, output="phase 1 ok"),
+        dict(success=True, exit_code=0, output="phase 2 ok"),
+    ]
+    meti = MetiImplementer(vault_path=str(tmp_path / "vault"), model_name=FunctionModel(respond))
+    result = asyncio.run(meti.execute_specification("task-csv", "CSV", phases))
+    assert result.status == "success"
+    assert result.executed_phases == ["1-test", "2-test"]
+    assert any("Phase '1-test' passed sandbox validation" in str(p) for p in prompts)
+    assert any("Now proceed directly to implement and validate the next phase in order: '2-test'" in str(p) for p in prompts)
+

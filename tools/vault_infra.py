@@ -51,6 +51,13 @@ def register_graph_tools(
         return graph_manager.query_nodes(search_term)
 
     @agent.tool_plain
+    def query_vault_by_keywords(keywords: list[str]) -> list[dict]:
+        """Rank and retrieve knowledge graph nodes matching a list of search keywords."""
+        print_tool_call(agent_name, "query_vault_by_keywords", f"keywords={keywords}")
+        results = graph_manager.query_by_keywords(keywords)
+        return [node for node, score in results]
+
+    @agent.tool_plain
     def get_related_notes(node_id: str) -> list[dict]:
         """Get direct neighbor connections for a specific note ID in the vault graph."""
         print_tool_call(agent_name, "get_related_notes", f"node='{node_id}'")
@@ -69,6 +76,16 @@ def register_provenance_graph_tools(
         """Search the Obsidian vault graph for existing nodes, tasks, or past specs matching a term."""
         print_tool_call(agent_name, "query_vault_knowledge", f"term='{search_term}'")
         nodes = graph_manager.query_nodes(search_term)
+        if hasattr(ctx.deps, "retrieved_nodes"):
+            ctx.deps.retrieved_nodes.extend(nodes)
+        return nodes
+
+    @agent.tool
+    def query_vault_by_keywords(ctx: RunContext[Any], keywords: list[str]) -> list[dict]:
+        """Rank and retrieve knowledge graph nodes matching a list of search keywords."""
+        print_tool_call(agent_name, "query_vault_by_keywords", f"keywords={keywords}")
+        results = graph_manager.query_by_keywords(keywords)
+        nodes = [node for node, score in results]
         if hasattr(ctx.deps, "retrieved_nodes"):
             ctx.deps.retrieved_nodes.extend(nodes)
         return nodes

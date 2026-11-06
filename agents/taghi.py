@@ -116,8 +116,30 @@ class TaghiArchitect:
                 "Focus new phases on implementing and validating the requested features or refactorings.\n\n"
             )
         directory_instruction = f"Create your project directory at workspace/{workspace_dir}/ and place all modules there."
+        prior_art_section = ""
+        if self.graph_manager and hasattr(self.graph_manager, "query_by_keywords"):
+            try:
+                from tools.taxonomy import extract_keywords
+                keywords = extract_keywords(f"{task_id} {research_summary}")
+                if keywords:
+                    matches = self.graph_manager.query_by_keywords(keywords, top_k=3, min_score=0.20)
+                    prior_matches = [
+                        (n, s) for n, s in matches
+                        if n.get("id") != task_id
+                        and not str(n.get("id", "")).startswith(f"task-{task_id}")
+                        and not str(n.get("id", "")).startswith(f"spec-{task_id}")
+                    ]
+                    if prior_matches:
+                        prior_lines = [
+                            f"- `{n.get('id')}` (Relevance: {s:.2f}, Domain: {n.get('domain', 'core')}): {n.get('label', '')}"
+                            for n, s in prior_matches
+                        ]
+                        prior_art_section = "### Prior Art Discovered in Knowledge Graph\n" + "\n".join(prior_lines) + "\n\n"
+            except Exception:
+                pass
+
         prompt = (
-            f"Task ID: {task_id}\n{incremental_header}{project.prompt}Research Summary/Findings: {research_summary}\n\n"
+            f"Task ID: {task_id}\n{incremental_header}{project.prompt}{prior_art_section}Research Summary/Findings: {research_summary}\n\n"
             f"Include this instruction in the specification: {directory_instruction}\n"
             f"All sandbox commands start in /app/workspace/{workspace_dir}/. "
             "Keep source files, tests, documentation, validation scripts, and dependencies in this project directory. "
@@ -168,12 +190,21 @@ class TaghiArchitect:
         note_filename = self.specs_dir / f"spec-{task_id}.md"
         note_filename.parent.mkdir(parents=True, exist_ok=True)
 
+        from tools.taxonomy import get_taxonomic_classification
+        classification = get_taxonomic_classification(f"{task_id} {spec.architecture_overview[:200]}")
+        tags = [t for t in [classification.domain, classification.action, classification.target, *classification.keywords] if t]
+        tags = list(dict.fromkeys(tags))
+        tags_block = "tags:\n" + "\n".join(f"  - {t}" for t in tags) + "\n" if tags else "tags: []\n"
+
         markdown_content = f"""---
 id: "spec-{task_id}"
 type: "technical-spec"
 agent: "taghi"
 task_id: "{task_id}"
-{project.frontmatter}created_at: "{timestamp}"
+domain: "{classification.domain or 'core'}"
+action: "{classification.action or 'implement'}"
+target: "{classification.target}"
+{tags_block}{project.frontmatter}created_at: "{timestamp}"
 links: ["[[research-{task_id}]]", "[[{task_id}-brief]]"]
 ---
 # Technical Specification: {task_id}
@@ -240,6 +271,8 @@ links: ["[[research-{task_id}]]", "[[{task_id}-brief]]"]
                 grill_completed = True
 
                 if not auto and has_non_default_answers(current_spec.clarification_questions, answers):
+                    from tools.ui import print_agent
+                    print_agent("taghi", "Re-synthesizing architecture specification with user decisions (AI analyzing)...")
                     formatted_decisions = format_grill_answers_for_prompt(answers, current_spec.clarification_questions)
                     updated_context = f"{design_context}\n\n{formatted_decisions}"
                     current_spec = await self.create_specification(task_id, updated_context, project_id=project_id)

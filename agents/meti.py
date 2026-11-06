@@ -132,6 +132,17 @@ class MetiImplementer:
             if rejection is not None:
                 return rejection
 
+            from tools.cockpit import get_cockpit
+            cockpit = get_cockpit()
+            if cockpit.is_active:
+                cockpit.telemetry.add_log(f"$ {shell_command}")
+                if phase_name:
+                    attempt = 1
+                    if hasattr(ctx.deps, "phases") and phase_name in ctx.deps.phases:
+                        attempt = ctx.deps.phases[phase_name].attempt_count + 1
+                    cockpit.telemetry.update_phase(phase_name, "running", attempt)
+                cockpit.refresh()
+
             print_tool_call("meti", "Docker", shell_command)
             ctx.deps.in_flight_command = shell_command
             ctx.deps.workspace_used = True
@@ -145,6 +156,19 @@ class MetiImplementer:
             with agent_status("docker", f"Running: {shell_command[:60]}"):
                 result = self.sandbox.execute_code(shell_command, **call_kwargs)
             ctx.deps.in_flight_command = None
+
+            if cockpit.is_active:
+                output = str(result.get("output", "")).strip()
+                if output:
+                    for line in output.splitlines():
+                        cockpit.telemetry.add_log(line)
+                exit_code = result.get("exit_code", -1)
+                status_text = "PASSED" if exit_code == 0 else f"FAILED (Exit: {exit_code})"
+                cockpit.telemetry.add_log(f"↳ Docker: {status_text}")
+                if phase_name:
+                    pstat = "passed" if result.get("success") else "retrying"
+                    cockpit.telemetry.update_phase(phase_name, pstat, attempt)
+                cockpit.refresh()
 
             # Route docker stdout/stderr to .state/task.log
             try:
@@ -226,6 +250,14 @@ class MetiImplementer:
         state.save()
         print_agent("meti", f"Beginning phased implementation for task: {task_id}")
 
+        from tools.cockpit import get_cockpit
+        cockpit = get_cockpit()
+        if cockpit.is_active:
+            cockpit.telemetry.update_stage("meti", "running")
+            cockpit.telemetry.set_phases(phases)
+            cockpit.telemetry.set_action(f"Meti executing {len(phases)} phases in Docker container...")
+            cockpit.refresh()
+
         # Construct prompt providing the blueprint for Meti
         phases_text = "\n".join([f"- Phase: {p.phase_name}\n  Instructions: {p.instructions}\n  Validation: {p.validation_command}" for p in phases])
         ui_spec_section = ""
@@ -303,12 +335,32 @@ class MetiImplementer:
                 aggregated_usage["requests"] += turn_usage["requests"]
                 implementation_result = result.output
 
-                if not ExecutionPolicy.should_trigger_recovery(state, phases, previous_attempts):
+                if len(state.validated_phases) == len(phases):
                     break
 
-                # If the model finishes early after a failed check, return its actual logs once more.
-                history = result.all_messages()
-                prompt = ExecutionPolicy.build_recovery_prompt(state)
+                if ExecutionPolicy.should_trigger_recovery(state, phases, previous_attempts):
+                    history = result.all_messages()
+                    prompt = ExecutionPolicy.build_recovery_prompt(state)
+                    continue
+
+                # If earlier phases passed and attempts increased, prompt model to proceed with the next phase
+                if len(state.validated_phases) < len(phases) and len(state.validation_attempts) > previous_attempts:
+                    next_phase = phases[len(state.validated_phases)]
+                    if cockpit.is_active:
+                        cockpit.telemetry.update_phase(next_phase.phase_name, "running")
+                        cockpit.telemetry.set_action(f"Phase [{next_phase.phase_name}]: implementing in Docker container...")
+                        cockpit.refresh()
+                    history = result.all_messages()
+                    prompt = (
+                        f"Phase '{state.validated_phases[-1]}' passed sandbox validation.\n\n"
+                        f"Now proceed directly to implement and validate the next phase in order: '{next_phase.phase_name}'.\n"
+                        f"Instructions: {next_phase.instructions}\n"
+                        f"Validation command: {next_phase.validation_command}\n"
+                        "Use your sandbox execution tool to implement the requirements and run this phase's exact validation command."
+                    )
+                    continue
+
+                break
 
         except (ValidationAttemptsExhausted, AgentRunError) as error:
             implementation_result = ExecutionPolicy.finalize_result(
@@ -349,6 +401,13 @@ class MetiImplementer:
         )
 
         await update_vault_graph(self.graph_manager, note_filename)
+
+        if cockpit.is_active:
+            final_status = "passed" if implementation_result.status == "success" else "failed"
+            cockpit.telemetry.update_stage("meti", final_status)
+            cockpit.telemetry.set_action(f"Execution complete: {implementation_result.status.upper()}")
+            cockpit.refresh()
+
         return implementation_result
 
     async def refine_deliverable(

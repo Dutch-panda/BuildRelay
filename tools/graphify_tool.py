@@ -44,17 +44,64 @@ class GraphifyVaultManager:
             content = ""
             properties: Dict[str, Any] = {}
             label = stem
+            tags: List[str] = []
+            domain: Optional[str] = None
+            action: Optional[str] = None
             try:
                 content = md_path.read_text(encoding="utf-8", errors="ignore")
                 if content.startswith("---"):
                     parts = content.split("---", 2)
                     if len(parts) >= 3:
-                        for line in parts[1].splitlines():
-                            if ":" in line:
-                                k, v = line.split(":", 1)
-                                properties[k.strip()] = v.strip().strip("'\"")
-                        if "id" in properties:
-                            node_id = properties["id"]
+                        frontmatter_raw = parts[1]
+                        parsed_yaml = None
+                        try:
+                            import yaml
+                            parsed_yaml = yaml.safe_load(frontmatter_raw)
+                        except Exception:
+                            parsed_yaml = None
+
+                        if isinstance(parsed_yaml, dict):
+                            properties = {str(k): v for k, v in parsed_yaml.items()}
+                        else:
+                            current_list_key = None
+                            for line in frontmatter_raw.splitlines():
+                                stripped = line.strip()
+                                if not stripped:
+                                    continue
+                                if stripped.startswith("- ") and current_list_key:
+                                    item = stripped[2:].strip().strip("'\"")
+                                    if item:
+                                        properties.setdefault(current_list_key, []).append(item)
+                                elif ":" in line:
+                                    k, v = line.split(":", 1)
+                                    k = k.strip()
+                                    v = v.strip().strip("'\"")
+                                    if v.startswith("[") and v.endswith("]"):
+                                        items = [i.strip().strip("'\"") for i in v[1:-1].split(",") if i.strip()]
+                                        properties[k] = items
+                                        current_list_key = None
+                                    elif not v:
+                                        current_list_key = k
+                                        properties[k] = []
+                                    else:
+                                        properties[k] = v
+                                        current_list_key = None
+
+                        if "id" in properties and str(properties["id"]).strip():
+                            node_id = str(properties["id"]).strip()
+
+                        raw_tags = properties.get("tags", [])
+                        if isinstance(raw_tags, list):
+                            tags = [str(t).strip().strip("'\"").lower() for t in raw_tags if str(t).strip()]
+                        elif isinstance(raw_tags, str):
+                            cleaned = raw_tags.strip().strip("[]")
+                            if cleaned:
+                                tags = [t.strip().strip("'\"").lower() for t in cleaned.split(",") if t.strip()]
+
+                        if "domain" in properties and properties["domain"]:
+                            domain = str(properties["domain"]).strip().lower()
+                        if "action" in properties and properties["action"]:
+                            action = str(properties["action"]).strip().lower()
 
                 for line in content.splitlines():
                     if line.startswith("# "):
@@ -65,12 +112,18 @@ class GraphifyVaultManager:
 
             if node_id not in node_ids:
                 node_ids.add(node_id)
-                nodes.append({
+                node_entry: Dict[str, Any] = {
                     "id": node_id,
                     "label": label,
                     "source_file": rel_path,
                     "properties": properties,
-                })
+                    "tags": tags,
+                }
+                if domain:
+                    node_entry["domain"] = domain
+                if action:
+                    node_entry["action"] = action
+                nodes.append(node_entry)
 
             targets = re.findall(r'\[\[(.*?)\]\]', content)
             for target in targets:
@@ -171,9 +224,110 @@ class GraphifyVaultManager:
         matches = [
             node for node in nodes 
             if any(term in str(node.get(key, "")).lower()
-                   for key in ("id", "label", "source_file", "properties"))
+                   for key in ("id", "label", "source_file", "properties", "tags", "domain", "action"))
         ]
         return matches
+
+    def query_by_keywords(
+        self,
+        keywords: List[str] | str,
+        top_k: int = 5,
+        min_score: float = 0.15,
+    ) -> List[tuple[Dict[str, Any], float]]:
+        """
+        Ranks graph nodes by keyword overlap relevance using weighted attribute scoring.
+        Weights:
+          - Tag exact match: 3.0
+          - Domain exact match: 2.5
+          - ID / Target match: 2.0
+          - Label / Title match: 1.5
+          - Content / Property match: 1.0
+
+        Computes weighted overlap normalized against total query keyword count.
+        Returns up to top_k nodes exceeding min_score, sorted descending by score.
+        """
+        import re
+        if isinstance(keywords, str):
+            from tools.taxonomy import extract_keywords
+            keywords = extract_keywords(keywords)
+
+        query_kw = [k.strip().lower() for k in keywords if k and k.strip()]
+        if not query_kw:
+            return []
+
+        data = self.load_graph()
+        nodes = data.get("nodes", [])
+        scored: List[tuple[Dict[str, Any], float]] = []
+
+        for node in nodes:
+            # Extract tags
+            node_tags: List[str] = []
+            raw_tags = node.get("tags")
+            if raw_tags is None and isinstance(node.get("properties"), dict):
+                raw_tags = node["properties"].get("tags")
+            if isinstance(raw_tags, list):
+                node_tags = [str(t).strip().strip("'\"").lower() for t in raw_tags if str(t).strip()]
+            elif isinstance(raw_tags, str):
+                cleaned = raw_tags.strip().strip("[]")
+                if cleaned:
+                    node_tags = [t.strip().strip("'\"").lower() for t in cleaned.split(",") if t.strip()]
+
+            # Extract domain, action, id, target, label
+            node_domain = str(node.get("domain") or (node.get("properties") or {}).get("domain") or "").strip().lower()
+            node_action = str(node.get("action") or (node.get("properties") or {}).get("action") or "").strip().lower()
+            node_id = str(node.get("id") or "").strip().lower()
+            node_target = str((node.get("properties") or {}).get("target") or node.get("target") or "").strip().lower()
+            node_label = str(node.get("label") or "").strip().lower()
+
+            # Pre-tokenize id, target, label for matching
+            id_tokens = set(re.findall(r"[a-z0-9]+", node_id))
+            target_tokens = set(re.findall(r"[a-z0-9]+", node_target))
+            label_tokens = set(re.findall(r"[a-z0-9]+", node_label))
+
+            # Other properties / content
+            props = node.get("properties")
+            props_text = ""
+            if isinstance(props, dict):
+                other_vals = [
+                    str(v) for k, v in props.items()
+                    if k not in ("tags", "domain", "action", "id", "target")
+                ]
+                props_text = " ".join(other_vals).lower()
+            elif isinstance(props, str):
+                props_text = props.lower()
+            source_file = str(node.get("source_file") or "").lower()
+            content_str = str(node.get("content") or "").lower()
+            combined_other = f"{props_text} {source_file} {content_str}"
+
+            node_score = 0.0
+            for kw in query_kw:
+                # 1. Tag exact match (3.0)
+                if any(kw == t or kw in t.split("-") or kw in t.split("_") for t in node_tags):
+                    node_score += 3.0
+
+                # 2. Domain exact match (2.5)
+                if node_domain and (kw == node_domain or kw in node_domain.split("-")):
+                    node_score += 2.5
+
+                # 3. ID / Target match (2.0)
+                if kw in id_tokens or kw in target_tokens or (node_target and kw in node_target):
+                    node_score += 2.0
+
+                # 4. Label / Title match (1.5)
+                if kw in label_tokens or kw in node_label:
+                    node_score += 1.5
+
+                # 5. Content / Property match (1.0)
+                if kw in combined_other:
+                    node_score += 1.0
+
+            # Normalize: max potential weight per keyword is 10.0
+            norm_score = min(1.0, round(node_score / (10.0 * len(query_kw)), 4))
+            if norm_score >= min_score:
+                scored.append((node, norm_score))
+
+        scored.sort(key=lambda item: item[1], reverse=True)
+        return scored[:top_k]
 
     def get_neighbors(self, node_id: str) -> List[Dict[str, Any]]:
         """

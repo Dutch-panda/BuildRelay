@@ -100,7 +100,10 @@ def run_grill_session(
         return q.options[0] if q.options else None
 
     # Automated or non-interactive headless execution: resolve all defaults immediately
-    ask = input_func or input
+    from tools.ui import _ask_with_cockpit
+    from tools.cockpit import get_cockpit
+
+    ask = _ask_with_cockpit(input_func)
     is_headless = auto or (input_func is None and not sys.stdin.isatty())
     if is_headless:
         for q in active_questions:
@@ -119,117 +122,133 @@ def run_grill_session(
         f"wants to clarify [cyan]{len(active_questions)} specifications[/cyan] to ensure the build matches your intent.\n"
         "[dim]Controls: [green]\\[Enter][/green] Accept Default | [cyan]\\[1, 2...][/cyan] Select | [yellow]\\[c][/yellow] Custom text | [magenta]\\[a][/magenta] Accept all remaining | [red]\\[q][/red] Quit[/dim]"
     )
-    console.print()
-    console.print(
-        Panel(
-            banner_text,
-            title=f"[bold {theme['color']}]{header_title}[/bold {theme['color']}]",
-            title_align="left",
-            border_style=theme.get("border", theme["color"]),
-            padding=(0, 2),
-        )
-    )
 
-    accept_all_remaining = False
+    cockpit = get_cockpit()
+    cockpit.telemetry.awaiting_input = True
+    cockpit.telemetry.current_action = f"Awaiting input for {theme['name']} grill..."
+    if getattr(cockpit, "_pause_depth", 0) == 0:
+        cockpit.refresh()
 
-    for idx, q in enumerate(active_questions, start=1):
-        def_opt = get_default_option(q)
+    try:
+        with cockpit.pause():
+            if not cockpit.is_active:
+                console.print()
+                console.print(
+                    Panel(
+                        banner_text,
+                        title=f"[bold {theme['color']}]{header_title}[/bold {theme['color']}]",
+                        title_align="left",
+                        border_style=theme.get("border", theme["color"]),
+                        padding=(0, 2),
+                    )
+                )
+            else:
+                console.print(f"\n[{theme['color']}][bold]{theme['icon']} {theme['name']}[/bold] ({theme['role']}):[/] [bold white]{header_title}[/bold white]")
 
-        if accept_all_remaining:
-            if def_opt:
-                q.selected_option = def_opt.key
-                answers[q.id] = def_opt.label
-            continue
+            accept_all_remaining = False
 
-        cat_badge = f" [dim]({q.category})[/dim]" if q.category else ""
-        console.print(f"\n[bold {theme['color']}][{idx}/{len(active_questions)}][/bold {theme['color']}] [bold white]{escape(q.question)}[/bold white]{cat_badge}")
+            for idx, q in enumerate(active_questions, start=1):
+                def_opt = get_default_option(q)
 
-        for opt in q.options:
-            is_def = opt.is_default or (def_opt and opt.key == def_opt.key)
-            tag = " [bold green](Recommended)[/bold green]" if is_def else ""
-            desc = f" [dim]— {escape(opt.description)}[/dim]" if opt.description else ""
-            console.print(f"     [bold cyan]\\[{escape(str(opt.key))}][/bold cyan] {escape(opt.label)}{tag}{desc}")
-
-        console.print(
-            f"     [dim]Key commands: [green]\\[Enter][/green] Default  |  "
-            f"[cyan]\\[1, 2...][/cyan] Pick  |  "
-            f"[yellow]\\[e/c][/yellow] Custom  |  "
-            f"[magenta]\\[a][/magenta] Accept All  |  "
-            f"[red]\\[q][/red] Quit[/dim]"
-        )
-
-        while True:
-            try:
-                prompt_label = f"[{theme['name']}] > "
-                user_choice = ask(prompt_label).strip()
-            except (EOFError, KeyboardInterrupt):
-                console.print("\n[yellow]Session interrupted by user.[/yellow]")
-                return answers, True
-
-            low = user_choice.lower()
-
-            # Empty enter: choose default
-            if low == "":
-                if def_opt:
-                    q.selected_option = def_opt.key
-                    answers[q.id] = def_opt.label
-                    console.print(f"   [bold green]✔ Accepted default: {escape(def_opt.label)}[/bold green]")
-                else:
-                    answers[q.id] = "Accepted"
-                break
-
-            # Quit
-            if low in ("q", "quit", "exit"):
-                return answers, True
-
-            # Accept all remaining defaults
-            if low in ("a", "all", "accept-all"):
-                accept_all_remaining = True
-                if def_opt:
-                    q.selected_option = def_opt.key
-                    answers[q.id] = def_opt.label
-                    console.print(f"   [bold green]✔ Accepted default: {escape(def_opt.label)}[/bold green]")
-                    console.print("   [dim]↳ Accepting all remaining defaults...[/dim]")
-                break
-
-            # Custom freeform prompt
-            if low in ("c", "custom", "e", "edit"):
-                try:
-                    custom_text = ask("   📝 Enter custom specification / answer: ").strip()
-                except (EOFError, KeyboardInterrupt):
-                    return answers, True
-                if custom_text:
-                    q.custom_response = custom_text
-                    q.selected_option = "custom"
-                    answers[q.id] = custom_text
-                    console.print(f"   [bold yellow]✔ Recorded custom answer: {escape(custom_text)}[/bold yellow]")
-                    break
-                else:
-                    console.print("   [dim]No input provided; please choose an option or enter text.[/dim]")
+                if accept_all_remaining:
+                    if def_opt:
+                        q.selected_option = def_opt.key
+                        answers[q.id] = def_opt.label
                     continue
 
-            # Check if user entered a 1-based numeric index or one of the option keys
-            matched_opt = None
-            if low.isdigit() and 1 <= int(low) <= len(q.options):
-                matched_opt = q.options[int(low) - 1]
-            else:
+                cat_badge = f" [dim]({q.category})[/dim]" if q.category else ""
+                console.print(f"\n[bold {theme['color']}][{idx}/{len(active_questions)}][/bold {theme['color']}] [bold white]{escape(q.question)}[/bold white]{cat_badge}")
+
                 for opt in q.options:
-                    if str(opt.key).strip().lower() == low:
-                        matched_opt = opt
+                    is_def = opt.is_default or (def_opt and opt.key == def_opt.key)
+                    tag = " [bold green](Recommended)[/bold green]" if is_def else ""
+                    desc = f" [dim]— {escape(opt.description)}[/dim]" if opt.description else ""
+                    console.print(f"     [bold cyan]\\[{escape(str(opt.key))}][/bold cyan] {escape(opt.label)}{tag}{desc}")
+
+                console.print(
+                    f"     [dim]Key commands: [green]\\[Enter][/green] Default  |  "
+                    f"[cyan]\\[1, 2...][/cyan] Pick  |  "
+                    f"[yellow]\\[e/c][/yellow] Custom  |  "
+                    f"[magenta]\\[a][/magenta] Accept All  |  "
+                    f"[red]\\[q][/red] Quit[/dim]"
+                )
+
+                while True:
+                    try:
+                        prompt_label = f"[{theme['name']}] > "
+                        user_choice = ask(prompt_label).strip()
+                    except (EOFError, KeyboardInterrupt):
+                        console.print("\n[yellow]Session interrupted by user.[/yellow]")
+                        return answers, True
+
+                    low = user_choice.lower()
+
+                    # Empty enter: choose default
+                    if low == "":
+                        if def_opt:
+                            q.selected_option = def_opt.key
+                            answers[q.id] = def_opt.label
+                            console.print(f"   [bold green]✔ Accepted default: {escape(def_opt.label)}[/bold green]")
+                        else:
+                            answers[q.id] = "Accepted"
                         break
 
-            if matched_opt:
-                q.selected_option = matched_opt.key
-                answers[q.id] = matched_opt.label
-                console.print(f"   [bold green]✔ Selected option \\[{matched_opt.key}]: {escape(matched_opt.label)}[/bold green]")
-                break
+                    # Quit
+                    if low in ("q", "quit", "exit"):
+                        return answers, True
 
-            # Freeform text typed directly at choice prompt
-            q.custom_response = user_choice
-            q.selected_option = "custom"
-            answers[q.id] = user_choice
-            console.print(f"   [bold yellow]✔ Recorded specification: {escape(user_choice)}[/bold yellow]")
-            break
+                    # Accept all remaining defaults
+                    if low in ("a", "all", "accept-all"):
+                        accept_all_remaining = True
+                        if def_opt:
+                            q.selected_option = def_opt.key
+                            answers[q.id] = def_opt.label
+                            console.print(f"   [bold green]✔ Accepted default: {escape(def_opt.label)}[/bold green]")
+                            console.print("   [dim]↳ Accepting all remaining defaults...[/dim]")
+                        break
 
-    console.print()
-    return answers, False
+                    # Custom freeform prompt
+                    if low in ("c", "custom", "e", "edit"):
+                        try:
+                            custom_text = ask("   📝 Enter custom specification / answer: ").strip()
+                        except (EOFError, KeyboardInterrupt):
+                            return answers, True
+                        if custom_text:
+                            q.custom_response = custom_text
+                            q.selected_option = "custom"
+                            answers[q.id] = custom_text
+                            console.print(f"   [bold yellow]✔ Recorded custom answer: {escape(custom_text)}[/bold yellow]")
+                            break
+                        else:
+                            console.print("   [dim]No input provided; please choose an option or enter text.[/dim]")
+                            continue
+
+                    # Check if user entered a 1-based numeric index or one of the option keys
+                    matched_opt = None
+                    if low.isdigit() and 1 <= int(low) <= len(q.options):
+                        matched_opt = q.options[int(low) - 1]
+                    else:
+                        for opt in q.options:
+                            if str(opt.key).strip().lower() == low:
+                                matched_opt = opt
+                                break
+
+                    if matched_opt:
+                        q.selected_option = matched_opt.key
+                        answers[q.id] = matched_opt.label
+                        console.print(f"   [bold green]✔ Selected option \\[{matched_opt.key}]: {escape(matched_opt.label)}[/bold green]")
+                        break
+
+                    # Freeform text typed directly at choice prompt
+                    q.custom_response = user_choice
+                    q.selected_option = "custom"
+                    answers[q.id] = user_choice
+                    console.print(f"   [bold yellow]✔ Recorded specification: {escape(user_choice)}[/bold yellow]")
+                    break
+
+            console.print()
+            return answers, False
+    finally:
+        if getattr(cockpit, "_pause_depth", 0) == 0:
+            cockpit.telemetry.awaiting_input = False
+            cockpit.refresh()

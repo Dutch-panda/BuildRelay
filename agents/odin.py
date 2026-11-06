@@ -126,12 +126,21 @@ class OdinResearcher:
         source_links = [f"[[{Path(source).with_suffix('').as_posix()}]]" for source in report.vault_sources]
         links = json.dumps([f"[[{task_id}-brief]]", *source_links], ensure_ascii=False)
 
+        from tools.taxonomy import get_taxonomic_classification
+        classification = get_taxonomic_classification(f"{task_id} {report.summary[:200]}")
+        tags = [t for t in [classification.domain, classification.action, classification.target, *classification.keywords] if t]
+        tags = list(dict.fromkeys(tags))
+        tags_block = "tags:\n" + "\n".join(f"  - {t}" for t in tags) + "\n" if tags else "tags: []\n"
+
         markdown_content = f"""---
 id: "research-{task_id}"
 type: "research-report"
 agent: "odin"
 task_id: "{task_id}"
-{project.frontmatter}created_at: "{timestamp}"
+domain: "{classification.domain or 'core'}"
+action: "{classification.action or 'implement'}"
+target: "{classification.target}"
+{tags_block}{project.frontmatter}created_at: "{timestamp}"
 links: {links}
 ---
 # Research Report: {task_id}

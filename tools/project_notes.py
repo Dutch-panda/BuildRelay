@@ -254,6 +254,8 @@ def prepare_project(
         with note_path.open("x", encoding="utf-8") as note:
             note.write(
                 f'---\nid: "{project_id}"\ntype: "project"\n'
+                f'domain: "core"\n'
+                f'tags:\n  - project\n  - {project_id}\n'
                 f'created_at: "{datetime.now():%Y-%m-%d}"\n---\n'
                 f"# {project_id}\n"
             )
