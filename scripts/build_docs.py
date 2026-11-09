@@ -85,8 +85,13 @@ def page(name,title,body,toc):
 
 def build():
  readme=ROOT/'README.md'
- source=re.sub(r'<!-- package-version:start -->.*?<!-- package-version:end -->','<!-- package-version:start -->'+VERSION+'<!-- package-version:end -->',readme.read_text())
- readme.write_text(source)
+ current=readme.read_text()
+ source=re.sub(r'<!-- package-version:start -->.*?<!-- package-version:end -->','<!-- package-version:start -->'+VERSION+'<!-- package-version:end -->',current)
+ if source != current:
+  try:
+   readme.write_text(source)
+  except Exception:
+   pass
  for name,title in PAGES:
   body,toc=render(source_for(name),name)
   (DOCS/(name+'.html')).write_text(page(name,title,body,toc))

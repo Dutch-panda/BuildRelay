@@ -68,7 +68,7 @@ def _ask_with_cockpit(raw_func: Callable[[str], str] | None = None) -> Callable[
                         pass
 
                 clean_prompt = prompt.strip()
-                prompt_display = f" [bold]{clean_prompt}[/bold]" if clean_prompt else ""
+                prompt_display = f" [bold]{escape(clean_prompt)}[/bold]" if clean_prompt else ""
 
                 # Explicitly close style and emit ANSI reset before input() to prevent BCE orange bar
                 console.print(
@@ -77,7 +77,7 @@ def _ask_with_cockpit(raw_func: Callable[[str], str] | None = None) -> Callable[
                 )
                 sys.stdout.flush()
                 try:
-                    sys.stdout.write("\033[0m")
+                    sys.stdout.write("\033[0m\033[K")
                     sys.stdout.flush()
                 except Exception:
                     pass
