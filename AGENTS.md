@@ -22,7 +22,7 @@ If a task requires permissions outside these boundaries, stop and explain the li
 
 Your objective is maximum autonomy within strict security boundaries.
 
-# BuildRelay Project Guidelines for Antigravity (AGY)
+# BuildRelay Project Guidelines 
 
 ## Architecture & Conventions
 - **Sequential 4-lead flow with on-demand specialization**: Natasha (Routing & Alignment) → Odin (Research, on-demand) → Taghi (Architecture & Review) → Diba (UI/UX Design & Ergonomics, on-demand) → Meti (Phased Docker Execution).
@@ -91,6 +91,18 @@ Your objective is maximum autonomy within strict security boundaries.
 - Odin has three search calls per research invocation. Registry lookups and Natasha searches are outside that budget.
 - URL checks do not resolve DNS or revalidate redirects. Page fetching is a helper, not a registered agent tool. Registry connectivity failures do not establish successful verification.
 - Token costs are estimates from bundled rates; SDK cache settings do not guarantee provider caching.
+
+## Developer Knowledge Graph & Context Retrieval
+- **Local External Knowledge Graph**: The codebase AST graph for AP-V2 lives at `../build-relay-graph/graphify-out/` (specifically `../build-relay-graph/graphify-out/graph.json`), completely decoupled from git and independent of BuildRelay's internal task vault (`vault/`).
+- **Visual Artifacts**: Interactive architecture visualization lives at `../build-relay-graph/graphify-out/graph.html`.
+- **Pre-Task Retrieval Directive**:
+  - Before modifying, refactoring, or researching codebase components, development agents (such as Antigravity) must consult the graph for context rather than conducting blind file scans or grep searches.
+  - **Inspect any symbol, function, or class**:
+    `.venv/bin/python -m graphify explain "<Symbol>" --graph ../build-relay-graph/graphify-out/graph.json`
+  - **Trace call paths and relationships between components**:
+    `.venv/bin/python -m graphify path "<SymbolA>" "<SymbolB>" --graph ../build-relay-graph/graphify-out/graph.json`
+  - **Incremental Sync / Refresh**: After completing major changes, refresh the external graph:
+    `.venv/bin/python -m graphify extract . --code-only --no-cluster --out ../build-relay-graph`
 
 ## Testing & Verification
 - Run tests using `.venv/bin/pytest` or `.venv/bin/python scripts/validate.py`.

@@ -6,6 +6,9 @@
 .venv/
 venv/
 
+# Agents guidelines 
+AGENTS.md
+
 # Python caches and build output
 __pycache__/
 *.py[cod]
