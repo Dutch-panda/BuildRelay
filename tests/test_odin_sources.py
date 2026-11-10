@@ -94,3 +94,20 @@ def test_sources_do_not_leak_between_runs(tmp_path, monkeypatch):
     second = asyncio.run(odin.conduct_research("task-two", "Research unrelated topic"))
     assert first.vault_sources == ["tasks/past.md"]
     assert second.vault_sources == []
+
+
+def test_odin_research_domain_specialization(tmp_path):
+    from contracts import ResearchDomain
+    vault = tmp_path / "vault"
+    odin = OdinResearcher(vault_path=str(vault), model_name=TestModel(call_tools=[], custom_output_args=report_output()))
+    
+    report_ui = asyncio.run(odin.conduct_research("task-ui", "UI kanban board", domain=ResearchDomain.FRONTEND_UX))
+    assert report_ui.domain == ResearchDomain.FRONTEND_UX
+    assert (vault / "research/research-task-ui-ui.md").is_file()
+    assert "UI/UX Front-End" in (vault / "research/research-task-ui-ui.md").read_text()
+
+    report_be = asyncio.run(odin.conduct_research("task-be", "Data pipeline sanitization", domain=ResearchDomain.BACKEND_ARCHITECTURE))
+    assert report_be.domain == ResearchDomain.BACKEND_ARCHITECTURE
+    assert (vault / "research/research-task-be-backend.md").is_file()
+    assert "Backend Architecture" in (vault / "research/research-task-be-backend.md").read_text()
+

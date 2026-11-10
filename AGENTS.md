@@ -25,16 +25,21 @@ Your objective is maximum autonomy within strict security boundaries.
 # BuildRelay Project Guidelines 
 
 ## Architecture & Conventions
-- **Sequential 4-lead flow with on-demand specialization**: Natasha (Routing & Alignment) → Odin (Research, on-demand) → Taghi (Architecture & Review) → Diba (UI/UX Design & Ergonomics, on-demand) → Meti (Phased Docker Execution).
+- **Sequential 4-lead flow with on-demand specialization**: Natasha (Routing & Alignment) → Odin (Research, on-demand) → Diba (Early Prototype & UI/UX Design, on-demand) → Taghi (Architecture & Review) → Meti (Phased Docker Execution).
 - **Interactive Grill-Me Alignment**:
-  - `tools/grill.py`: Unified multi-choice and open-ended interview engine with quick keyboard shortcuts (`[Enter]` for default, `[1, 2...]` to pick, `[c]` for custom text, `[a]` to accept all remaining, `[q]` to quit).
-  - Natasha conducts an intent/scope grill interview (up to 10 questions covering entry points, schemas, triggers, edge cases) before final routing.
-  - Taghi conducts an architectural grill interview (covering schemas, mocks, failure modes).
+  - `tools/grill.py`: Unified multi-choice and open-ended interview engine with quick keyboard shortcuts (`[Enter]` for default, `[1, 2...]` to pick, `[c]` for custom text, `[a]` to accept all remaining, `[q]` to quit). Numbers `[1]`, `[2]` are clearly indexed.
+  - Natasha conducts an intent/scope grill interview (up to 10 plain-English questions covering entry points, schemas, triggers, edge cases) before final routing.
+  - Taghi conducts an architectural grill interview using plain-English concepts (zero technical jargon; translating storage durability, accidental double-clicks, and error handling into practical business choices).
   - Diba conducts a dedicated UI/UX Design & Ergonomics grill interview (`ui_spec` covering visual archetypes, Tailwind palettes, layout hierarchy, validation feedback, and 5 discrete states).
-- **Diba UI/UX & Product Design Lead (`agents/diba.py`)**:
-  - On-Demand Awakening: Automatically awakened when a task involves frontend or user entry surfaces (`is_ui_task`), completely freeing Taghi to focus on backend architecture and Docker validation.
+- **Early Prototype & Diba UI/UX Lead (`agents/diba.py`)**:
+  - Early-Stage Interactive Prototyping: Diba generates a standalone, working Zero-to-One interactive HTML prototype (`prototype.html` and `form.html`) with an in-memory mock engine before Taghi architects backend specifications.
+  - Prototype Approval Gate (`tools/ui.py`): Explicit numbered gate (`[1]` Refine, `[2]` Approve, `[3]` Skip, `[q]` Abort) allowing human feedback cycles with Diba. Background preview server remains active across refinement iterations.
   - Curated Design Archetypes (`tools/design_system.py`): Studio-grade visual blueprints ('Linear Dark Minimalist', 'Executive Bento Dashboard', 'Stripe Enterprise Clean', 'Split-Pane Studio Workspace') that prevent ugly blank-canvas HTML generation.
   - Dual-Specification Output: Diba persists `vault/specs/<task_id>-ui.md` with explicit Tailwind hex tokens, component wireframes, input validation rules, and 5 interactive states (`empty`, `validating`, `submitting`, `success`, `error`).
+- **Concise Executive Handoffs & Clean Viewport**:
+  - All interactive gates (`prompt_alignment_gate`, `prompt_step_gate`, `prompt_prototype_gate`, `prompt_spec_approval_gate`, `prompt_dana_gate`) cleanly suspend the Cockpit Live TUI using `cockpit.pause()` before rendering cards, keeping the handoff document fully visible in the active viewport without pushing content offscreen.
+  - Taghi's proposal card displays a concise ASCII workflow diagram (e.g. `[User UI/Form] ➔ [API / Server Logic] ➔ [Data Storage] ➔ [Deterministic Tests]`) and brief summary, linking to deep markdown specifications in `vault/specs/<task_id>-spec.md`.
+  - Python `readline` support and isolated `> ` prompt lines enable smooth multi-line wrapping and backward line deletion without ANSI offset glitches.
 - **Dual-Specification Architecture & UI/UX Standards**:
   - Taghi persists backend technical specifications in `vault/specs/<task_id>-spec.md` (models, APIs, sanitizers, and validation phases), while Diba persists studio-grade UI/UX specifications in `vault/specs/<task_id>-ui.md` (archetypes, Tailwind hex tokens, component wireframes, input validation rules, and 5 interactive states).
   - Phased Execution Ordering: Meti executes and verifies backend core logic and Tier 1 unit tests first in Docker, and only implements frontend UI/UX surfaces after backend logic passes.

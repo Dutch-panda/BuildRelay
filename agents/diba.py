@@ -17,7 +17,7 @@ from typing import Any, Callable
 from pydantic_ai import Agent
 from pydantic_ai.models import Model
 
-from contracts import ClarificationOption, ClarificationQuestion, TechnicalSpec, UIDesignSpec, UIFieldSpec
+from contracts import ClarificationOption, ClarificationQuestion, TechnicalSpec, UIDesignSpec, UIFieldSpec, UIPrototypeResult
 from tools.design_system import (
     DEFAULT_ARCHETYPE,
     detect_recommended_archetype,
@@ -88,6 +88,28 @@ class DibaDesigner:
             category="Specs",
             directory_name="Specs",
             agent_name="Diba",
+        )
+
+        self.prototype_agent = Agent(
+            model_name,
+            output_type=str,
+            model_settings={"cache": True},
+            system_prompt=(
+                "You are Diba, the Principal UI/UX & Product Design Lead. "
+                "Your job is to generate a standalone, studio-grade, fully working HTML/Tailwind CSS interactive prototype. "
+                "The prototype must run 100% offline in a web browser with ZERO backend API dependencies.\n\n"
+                "MANDATORY PROTOTYPE STANDARDS:\n"
+                "1. Self-contained HTML with Tailwind CSS CDN: <script src='https://cdn.tailwindcss.com'></script>\n"
+                "2. Modern typography (Plus Jakarta Sans or Inter font).\n"
+                "3. Visual Archetype styling (deep dark or crisp executive theme with subtle borders and shadows).\n"
+                "4. An interactive top state-switcher bar allowing the user to click between 5 states: 'empty', 'validating', 'submitting', 'success', 'error'.\n"
+                "5. Embedded client-side in-memory mock engine in a <script> block:\n"
+                "   - Intercepts form submissions and click events without network calls.\n"
+                "   - Pre-populates mock data in table/cards.\n"
+                "   - Simulates validation errors when inputs are invalid.\n"
+                "   - Shows button loading spinner on submit, then displays success confirmation with transaction ID.\n"
+                "6. Return ONLY the raw valid HTML code without markdown code fences or conversational prose."
+            ),
         )
 
     @staticmethod
@@ -204,15 +226,22 @@ class DibaDesigner:
                 # Check if chosen archetype changed
                 for q in (current_ui.clarification_questions or []):
                     if q.id == "ui_design_archetype":
-                        chosen_key = q.selected_option or answers.get(q.id)
-                        if chosen_key:
-                            chosen_arch = get_archetype(str(chosen_key))
-                            if chosen_arch and chosen_arch.key != current_ui.archetype:
-                                current_ui.archetype = chosen_arch.key
-                                current_ui.theme = chosen_arch.theme
-                                current_ui.color_palette = dict(chosen_arch.color_palette)
-                                current_ui.component_layout = chosen_arch.layout_wireframe
-                                current_ui.states = dict(chosen_arch.state_styling)
+                        chosen_val = q.selected_option or answers.get(q.id)
+                        chosen_arch = None
+                        if chosen_val:
+                            # Check by key or by description/label
+                            chosen_arch = get_archetype(str(chosen_val))
+                            if not chosen_arch:
+                                for opt in q.options:
+                                    if str(opt.key) == str(chosen_val) or opt.label == chosen_val:
+                                        chosen_arch = get_archetype(opt.description or opt.key)
+                                        break
+                        if chosen_arch and chosen_arch.key != current_ui.archetype:
+                            current_ui.archetype = chosen_arch.key
+                            current_ui.theme = chosen_arch.theme
+                            current_ui.color_palette = dict(chosen_arch.color_palette)
+                            current_ui.component_layout = chosen_arch.layout_wireframe
+                            current_ui.states = dict(chosen_arch.state_styling)
 
                 if not auto and has_non_default_answers(current_ui.clarification_questions, answers):
                     from tools.ui import print_agent
@@ -308,6 +337,392 @@ links: ["[[spec-{task_id}]]"]
         print_agent("diba", f"Saved UI/UX design specification to: {note_path}")
         await update_vault_graph(self.graph_manager, note_path)
         return note_path
+
+    def _build_default_prototype_html(
+        self,
+        task_id: str,
+        prompt_context: str,
+        ui_spec: UIDesignSpec | None = None,
+        feedback: str | None = None,
+    ) -> str:
+        """
+        Builds a self-contained, working HTML/Tailwind CSS interactive prototype with an in-memory mock engine.
+        Supports 5 discrete interactive states: empty, validating, submitting, success, error.
+        """
+        palette = (ui_spec.color_palette if ui_spec else None) or {
+            "primary": "#3b82f6",
+            "background": "#0f172a",
+            "surface": "#1e293b",
+            "text": "#f8fafc",
+            "border": "#334155",
+            "success": "#10b981",
+            "error": "#ef4444",
+        }
+        archetype_name = getattr(ui_spec, "archetype", "linear_dark") if ui_spec else "linear_dark"
+
+        # Build dynamic form fields HTML
+        fields = (ui_spec.form_fields if ui_spec else None) or [
+            UIFieldSpec(id="title", label="Item Title", input_type="text", placeholder="e.g. Inbound Inquiry #402", required=True),
+            UIFieldSpec(id="contact_email", label="Contact Email", input_type="email", placeholder="alex@company.com", required=True),
+            UIFieldSpec(id="description", label="Description & Scope", input_type="textarea", placeholder="Provide relevant details...", required=False),
+        ]
+
+        inputs_html = []
+        for f in fields:
+            req_mark = '<span class="text-rose-400">*</span>' if f.required else '<span class="text-xs text-slate-500 font-normal ml-1">(optional)</span>'
+            if f.input_type == "textarea":
+                inputs_html.append(f"""
+                <div class="field-group">
+                    <label for="{f.id}" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">{f.label} {req_mark}</label>
+                    <textarea id="{f.id}" name="{f.id}" rows="3" placeholder="{f.placeholder or ''}" {"required" if f.required else ""}
+                        class="w-full px-3.5 py-2.5 rounded-lg bg-slate-900/90 border border-slate-700/80 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"></textarea>
+                    <p id="{f.id}-error" class="hidden text-xs text-rose-400 mt-1">Please enter a valid value.</p>
+                </div>""")
+            else:
+                inputs_html.append(f"""
+                <div class="field-group">
+                    <label for="{f.id}" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">{f.label} {req_mark}</label>
+                    <input type="{f.input_type}" id="{f.id}" name="{f.id}" placeholder="{f.placeholder or ''}" {"required" if f.required else ""}
+                        class="w-full px-3.5 py-2.5 rounded-lg bg-slate-900/90 border border-slate-700/80 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" />
+                    <p id="{f.id}-error" class="hidden text-xs text-rose-400 mt-1">Please enter a valid value.</p>
+                </div>""")
+
+        fields_block = "\n".join(inputs_html)
+        feedback_notice = ""
+        if feedback:
+            feedback_notice = f"""
+            <div class="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-200 text-xs flex items-center gap-2">
+                <span>⚡</span> <span>Refinement applied: {feedback}</span>
+            </div>"""
+
+        return f"""<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BuildRelay Prototype — {task_id}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body {{ font-family: 'Plus Jakarta Sans', sans-serif; }}
+        code, pre {{ font-family: 'JetBrains Mono', monospace; }}
+    </style>
+</head>
+<body class="min-h-full bg-slate-950 text-slate-100 flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+
+    <!-- Top State-Switcher Toolbar (Interactive Human-in-the-Loop HUD) -->
+    <header class="sticky top-0 z-50 bg-slate-900/95 backdrop-blur border-b border-slate-800 px-4 py-2.5 shadow-lg">
+        <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div class="flex items-center gap-2">
+                <span class="inline-flex items-center justify-center w-6 h-6 rounded-md bg-indigo-600/30 text-indigo-400 font-bold border border-indigo-500/40">✦</span>
+                <span class="font-bold text-white tracking-wide">Diba Prototype HUD</span>
+                <span class="px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 font-mono text-[11px]">{archetype_name}</span>
+            </div>
+
+            <!-- 5 Discrete States Switcher Bar -->
+            <div class="flex items-center gap-1.5 bg-slate-950/80 p-1 rounded-lg border border-slate-800" role="toolbar" aria-label="Interactive State Controls">
+                <span class="text-slate-500 font-semibold px-2 uppercase tracking-wider text-[10px]">Test State:</span>
+                <button type="button" onclick="switchState('empty')" id="btn-state-empty" class="state-btn px-2.5 py-1 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition active bg-indigo-600/30 text-indigo-300 font-semibold">1. Empty</button>
+                <button type="button" onclick="switchState('validating')" id="btn-state-validating" class="state-btn px-2.5 py-1 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition">2. Validating</button>
+                <button type="button" onclick="switchState('submitting')" id="btn-state-submitting" class="state-btn px-2.5 py-1 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition">3. Submitting</button>
+                <button type="button" onclick="switchState('success')" id="btn-state-success" class="state-btn px-2.5 py-1 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition">4. Success</button>
+                <button type="button" onclick="switchState('error')" id="btn-state-error" class="state-btn px-2.5 py-1 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition">5. Error</button>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button type="button" onclick="resetPrototype()" class="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition border border-slate-700">↺ Reset Form</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Prototype Canvas -->
+    <main class="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col justify-center">
+        {feedback_notice}
+
+        <!-- Status & Feedback Banners for States -->
+        <div id="state-banner-container" class="space-y-3 mb-6">
+            <!-- Validating State Banner -->
+            <div id="state-banner-validating" class="hidden p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-200 text-xs flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                    <span><strong>Validation in Progress:</strong> Checking format constraints and required entries...</span>
+                </div>
+                <span class="text-amber-400/80 font-mono text-[11px]">Real-time Client Linting</span>
+            </div>
+
+            <!-- Success State Banner -->
+            <div id="state-banner-success" class="hidden p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-200 text-sm flex items-start gap-3">
+                <span class="text-emerald-400 text-lg leading-none mt-0.5">✓</span>
+                <div class="flex-1">
+                    <p class="font-bold text-emerald-300">Submission Successful!</p>
+                    <p class="text-xs text-emerald-400/90 mt-0.5" id="success-message">Record persisted in local in-memory mock engine with zero backend latency.</p>
+                </div>
+            </div>
+
+            <!-- Error State Banner -->
+            <div id="state-banner-error" class="hidden p-4 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-200 text-sm flex items-start gap-3">
+                <span class="text-rose-400 text-lg leading-none mt-0.5">✕</span>
+                <div class="flex-1">
+                    <p class="font-bold text-rose-300">Action Failed</p>
+                    <p class="text-xs text-rose-400/90 mt-0.5" id="error-message">Simulated server error. Check required inputs or retry.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Working Prototype Card -->
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl relative overflow-hidden backdrop-blur-xl">
+            <div class="flex items-center justify-between pb-6 mb-6 border-b border-slate-800">
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-bold text-white tracking-tight">{task_id}</h1>
+                    <p class="text-xs text-slate-400 mt-1">{prompt_context[:120]}...</p>
+                </div>
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                    Live Mock
+                </span>
+            </div>
+
+            <!-- Form with In-Memory Mock Handler -->
+            <form id="prototype-form" onsubmit="handleMockSubmit(event)" class="space-y-4">
+                {fields_block}
+
+                <div class="pt-4 flex items-center justify-end gap-3 border-t border-slate-800/80">
+                    <button type="button" onclick="resetPrototype()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-semibold transition border border-slate-700/80">
+                        Clear
+                    </button>
+                    <button type="submit" id="btn-submit" class="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition flex items-center gap-2 shadow-lg shadow-indigo-600/30 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span id="btn-submit-spinner" class="hidden w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                        <span id="btn-submit-text">Submit Action</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- In-Memory Data Table (Zero-to-One Realistic Feel) -->
+        <div class="mt-8 bg-slate-900/60 border border-slate-800 rounded-2xl p-5 shadow-xl">
+            <div class="flex items-center justify-between mb-3 text-xs">
+                <span class="font-bold text-slate-300 uppercase tracking-wider">In-Memory Mock Fixtures (<span id="mock-count">2</span>)</span>
+                <span class="text-slate-500 text-[11px]">Stored locally in browser session</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-300">
+                    <thead class="bg-slate-950/60 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
+                        <tr>
+                            <th class="py-2.5 px-3">ID</th>
+                            <th class="py-2.5 px-3">Title / Record</th>
+                            <th class="py-2.5 px-3">Email</th>
+                            <th class="py-2.5 px-3">Timestamp</th>
+                            <th class="py-2.5 px-3 text-right">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mock-table-body" class="divide-y divide-slate-800/60 font-mono">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Embedded In-Memory Mock Engine Script -->
+    <script>
+        // In-Memory Database Fixtures
+        let mockDatabase = [
+            {{ id: "REC-101", title: "Enterprise Inquiry — ACME Corp", email: "contact@acme.com", time: "10:24 AM", status: "Active" }},
+            {{ id: "REC-102", title: "Partner Signup — Starlight Labs", email: "dev@starlight.io", time: "11:15 AM", status: "Verified" }}
+        ];
+
+        function renderMockTable() {{
+            const tbody = document.getElementById("mock-table-body");
+            const count = document.getElementById("mock-count");
+            if (!tbody) return;
+            tbody.innerHTML = "";
+            count.textContent = mockDatabase.length;
+
+            mockDatabase.forEach(item => {{
+                const tr = document.createElement("tr");
+                tr.className = "hover:bg-slate-800/40 transition";
+                tr.innerHTML = `
+                    <td class="py-2 px-3 text-indigo-400 font-bold">${{item.id}}</td>
+                    <td class="py-2 px-3 text-slate-200">${{item.title}}</td>
+                    <td class="py-2 px-3 text-slate-400">${{item.email}}</td>
+                    <td class="py-2 px-3 text-slate-500">${{item.time}}</td>
+                    <td class="py-2 px-3 text-right"><span class="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-sans font-semibold">${{item.status}}</span></td>
+                `;
+                tbody.appendChild(tr);
+            }});
+        }}
+
+        function switchState(stateName) {{
+            document.querySelectorAll(".state-btn").forEach(btn => {{
+                btn.classList.remove("bg-indigo-600/30", "text-indigo-300", "font-semibold");
+            }});
+            const activeBtn = document.getElementById("btn-state-" + stateName);
+            if (activeBtn) {{
+                activeBtn.classList.add("bg-indigo-600/30", "text-indigo-300", "font-semibold");
+            }}
+
+            const bannerValidating = document.getElementById("state-banner-validating");
+            const bannerSuccess = document.getElementById("state-banner-success");
+            const bannerError = document.getElementById("state-banner-error");
+            const btnSubmit = document.getElementById("btn-submit");
+            const spinner = document.getElementById("btn-submit-spinner");
+            const btnText = document.getElementById("btn-submit-text");
+
+            // Hide all banners
+            bannerValidating.classList.add("hidden");
+            bannerSuccess.classList.add("hidden");
+            bannerError.classList.add("hidden");
+            btnSubmit.disabled = false;
+            spinner.classList.add("hidden");
+            btnText.textContent = "Submit Action";
+
+            // Clear input validation outlines
+            document.querySelectorAll("#prototype-form input, #prototype-form textarea").forEach(el => {{
+                el.classList.remove("border-rose-500", "ring-2", "ring-rose-500/40");
+            }});
+            document.querySelectorAll("#prototype-form p[id$='-error']").forEach(p => p.classList.add("hidden"));
+
+            if (stateName === "validating") {{
+                bannerValidating.classList.remove("hidden");
+                const firstInput = document.querySelector("#prototype-form input");
+                if (firstInput) {{
+                    firstInput.classList.add("border-rose-500", "ring-2", "ring-rose-500/40");
+                    const errP = document.getElementById(firstInput.id + "-error");
+                    if (errP) errP.classList.remove("hidden");
+                }}
+            }} else if (stateName === "submitting") {{
+                btnSubmit.disabled = true;
+                spinner.classList.remove("hidden");
+                btnText.textContent = "Processing...";
+            }} else if (stateName === "success") {{
+                bannerSuccess.classList.remove("hidden");
+            }} else if (stateName === "error") {{
+                bannerError.classList.remove("hidden");
+            }}
+        }}
+
+        function handleMockSubmit(event) {{
+            event.preventDefault();
+            switchState("submitting");
+
+            setTimeout(() => {{
+                const form = document.getElementById("prototype-form");
+                const formData = new FormData(form);
+                const titleVal = formData.get("title") || formData.get(form.elements[0]?.name) || "Custom Entry";
+                const emailVal = formData.get("contact_email") || formData.get("email") || "user@mock.local";
+
+                const newRec = {{
+                    id: "REC-" + (100 + mockDatabase.length + 1),
+                    title: String(titleVal),
+                    email: String(emailVal),
+                    time: new Date().toLocaleTimeString([], {{hour: '2-digit', minute:'2-digit'}}),
+                    status: "Submitted"
+                }};
+                mockDatabase.unshift(newRec);
+                renderMockTable();
+                switchState("success");
+                form.reset();
+            }}, 650);
+        }}
+
+        function resetPrototype() {{
+            document.getElementById("prototype-form")?.reset();
+            switchState("empty");
+        }}
+
+        document.addEventListener("DOMContentLoaded", renderMockTable);
+    </script>
+</body>
+</html>"""
+
+    async def generate_standalone_prototype(
+        self,
+        task_id: str,
+        prompt_context: str,
+        ui_spec: UIDesignSpec | None = None,
+        workspace_dir: str | Path | None = None,
+        feedback: str | None = None,
+        project_id: str | None = None,
+    ) -> UIPrototypeResult:
+        """
+        Generate a working, standalone Zero-to-One HTML/Tailwind CSS interactive prototype
+        with an in-memory client-side mock engine and the 5 verified interactive states.
+        """
+        if workspace_dir is not None:
+            ws_path = Path(workspace_dir)
+        elif project_id:
+            ws_path = Path("./workspace") / project_id
+        else:
+            ws_path = Path("./workspace") / task_id
+
+        ws_path.mkdir(parents=True, exist_ok=True)
+        print_agent("diba", f"Generating Zero-to-One working UI prototype for task: {task_id}")
+
+        html_code = ""
+        try:
+            prompt = (
+                f"Task ID: {task_id}\n"
+                f"Prompt Context: {prompt_context}\n"
+                f"Archetype: {getattr(ui_spec, 'archetype', 'linear_dark') if ui_spec else 'linear_dark'}\n"
+                f"Layout: {ui_spec.component_layout if ui_spec else 'responsive single-column'}\n"
+                f"Fields: {[f.id for f in ui_spec.form_fields] if ui_spec else []}\n"
+                f"States: {ui_spec.states if ui_spec else ['empty', 'validating', 'submitting', 'success', 'error']}\n"
+            )
+            if feedback:
+                prompt += f"\nDeveloper Feedback from Preview Gate:\n{feedback}\n"
+            res = await self.prototype_agent.run(prompt)
+            if hasattr(res, "output") and res.output:
+                raw = str(res.output).strip()
+            elif hasattr(res, "data") and res.data:
+                raw = str(res.data).strip()
+            else:
+                raw = str(res).strip()
+
+            # Handle possible string wrappers if output was serialized as literal representation
+            if raw.startswith("AgentRunResult(output="):
+                raw = raw.removeprefix("AgentRunResult(output=").removesuffix(")")
+                if (raw.startswith("'") and raw.endswith("'")) or (raw.startswith('"') and raw.endswith('"')):
+                    raw = raw[1:-1]
+                raw = raw.encode().decode("unicode_escape", errors="ignore")
+
+            if "```html" in raw:
+                raw = raw.split("```html", 1)[1].split("```", 1)[0].strip()
+            elif "```" in raw:
+                raw = raw.split("```", 1)[1].split("```", 1)[0].strip()
+            if "<html" in raw.lower() and "</html>" in raw.lower():
+                html_code = raw
+        except Exception:
+            html_code = ""
+
+        if not html_code or "<html" not in html_code.lower():
+            html_code = self._build_default_prototype_html(task_id, prompt_context, ui_spec, feedback)
+
+        proto_file = ws_path / "prototype.html"
+        proto_file.write_text(html_code, encoding="utf-8")
+
+        form_file = ws_path / "form.html"
+        form_file.write_text(html_code, encoding="utf-8")
+
+        print_agent("diba", f"Saved working prototype to: {proto_file}")
+
+        mock_fixtures = [
+            {"id": "REC-101", "title": "Enterprise Inquiry — ACME Corp", "email": "contact@acme.com", "status": "Active"},
+            {"id": "REC-102", "title": "Partner Signup — Starlight Labs", "email": "dev@starlight.io", "status": "Verified"},
+        ]
+
+        return UIPrototypeResult(
+            task_id=task_id,
+            project_id=project_id,
+            prototype_path="prototype.html",
+            preview_url="http://localhost:4173/prototype.html",
+            mock_fixtures=mock_fixtures,
+            state_handlers=["empty", "validating", "submitting", "success", "error"],
+            html_content=html_code,
+            feedback_history=[feedback] if feedback else [],
+            approved=False,
+        )
 
 
 # Convenient alias

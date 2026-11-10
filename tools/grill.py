@@ -159,11 +159,12 @@ def run_grill_session(
                 cat_badge = f" [dim]({q.category})[/dim]" if q.category else ""
                 console.print(f"\n[bold {theme['color']}][{idx}/{len(active_questions)}][/bold {theme['color']}] [bold white]{escape(q.question)}[/bold white]{cat_badge}")
 
-                for opt in q.options:
+                for opt_idx, opt in enumerate(q.options, start=1):
                     is_def = opt.is_default or (def_opt and opt.key == def_opt.key)
                     tag = " [bold green](Recommended)[/bold green]" if is_def else ""
                     desc = f" [dim]— {escape(opt.description)}[/dim]" if opt.description else ""
-                    console.print(f"     [bold cyan]\\[{escape(str(opt.key))}][/bold cyan] {escape(opt.label)}{tag}{desc}")
+                    key_badge = f"{opt_idx}" if not str(opt.key).isdigit() else escape(str(opt.key))
+                    console.print(f"     [bold cyan]\\[{key_badge}][/bold cyan] {escape(opt.label)}{tag}{desc}")
 
                 console.print(
                     f"     [dim]Key commands: [green]\\[Enter][/green] Default  |  "

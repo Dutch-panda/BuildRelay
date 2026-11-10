@@ -8,7 +8,7 @@ from datetime import datetime
 from urllib.parse import quote
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.models import Model
-from contracts import ResearchReport
+from contracts import ResearchDomain, ResearchReport
 from tools.graphify_tool import GraphifyVaultManager
 from tools.project_notes import prepare_project
 from tools.vault_infra import (
@@ -97,8 +97,15 @@ class OdinResearcher:
                 return f"Package '{info.get('name')}' is verified on {ecosystem}. Latest version: {info.get('version')}. Summary: {info.get('summary')}"
             return f"Package '{package_name}' was NOT found on {ecosystem}: {info.get('error')}"
 
-    async def conduct_research(self, task_id: str, objective: str, project_id: str | None = None) -> ResearchReport:
-        print_agent("odin", f"Conducting vault research for task: {task_id}")
+    async def conduct_research(
+        self,
+        task_id: str,
+        objective: str,
+        project_id: str | None = None,
+        domain: ResearchDomain = ResearchDomain.GENERAL_FEASIBILITY,
+    ) -> ResearchReport:
+        domain_label = "UI/UX Front-End" if domain == ResearchDomain.FRONTEND_UX else ("Backend Architecture" if domain == ResearchDomain.BACKEND_ARCHITECTURE else "General Feasibility")
+        print_agent("odin", f"Conducting vault research ({domain_label}) for task: {task_id}")
         
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", task_id):
             raise ValueError("Task ID must contain only letters, digits, underscores, or hyphens")
@@ -108,12 +115,28 @@ class OdinResearcher:
         context = ResearchContext(retrieved_nodes=list(graph_context))
         from tools.context_pruner import prune_graph_context
         pruned_graph = prune_graph_context(objective, graph_context, max_items=5)
-        prompt = f"Task ID: {task_id}\n{project.prompt}Objective: {objective}\nVault Context:\n{pruned_graph}"
+        
+        domain_instruction = ""
+        if domain == ResearchDomain.FRONTEND_UX:
+            domain_instruction = (
+                "\nSPECIAL FOCUS: UI/UX FRONTEND RESEARCH\n"
+                "- Research visual archetypes, Tailwind token structures, accessible color palettes, responsive layouts.\n"
+                "- Discover zero-dependency client-side UI patterns and ergonomics.\n"
+            )
+        elif domain == ResearchDomain.BACKEND_ARCHITECTURE:
+            domain_instruction = (
+                "\nSPECIAL FOCUS: BACKEND ARCHITECTURE RESEARCH\n"
+                "- Research Python/npm ecosystem packages, security sanitizers, rate limiters.\n"
+                "- Discover mock adapters and deterministic testing strategies for offline Docker validation.\n"
+            )
+
+        prompt = f"Task ID: {task_id}\n{project.prompt}Objective: {objective}{domain_instruction}\nVault Context:\n{pruned_graph}"
         
         result = await self.agent.run(prompt, deps=context)
         report = result.output
         report.task_id = task_id
         report.project_id = project_id
+        report.domain = domain
         from tools.token_analytics import extract_usage
 
         report.token_usage = extract_usage(result, model_name=str(self.model_name))
@@ -121,7 +144,8 @@ class OdinResearcher:
         report.web_sources = getattr(context, "web_sources", [])
 
         timestamp = datetime.now().strftime("%Y-%m-%d")
-        note_filename = self.research_dir / f"research-{task_id}.md"
+        suffix = "-ui" if domain == ResearchDomain.FRONTEND_UX else ("-backend" if domain == ResearchDomain.BACKEND_ARCHITECTURE else "")
+        note_filename = self.research_dir / f"research-{task_id}{suffix}.md"
         note_filename.parent.mkdir(parents=True, exist_ok=True)
         source_links = [f"[[{Path(source).with_suffix('').as_posix()}]]" for source in report.vault_sources]
         links = json.dumps([f"[[{task_id}-brief]]", *source_links], ensure_ascii=False)
@@ -129,21 +153,25 @@ class OdinResearcher:
         from tools.taxonomy import get_taxonomic_classification
         classification = get_taxonomic_classification(f"{task_id} {report.summary[:200]}")
         tags = [t for t in [classification.domain, classification.action, classification.target, *classification.keywords] if t]
+        if domain == ResearchDomain.FRONTEND_UX:
+            tags.append("ui-ux")
+        elif domain == ResearchDomain.BACKEND_ARCHITECTURE:
+            tags.append("backend")
         tags = list(dict.fromkeys(tags))
         tags_block = "tags:\n" + "\n".join(f"  - {t}" for t in tags) + "\n" if tags else "tags: []\n"
 
         markdown_content = f"""---
-id: "research-{task_id}"
+id: "research-{task_id}{suffix}"
 type: "research-report"
 agent: "odin"
 task_id: "{task_id}"
-domain: "{classification.domain or 'core'}"
+domain: "{classification.domain or ('ui-ux' if domain == ResearchDomain.FRONTEND_UX else 'core')}"
 action: "{classification.action or 'implement'}"
 target: "{classification.target}"
 {tags_block}{project.frontmatter}created_at: "{timestamp}"
 links: {links}
 ---
-# Research Report: {task_id}
+# Research Report: {task_id} ({domain_label})
 
 {project.body}## Executive Summary
 {report.summary}

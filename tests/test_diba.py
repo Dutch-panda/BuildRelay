@@ -370,3 +370,30 @@ async def test_taghi_does_not_write_ui_spec(tmp_path: Path):
     # Taghi must NOT write spec-task-arch-only-ui.md (that is Diba's responsibility)
     assert not (specs_dir / "spec-task-arch-only-ui.md").exists()
 
+
+@pytest.mark.anyio
+async def test_diba_generate_standalone_prototype(tmp_path: Path):
+    from contracts import UIPrototypeResult
+    ws_dir = tmp_path / "workspace"
+    ws_dir.mkdir(parents=True, exist_ok=True)
+
+    diba = DibaDesigner(model_name=TestModel())
+    res = await diba.generate_standalone_prototype(
+        task_id="task-proto-1",
+        prompt_context="Build a billing portal with Stripe card input",
+        project_id="test-proto-proj",
+        workspace_dir=ws_dir / "test-proto-proj",
+    )
+    assert isinstance(res, UIPrototypeResult)
+    assert res.task_id == "task-proto-1"
+    assert res.project_id == "test-proto-proj"
+    assert "prototype.html" in res.prototype_path
+    assert len(res.state_handlers) == 5
+    assert (ws_dir / "test-proto-proj" / "prototype.html").is_file()
+    assert (ws_dir / "test-proto-proj" / "form.html").is_file()
+
+    content = (ws_dir / "test-proto-proj" / "prototype.html").read_text()
+    assert "mockDatabase" in content
+    assert "switchState" in content
+
+

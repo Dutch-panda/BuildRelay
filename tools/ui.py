@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import os
+try:
+    import readline  # Enables robust multi-line line editing and backspacing across terminal rows
+except ImportError:
+    pass
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Callable, Iterable
@@ -70,19 +74,12 @@ def _ask_with_cockpit(raw_func: Callable[[str], str] | None = None) -> Callable[
                 clean_prompt = prompt.strip()
                 prompt_display = f" [bold]{escape(clean_prompt)}[/bold]" if clean_prompt else ""
 
-                # Explicitly close style and emit ANSI reset before input() to prevent BCE orange bar
-                console.print(
-                    f"\n[bold black on #f59e0b] 🔔 ACTION REQUIRED [/bold black on #f59e0b]{prompt_display}\033[0m",
-                    end=" ",
-                )
+                # Print notification badge on its own line so the input line starts at column 0 with no hidden ANSI offset
+                console.print(f"\n[bold black on #f59e0b] 🔔 ACTION REQUIRED [/bold black on #f59e0b]{prompt_display}\033[0m")
                 sys.stdout.flush()
-                try:
-                    sys.stdout.write("\033[0m\033[K")
-                    sys.stdout.flush()
-                except Exception:
-                    pass
 
-                return fn("")
+                # Clean prompt prompt string for input() with standard terminal cursor tracking
+                return fn("> ")
         finally:
             if getattr(cockpit, "_pause_depth", 0) == 0:
                 cockpit.telemetry.awaiting_input = False
@@ -597,89 +594,92 @@ def prompt_alignment_gate(
       action: 'confirm' | 'edit' | 'quit'
     """
     import sys
+    from tools.cockpit import get_cockpit
 
-    # Always render the alignment brief panel
-    print_alignment_brief(brief)
+    cockpit = get_cockpit()
+    with cockpit.pause():
+        # Always render the alignment brief panel
+        print_alignment_brief(brief)
 
-    # Collect default answers
-    questions = getattr(brief, "clarification_questions", []) or []
-    answers: dict[str, str] = {}
-    for q in questions:
-        for opt in getattr(q, "options", []):
-            if getattr(opt, "is_default", False):
-                answers[getattr(q, "id", str(q))] = getattr(opt, "label", getattr(opt, "key", ""))
-                break
-
-    # If headless / automated / non-interactive: automatically proceed with defaults
-    ask = _ask_with_cockpit(input_func)
-    if auto or (input_func is None and not sys.stdin.isatty()):
-        return "confirm", None, answers
-
-    # Render clarification questions if present
-    if questions:
-        console.print(
-            "[bold yellow]⚡ Clarification Questions[/bold yellow] [dim](Press Enter to accept defaults):[/dim]"
-        )
-        for idx, q in enumerate(questions, start=1):
-            q_text = getattr(q, "question", str(q))
-            console.print(f"  [bold cyan]{idx}. {escape(q_text)}[/bold cyan]")
+        # Collect default answers
+        questions = getattr(brief, "clarification_questions", []) or []
+        answers: dict[str, str] = {}
+        for q in questions:
             for opt in getattr(q, "options", []):
-                key = getattr(opt, "key", "")
-                lbl = getattr(opt, "label", "")
-                is_def = getattr(opt, "is_default", False)
-                def_tag = " [bold green](Default)[/bold green]" if is_def else ""
-                console.print(f"     [bold cyan]\\[{escape(str(key))}][/bold cyan] {escape(lbl)}{def_tag}")
-        console.print()
+                if getattr(opt, "is_default", False):
+                    answers[getattr(q, "id", str(q))] = getattr(opt, "label", getattr(opt, "key", ""))
+                    break
 
-    console.print(
-        "[bold]👉 Action:[/bold] "
-        "[green]\\[Y/enter][/green] Confirm Defaults  |  "
-        "[cyan]\\[1, 2...][/cyan] Pick Option  |  "
-        "[yellow]\\[e][/yellow] Edit / Custom  |  "
-        "[red]\\[q][/red] Quit"
-    )
-    try:
-        user_choice = ask("> ").strip()
-    except (EOFError, KeyboardInterrupt):
-        return "quit", None, {}
+        # If headless / automated / non-interactive: automatically proceed with defaults
+        ask = _ask_with_cockpit(input_func)
+        if auto or (input_func is None and not sys.stdin.isatty()):
+            return "confirm", None, answers
 
-    low = user_choice.lower()
-    if low in ("", "y", "yes"):
-        return "confirm", None, answers
-    if low in ("q", "quit", "exit"):
-        return "quit", None, {}
-    if low in ("e", "edit"):
+        # Render clarification questions if present
+        if questions:
+            console.print(
+                "[bold yellow]⚡ Clarification Questions[/bold yellow] [dim](Press Enter to accept defaults):[/dim]"
+            )
+            for idx, q in enumerate(questions, start=1):
+                q_text = getattr(q, "question", str(q))
+                console.print(f"  [bold cyan]{idx}. {escape(q_text)}[/bold cyan]")
+                for opt in getattr(q, "options", []):
+                    key = getattr(opt, "key", "")
+                    lbl = getattr(opt, "label", "")
+                    is_def = getattr(opt, "is_default", False)
+                    def_tag = " [bold green](Default)[/bold green]" if is_def else ""
+                    console.print(f"     [bold cyan]\\[{escape(str(key))}][/bold cyan] {escape(lbl)}{def_tag}")
+            console.print()
+
+        console.print(
+            "[bold]👉 Action:[/bold] "
+            "[green]\\[Y/enter][/green] Confirm Defaults  |  "
+            "[cyan]\\[1, 2...][/cyan] Pick Option  |  "
+            "[yellow]\\[e][/yellow] Edit / Custom  |  "
+            "[red]\\[q][/red] Quit"
+        )
         try:
-            feedback = ask("📝 Describe intent changes / clarifications: ").strip()
-            return "edit", feedback or "User requested intent review.", answers
+            user_choice = ask("> ").strip()
         except (EOFError, KeyboardInterrupt):
             return "quit", None, {}
 
-    # Check if user typed a specific option number / key (e.g. "2" or "b")
-    matched_opt = None
-    matched_q = None
-    for q in questions:
-        for opt in getattr(q, "options", []):
-            if str(getattr(opt, "key", "")).strip().lower() == low:
-                matched_opt = opt
-                matched_q = q
+        low = user_choice.lower()
+        if low in ("", "y", "yes"):
+            return "confirm", None, answers
+        if low in ("q", "quit", "exit"):
+            return "quit", None, {}
+        if low in ("e", "edit"):
+            try:
+                feedback = ask("📝 Describe intent changes / clarifications: ").strip()
+                return "edit", feedback or "User requested intent review.", answers
+            except (EOFError, KeyboardInterrupt):
+                return "quit", None, {}
+
+        # Check if user typed a specific option number / key (e.g. "2" or "b")
+        matched_opt = None
+        matched_q = None
+        for q in questions:
+            for opt in getattr(q, "options", []):
+                if str(getattr(opt, "key", "")).strip().lower() == low:
+                    matched_opt = opt
+                    matched_q = q
+                    break
+            if matched_opt:
                 break
-        if matched_opt:
-            break
 
-    if matched_opt and matched_q:
-        opt_key = getattr(matched_opt, "key", user_choice)
-        opt_label = getattr(matched_opt, "label", "")
-        q_id = getattr(matched_q, "id", str(matched_q))
-        q_text = getattr(matched_q, "question", "requirement")
-        answers[q_id] = opt_label
-        console.print(f"   [bold green]✔ Selected option \\[{opt_key}]: {escape(opt_label)}[/bold green]")
-        feedback = f"Selected option [{opt_key}] {opt_label} for '{q_text}'."
-        return "edit", feedback, answers
+        if matched_opt and matched_q:
+            opt_key = getattr(matched_opt, "key", user_choice)
+            opt_label = getattr(matched_opt, "label", "")
+            q_id = getattr(matched_q, "id", str(matched_q))
+            q_text = getattr(matched_q, "question", "requirement")
+            answers[q_id] = opt_label
+            console.print(f"   [bold green]✔ Selected option \\[{opt_key}]: {escape(opt_label)}[/bold green]")
+            feedback = f"Selected option [{opt_key}] {opt_label} for '{q_text}'."
+            return "edit", feedback, answers
 
-    # Freeform user input treated as modification/clarification
-    console.print(f"   [dim]↳ Applying modification: {escape(user_choice)}[/dim]")
-    return "edit", user_choice, answers
+        # Freeform user input treated as modification/clarification
+        console.print(f"   [dim]↳ Applying modification: {escape(user_choice)}[/dim]")
+        return "edit", user_choice, answers
 
 
 def prompt_step_gate(
@@ -693,44 +693,47 @@ def prompt_step_gate(
     Returns: ('confirm' | 'pivot' | 'quit', feedback_text)
     """
     import sys
+    from tools.cockpit import get_cockpit
 
-    theme = _get_theme(stage_name)
-    panel = Panel(
-        summary_text.strip(),
-        title=f"[{theme['color']}]{theme['icon']} Step Gate: {theme['name']} ({theme['role']})[/{theme['color']}]",
-        title_align="left",
-        border_style=theme["color"].split()[-1] if " " in theme["color"] else theme["color"],
-        padding=(1, 2),
-    )
-    console.print()
-    console.print(panel)
+    cockpit = get_cockpit()
+    with cockpit.pause():
+        theme = _get_theme(stage_name)
+        panel = Panel(
+            summary_text.strip(),
+            title=f"[{theme['color']}]{theme['icon']} Step Gate: {theme['name']} ({theme['role']})[/{theme['color']}]",
+            title_align="left",
+            border_style=theme["color"].split()[-1] if " " in theme["color"] else theme["color"],
+            padding=(1, 2),
+        )
+        console.print()
+        console.print(panel)
 
-    ask = _ask_with_cockpit(input_func)
-    if auto or (input_func is None and not sys.stdin.isatty()):
-        return "confirm", None
+        ask = _ask_with_cockpit(input_func)
+        if auto or (input_func is None and not sys.stdin.isatty()):
+            return "confirm", None
 
-    console.print(
-        f"[bold]Proceed to {theme['name']}?[/bold] [green]\\[Y/enter][/green] Proceed  |  "
-        f"[yellow]\\[e][/yellow] Pivot / Re-route  |  [red]\\[q][/red] Abort"
-    )
-    try:
-        choice = ask("> ").strip()
-    except (EOFError, KeyboardInterrupt):
-        return "quit", None
-
-    low = choice.lower()
-    if low in ("", "y", "yes"):
-        return "confirm", None
-    if low in ("q", "quit", "exit"):
-        return "quit", None
-    if low in ("e", "edit", "pivot"):
+        console.print(
+            f"[bold]Proceed to {theme['name']}?[/bold] [green]\\[Y/enter][/green] Proceed  |  "
+            f"[yellow]\\[e][/yellow] Pivot / Re-route  |  [red]\\[q][/red] Abort"
+        )
         try:
-            feedback = ask("📝 Describe intent pivot: ").strip()
-            return "pivot", feedback
+            choice = ask("> ").strip()
         except (EOFError, KeyboardInterrupt):
             return "quit", None
 
-    return "pivot", choice
+        low = choice.lower()
+        if low in ("", "y", "yes"):
+            return "confirm", None
+        if low in ("q", "quit", "exit"):
+            return "quit", None
+        if low in ("e", "edit", "pivot"):
+            try:
+                feedback = ask("📝 Describe intent pivot: ").strip()
+                return "pivot", feedback
+            except (EOFError, KeyboardInterrupt):
+                return "quit", None
+
+        return "pivot", choice
 
 
 def print_ui_spec_proposal_card(ui_spec: Any) -> None:
@@ -789,7 +792,7 @@ def print_ui_spec_proposal_card(ui_spec: Any) -> None:
 
 
 def print_spec_proposal_card(spec: Any) -> None:
-    """Render Taghi's full architectural proposal, input surface, and phase roadmap."""
+    """Render Taghi's architectural proposal, visual flow diagram, and phase roadmap."""
     theme = _get_theme("taghi")
     overview = getattr(spec, "architecture_overview", "")
     clean_overview = "\n".join(
@@ -802,17 +805,30 @@ def print_spec_proposal_card(spec: Any) -> None:
     base_image = getattr(spec, "base_image", None) or "python:3.11-slim"
     phases = getattr(spec, "phases", []) or []
     deps = getattr(spec, "required_dependencies", []) or []
+    ui_spec = getattr(spec, "ui_spec", None)
+
+    # Concise ASCII Workflow Diagram
+    flow_boxes = []
+    if ui_spec or input_spec:
+        flow_boxes.append("[User UI/Form]")
+    flow_boxes.extend(["[API / Server Logic]", "[Data Storage]", "[Deterministic Tests]"])
+    flow_diagram = " ➔ ".join(flow_boxes)
+
+    # Truncate overview to a concise 300 characters to keep card easily scannable
+    concise_summary = clean_overview[:320] + ("..." if len(clean_overview) > 320 else "")
 
     content_lines = [
-        f"[bold white]🏗 Architecture Overview:[/bold white]\n{escape(clean_overview[:600]) + ('...' if len(clean_overview) > 600 else '')}\n",
+        f"[bold #38bdf8]Workflow Flow:[/bold #38bdf8] [bold white]{flow_diagram}[/bold white]\n",
+        f"[bold white]🏗 Architecture Summary:[/bold white]\n{escape(concise_summary)}\n",
     ]
     if input_spec:
-        content_lines.append(f"[bold white]👉 User Input Surface & Form Specification:[/bold white]\n{escape(input_spec)}\n")
+        clean_input = input_spec.splitlines()[0] if input_spec else ""
+        content_lines.append(f"[bold white]👉 User Input Surface:[/bold white] {escape(clean_input[:140])}")
     if deps:
-        content_lines.append(f"[bold white]📦 Dependencies:[/bold white] [cyan]{escape(', '.join(deps))}[/cyan]")
-    content_lines.append(f"[bold white]🐳 Base Runtime Image:[/bold white] [cyan]{escape(base_image)}[/cyan]\n")
+        content_lines.append(f"[bold white]📦 Dependencies:[/bold white] [cyan]{escape(', '.join(deps[:6]))}{'...' if len(deps) > 6 else ''}[/cyan]")
+    content_lines.append(f"[bold white]🐳 Runtime Base:[/bold white] [cyan]{escape(base_image)}[/cyan]\n")
 
-    content_lines.append(f"[bold white]🚀 Execution Roadmap ({len(phases)} phases):[/bold white]")
+    content_lines.append(f"[bold white]🚀 Phased Roadmap ({len(phases)} phases):[/bold white]")
     for idx, p in enumerate(phases, start=1):
         p_name = getattr(p, "phase_name", str(p))
         p_cmd = getattr(p, "validation_command", "")
@@ -821,6 +837,10 @@ def print_spec_proposal_card(spec: Any) -> None:
     live_guide = getattr(spec, "live_verification_guide", None)
     if live_guide:
         content_lines.append(f"\n[bold white]🧪 Tier 2: Live Verification Guide:[/bold white]\n{escape(live_guide)}")
+
+    task_id = getattr(spec, "task_id", None)
+    if task_id:
+        content_lines.append(f"[dim]📄 Full Technical Specification persisted in vault/specs/{escape(str(task_id))}-spec.md[/dim]")
 
     panel = Panel(
         "\n".join(content_lines),
@@ -832,9 +852,89 @@ def print_spec_proposal_card(spec: Any) -> None:
     console.print()
     console.print(panel)
 
-    ui_spec = getattr(spec, "ui_spec", None)
     if ui_spec:
         print_ui_spec_proposal_card(ui_spec)
+
+
+def print_prototype_preview_card(prototype: Any, preview_url: str) -> None:
+    """Renders a Rich card for Diba's Zero-to-One working prototype."""
+    proto_path = getattr(prototype, "prototype_path", "prototype.html")
+    lines = [
+        f"[bold white]Working Prototype:[/bold white] [cyan]{escape(str(proto_path))}[/cyan]",
+        f"[bold white]Live Local URL:[/bold white]    [bold green]{escape(preview_url)}[/bold green]",
+        "[bold white]Interactive States:[/bold white] [dim]Empty, Validating, Submitting, Success, Error (Testable in HUD)[/dim]",
+        "[bold white]Mock Engine:[/bold white]        [dim]Client-side in-memory fixtures (0 external network calls)[/dim]",
+    ]
+    console.print()
+    console.print(
+        Panel(
+            "\n".join(lines),
+            title="[bold #38bdf8]🎨 Diba — Zero-to-One Working UI Prototype Ready[/bold #38bdf8]",
+            title_align="left",
+            border_style="#38bdf8",
+            padding=(1, 2),
+        )
+    )
+
+
+def prompt_prototype_gate(
+    prototype: Any,
+    preview_url: str,
+    auto: bool = False,
+    input_func: Callable[[str], str] | None = None,
+) -> tuple[str, str | None]:
+    """
+    Approval gate for Diba's working UI prototype before Taghi writes backend specs.
+    Returns: ('approve' | 'refine' | 'skip' | 'quit', feedback_text)
+    """
+    import sys
+    from tools.cockpit import get_cockpit
+
+    cockpit = get_cockpit()
+    with cockpit.pause():
+        print_prototype_preview_card(prototype, preview_url)
+
+        ask = _ask_with_cockpit(input_func)
+        if auto or (input_func is None and not sys.stdin.isatty()):
+            return "approve", None
+
+        while True:
+            console.print(
+                "[bold]👉 Prototype Review Action:[/bold]\n"
+                "  [bold yellow]\\[1][/bold yellow] or [bold yellow]\\[r][/bold yellow] Refine Prototype (give feedback to Diba)\n"
+                "  [bold green]\\[2][/bold green] or [bold green]\\[a][/bold green] Approve Prototype & Proceed to Architecture (Taghi)\n"
+                "  [bold blue]\\[3][/bold blue] or [bold blue]\\[s][/bold blue] Skip Prototype\n"
+                "  [bold red]\\[q][/bold red] Abort"
+            )
+            try:
+                choice = ask("Select action [1-3, q] or type feedback directly > ").strip()
+            except (EOFError, KeyboardInterrupt):
+                return "quit", None
+
+            if not choice:
+                console.print("  [dim yellow]Please select [1] to refine, [2] to approve, [3] to skip, or [q] to abort.[/dim yellow]")
+                continue
+
+            low = choice.lower()
+            if low in ("2", "a", "approve", "yes", "y"):
+                return "approve", None
+            if low in ("q", "quit", "exit"):
+                return "quit", None
+            if low in ("3", "s", "skip"):
+                return "skip", None
+            if low in ("1", "r", "refine", "edit", "e"):
+                try:
+                    feedback = ask("📝 Describe UI styling/component adjustments needed > ").strip()
+                    if feedback:
+                        return "refine", feedback
+                    console.print("  [dim yellow]Refinement cancelled: no feedback entered.[/dim yellow]")
+                    continue
+                except (EOFError, KeyboardInterrupt):
+                    return "quit", None
+
+            # Freeform feedback typed directly at the action prompt
+            console.print(f"   [dim]↳ Requesting prototype refinement: {escape(choice)}[/dim]")
+            return "refine", choice
 
 
 def prompt_spec_approval_gate(
@@ -847,39 +947,42 @@ def prompt_spec_approval_gate(
     Returns: ('confirm' | 'revise' | 'quit', feedback_text)
     """
     import sys
+    from tools.cockpit import get_cockpit
 
-    print_spec_proposal_card(spec)
+    cockpit = get_cockpit()
+    with cockpit.pause():
+        print_spec_proposal_card(spec)
 
-    ask = _ask_with_cockpit(input_func)
-    if auto or (input_func is None and not sys.stdin.isatty()):
-        return "confirm", None
+        ask = _ask_with_cockpit(input_func)
+        if auto or (input_func is None and not sys.stdin.isatty()):
+            return "confirm", None
 
-    console.print(
-        "[bold]👉 Architecture Approval Action:[/bold] "
-        "[green]\\[Y/enter][/green] Approve Architecture & Begin Coding  |  "
-        "[yellow]\\[e/r][/yellow] Edit / Revise Architecture & Fields  |  "
-        "[red]\\[q][/red] Abort"
-    )
-    try:
-        choice = ask("> ").strip()
-    except (EOFError, KeyboardInterrupt):
-        return "quit", None
-
-    low = choice.lower()
-    if low in ("", "y", "yes"):
-        return "confirm", None
-    if low in ("q", "quit", "exit"):
-        return "quit", None
-    if low in ("r", "revise", "edit", "e"):
+        console.print(
+            "[bold]👉 Architecture Approval Action:[/bold] "
+            "[green]\\[Y/enter][/green] Approve Architecture & Begin Coding  |  "
+            "[yellow]\\[e/r][/yellow] Edit / Revise Architecture & Fields  |  "
+            "[red]\\[q][/red] Abort"
+        )
         try:
-            feedback = ask("📝 Describe architectural / field / UI revisions needed:\n> ").strip()
-            return "revise", feedback or "User requested architecture revisions."
+            choice = ask("> ").strip()
         except (EOFError, KeyboardInterrupt):
             return "quit", None
 
-    # Freeform text typed directly at prompt
-    console.print(f"   [dim]↳ Requesting architecture revision: {escape(choice)}[/dim]")
-    return "revise", choice
+        low = choice.lower()
+        if low in ("", "y", "yes"):
+            return "confirm", None
+        if low in ("q", "quit", "exit"):
+            return "quit", None
+        if low in ("r", "revise", "edit", "e"):
+            try:
+                feedback = ask("📝 Describe architectural / field / UI revisions needed:\n> ").strip()
+                return "revise", feedback or "User requested architecture revisions."
+            except (EOFError, KeyboardInterrupt):
+                return "quit", None
+
+        # Freeform text typed directly at prompt
+        console.print(f"   [dim]↳ Requesting architecture revision: {escape(choice)}[/dim]")
+        return "revise", choice
 
 
 def prompt_delivery_gate(
@@ -1300,43 +1403,46 @@ def prompt_dana_gate(
     """
     import os
     import sys
+    from tools.cockpit import get_cockpit
 
-    print_dana_critique_card(critique)
+    cockpit = get_cockpit()
+    with cockpit.pause():
+        print_dana_critique_card(critique)
 
-    ask = _ask_with_cockpit(input_func)
-    if auto or (
-        input_func is None
-        and (not sys.stdin.isatty() or "pytest" in sys.modules or os.environ.get("BUILDRELAY_TESTING") == "1")
-    ):
-        return "proceed", None
+        ask = _ask_with_cockpit(input_func)
+        if auto or (
+            input_func is None
+            and (not sys.stdin.isatty() or "pytest" in sys.modules or os.environ.get("BUILDRELAY_TESTING") == "1")
+        ):
+            return "proceed", None
 
-    recs = getattr(critique, "actionable_recommendations", []) or []
-    rec_text = " | ".join(str(r) for r in recs) if recs else "Apply supervisor recommendations"
+        recs = getattr(critique, "actionable_recommendations", []) or []
+        rec_text = " | ".join(str(r) for r in recs) if recs else "Apply supervisor recommendations"
 
-    console.print(
-        "[bold]👉 Supervisor Action:[/bold] "
-        "[green]\\[Y/enter][/green] Accept & Proceed  |  "
-        "[cyan]\\[a][/cyan] Apply Recommendations to Lead  |  "
-        "[yellow]\\[s][/yellow] Skip Suggestions  |  "
-        "[red]\\[q][/red] Quit"
-    )
+        console.print(
+            "[bold]👉 Supervisor Action:[/bold] "
+            "[green]\\[Y/enter][/green] Accept & Proceed  |  "
+            "[cyan]\\[a][/cyan] Apply Recommendations to Lead  |  "
+            "[yellow]\\[s][/yellow] Skip Suggestions  |  "
+            "[red]\\[q][/red] Quit"
+        )
 
-    try:
-        choice = ask("> ").strip().lower()
-    except (EOFError, KeyboardInterrupt):
-        return "quit", None
+        try:
+            choice = ask("> ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            return "quit", None
 
-    if choice in ("", "y", "yes"):
-        return "proceed", None
-    if choice in ("s", "skip"):
-        return "skip", None
-    if choice in ("q", "quit", "exit"):
-        return "quit", None
-    if choice in ("a", "apply"):
-        return "apply", rec_text
+        if choice in ("", "y", "yes"):
+            return "proceed", None
+        if choice in ("s", "skip"):
+            return "skip", None
+        if choice in ("q", "quit", "exit"):
+            return "quit", None
+        if choice in ("a", "apply"):
+            return "apply", rec_text
 
-    # Freeform user response
-    return "apply", choice
+        # Freeform user response
+        return "apply", choice
 
 
 def print_evaluation_scorecard(report: Any) -> None:

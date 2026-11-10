@@ -163,5 +163,27 @@ def test_meti_anti_simulation_prompt():
     assert "Anti-Simulation Rule" in prompt
     assert "setTimeout" in prompt
     assert "localStorage" in prompt
+    assert "PRESERVE APPROVED PROTOTYPE" in prompt
+
+
+def test_taghi_prototype_contract_ingestion(tmp_path):
+    from contracts import UIPrototypeResult
+    proto = UIPrototypeResult(
+        prototype_path="prototype.html",
+        preview_url="http://localhost:4173",
+        html_content="""
+        <form id="prototype-form">
+            <input name="user_email" type="email" required />
+            <input name="billing_tier" type="text" />
+            <textarea id="project_notes"></textarea>
+        </form>
+        """,
+    )
+    taghi = TaghiArchitect(vault_path=str(tmp_path / "vault"), model_name="test")
+    fields = taghi.ingest_prototype_contracts(proto)
+    assert "user_email" in fields
+    assert "billing_tier" in fields
+    assert "project_notes" in fields
+
 
 

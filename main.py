@@ -20,6 +20,7 @@ from contracts import (
     ExecutionPhase,
     ImplementationCheckpoint,
     ImplementationResult,
+    ResearchDomain,
     ResearchReport,
     TaskBrief,
     TechnicalSpec,
@@ -38,6 +39,7 @@ from tools.ui import (
     print_how_to_run,
     print_model_lineup_card,
     print_phase_table,
+    print_prototype_preview_card,
     print_spec_summary,
     print_task_header,
     print_token_summary_table,
@@ -45,8 +47,10 @@ from tools.ui import (
     prompt_alignment_gate,
     prompt_delivery_gate,
     prompt_model_approval_gate,
+    prompt_prototype_gate,
     prompt_step_gate,
 )
+from tools.ui_preview import start_preview_server
 
 load_dotenv()
 
@@ -409,18 +413,120 @@ async def run_task(
             design_context = format_design_context(objective, research, alignment_brief=brief.alignment_brief)
         else:
             design_context = format_design_context(objective, None, alignment_brief=brief.alignment_brief)
+        # Early check for UI intent: awaken Diba upfront if task involves UI surfaces
+        has_ui = (brief.target_lead == 'diba') or DibaDesigner.is_ui_task(record.prompt)
+        ui_spec = None
+        prototype = None
+
+        if has_ui:
+            # On-demand UI research check: if prompt asks for complex/novel frontend components or templates
+            ui_research_needed = any(kw in record.prompt.lower() for kw in [
+                "benchmark", "archetype", "inspiration", "template", "kanban", "chart", "micro-interaction", "palette"
+            ])
+            if ui_research_needed:
+                print_agent("orchestrator", "🔍 On-Demand Trigger: Awakening Odin for UI/UX Design Intelligence")
+                if tui_active:
+                    cockpit.telemetry.update_stage("odin", "running")
+                    cockpit.telemetry.set_action("Odin researching UI benchmarks & design archetypes...")
+                    cockpit.refresh()
+                odin_model = await resolve_agent_model(pipeline_models["odin"])
+                odin_ui = OdinResearcher(model_name=odin_model)
+                ui_research = await odin_ui.conduct_research(
+                    task_id, record.prompt, project_id=project, domain=ResearchDomain.FRONTEND_UX
+                )
+                if getattr(ui_research, "token_usage", None):
+                    record.token_usage["odin_ui"] = ui_research.token_usage
+
+            print_agent("orchestrator", "⚡ Handoff: Intent Aligned ➔ DIBA (Upfront Zero-to-One UI Prototype)")
+            if tui_active:
+                cockpit.telemetry.update_stage("diba", "running")
+                cockpit.telemetry.set_action("Diba crafting upfront UI spec & interactive HTML prototype...")
+                cockpit.refresh()
+            diba_model = await resolve_agent_model(pipeline_models.get("diba", pipeline_models["taghi"]))
+            diba = DibaDesigner(model_name=diba_model)
+            ui_spec = await diba.design_ui(task_id, record.prompt, project_id=project)
+            if not auto and sys.stdin.isatty():
+                ui_spec, quit_requested = await diba.conduct_ui_review(
+                    ui_spec, task_id, record.prompt, auto=auto, project_id=project
+                )
+                if quit_requested:
+                    print_agent("orchestrator", "Task execution cancelled by user during Diba UI design review.")
+                    sys.exit(0)
+
+            # Generate interactive, self-contained standalone prototype
+            prototype = await diba.generate_standalone_prototype(
+                task_id, record.prompt, ui_spec=ui_spec, project_id=project
+            )
+
+            # Interactive browser preview and prototype approval gate
+            if not auto and sys.stdin.isatty() and prototype:
+                preview_server = None
+                try:
+                    preview_server, _, preview_url = start_preview_server(
+                        project, open_browser=True, run_until_interrupted=False
+                    )
+                except Exception as e:
+                    print_agent("orchestrator", f"[dim yellow]Notice: Could not launch auto-browser preview: {e}[/dim yellow]")
+                    preview_url = None
+
+                gate_action, refine_feedback = prompt_prototype_gate(prototype, preview_url=preview_url, auto=auto)
+
+                # Refinement loop
+                while gate_action == "refine" and refine_feedback:
+                    print_agent("diba", f"Refining prototype based on user feedback: {refine_feedback}")
+                    refined_prompt = f"{record.prompt}\n\nUser prototype refinement feedback: {refine_feedback}"
+                    prototype = await diba.generate_standalone_prototype(
+                        task_id, refined_prompt, ui_spec=ui_spec, project_id=project
+                    )
+                    gate_action, refine_feedback = prompt_prototype_gate(prototype, preview_url=preview_url, auto=auto)
+
+                if preview_server:
+                    try:
+                        preview_server.shutdown()
+                        preview_server.server_close()
+                    except Exception:
+                        pass
+
+                if gate_action == "quit":
+                    print_agent("orchestrator", "Task execution cancelled by user at Diba prototype preview gate.")
+                    sys.exit(0)
+                elif gate_action == "skip":
+                    print_agent("orchestrator", "Prototype review skipped by user.")
+
+            if getattr(ui_spec, "token_usage", None):
+                record.token_usage["diba"] = ui_spec.token_usage
+
         if brief.target_lead in ('odin', 'taghi', 'diba'):
             record.status = 'ARCHITECTING'
             ledger.save(record)
-            print_agent("orchestrator", f"⚡ Handoff: Natasha (Intent Aligned) ➔ {brief.target_lead.upper()} (Execution Lead)")
+            print_agent("orchestrator", f"⚡ Handoff: {'DIBA Prototype' if has_ui else 'Natasha'} ➔ TAGHI (Architecture Lead)")
             if tui_active:
                 cockpit.telemetry.update_stage("taghi", "running")
                 cockpit.telemetry.set_action("Taghi synthesizing architecture specification & roadmap (AI analyzing)...")
                 cockpit.refresh()
             taghi_model = await resolve_agent_model(pipeline_models["taghi"])
             architect = TaghiArchitect(model_name=taghi_model)
-            spec = await architect.create_specification(task_id, design_context, project_id=project)
-            has_ui = (brief.target_lead == 'diba') or DibaDesigner.is_ui_task(record.prompt, spec=spec)
+            create_spec_fn = getattr(architect, "create_specification", None)
+            accepts_proto = False
+            if create_spec_fn:
+                import inspect
+                target_inspect = getattr(create_spec_fn, "side_effect", None) or create_spec_fn
+                try:
+                    sig = inspect.signature(target_inspect)
+                    accepts_proto = "prototype" in sig.parameters or any(
+                        p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
+                    )
+                except (ValueError, TypeError):
+                    accepts_proto = True
+
+            if accepts_proto and prototype is not None:
+                spec = await architect.create_specification(
+                    task_id, design_context, project_id=project, prototype=prototype
+                )
+            else:
+                spec = await architect.create_specification(
+                    task_id, design_context, project_id=project
+                )
             if not auto and sys.stdin.isatty():
                 review_fn = getattr(architect, "conduct_architectural_review", None)
                 if asyncio.iscoroutinefunction(review_fn):
@@ -435,28 +541,11 @@ async def run_task(
                 record.token_usage["taghi"] = spec.token_usage
         else:
             spec = fast_track_spec(task_id, objective, base_image=image_override, project_id=project)
-            has_ui = DibaDesigner.is_ui_task(record.prompt, spec=spec)
 
-        # Diba UI/UX Design Lead (awakened on-demand whenever task involves UI surfaces)
-        if has_ui or (brief.target_lead == 'diba'):
-            print_agent("orchestrator", "⚡ Handoff: Architecture Specification ➔ DIBA (UI/UX Product Designer)")
-            if tui_active:
-                cockpit.telemetry.update_stage("diba", "running")
-                cockpit.telemetry.set_action("Diba crafting UI archetypes & Tailwind design specs (AI analyzing)...")
-                cockpit.refresh()
-            diba_model = await resolve_agent_model(pipeline_models.get("diba", pipeline_models["taghi"]))
-            diba = DibaDesigner(model_name=diba_model)
-            ui_spec = await diba.design_ui(task_id, record.prompt, spec=spec, project_id=project)
-            if not auto and sys.stdin.isatty():
-                ui_spec, quit_requested = await diba.conduct_ui_review(
-                    ui_spec, task_id, record.prompt, auto=auto, project_id=project
-                )
-                if quit_requested:
-                    print_agent("orchestrator", "Task execution cancelled by user during Diba UI design review.")
-                    sys.exit(0)
+        if ui_spec:
             spec.ui_spec = ui_spec
-            if getattr(ui_spec, "token_usage", None):
-                record.token_usage["diba"] = ui_spec.token_usage
+        if prototype:
+            spec.prototype = prototype
         if image_override:
             spec.base_image = image_override
         spec.project_id = project

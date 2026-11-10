@@ -20,20 +20,21 @@ from tools.project_notes import validate_project_id
 def find_previewable_surfaces(workspace_path: Path) -> list[str]:
     """Discover available user entry HTML files in the project workspace."""
     surfaces: list[str] = []
-    preferred = ["form.html", "web-entry.html", "index.html"]
+    # Prioritize production / integrated app entry points first, followed by standalone forms/prototypes
+    preferred = ["index.html", "pos.html", "web-entry.html", "form.html", "prototype.html"]
 
     for name in preferred:
         if (workspace_path / name).is_file():
             surfaces.append(name)
 
     # Search root and public/ for any additional HTML files
-    for p in workspace_path.glob("*.html"):
+    for p in sorted(workspace_path.glob("*.html")):
         if p.name not in surfaces:
             surfaces.append(p.name)
 
     public_dir = workspace_path / "public"
     if public_dir.is_dir():
-        for p in public_dir.glob("*.html"):
+        for p in sorted(public_dir.glob("*.html")):
             surfaces.append(f"public/{p.name}")
 
     return surfaces
@@ -106,14 +107,35 @@ def start_preview_server(
     else:
         surface_lines.append(f"  • [dim]No HTML form detected yet; serving directory listing at {base_url}[/dim]")
 
-    panel_content = (
-        f"[bold white]Project:[/bold white]          [green]{escape(project_id)}[/green]\n"
-        f"[bold white]Workspace:[/bold white]        [dim]{escape(str(ws_dir))}[/dim]\n"
-        f"[bold white]Base URL:[/bold white]         [bold cyan]{base_url}[/bold cyan]\n\n"
-        f"[bold white]Available Input Surfaces & Pages:[/bold white]\n"
-        + "\n".join(surface_lines) + "\n\n"
-        "[dim]Press [yellow]Ctrl+C[/yellow] or [yellow]Enter[/yellow] in terminal to stop preview server.[/dim]"
-    )
+    has_backend_app = (ws_dir / "app.py").is_file()
+    app_hint = ""
+    if has_backend_app:
+        app_hint = (
+            "\n[dim yellow]💡 Notice: This project includes an active backend application (`app.py`).\n"
+            "   Static preview serves HTML/CSS only. To test live database & API endpoints, run:\n"
+            f"   cd {escape(str(ws_dir))} && python app.py[/dim yellow]\n"
+        )
+
+    if run_until_interrupted:
+        panel_content = (
+            f"[bold white]Project:[/bold white]          [green]{escape(project_id)}[/green]\n"
+            f"[bold white]Workspace:[/bold white]        [dim]{escape(str(ws_dir))}[/dim]\n"
+            f"[bold white]Base URL:[/bold white]         [bold cyan]{base_url}[/bold cyan]\n\n"
+            f"[bold white]Available Input Surfaces & Pages:[/bold white]\n"
+            + "\n".join(surface_lines) + "\n"
+            + app_hint + "\n"
+            "[dim]Press [yellow]Ctrl+C[/yellow] or [yellow]Enter[/yellow] in terminal to stop preview server.[/dim]"
+        )
+    else:
+        panel_content = (
+            f"[bold white]Project:[/bold white]          [green]{escape(project_id)}[/green]\n"
+            f"[bold white]Workspace:[/bold white]        [dim]{escape(str(ws_dir))}[/dim]\n"
+            f"[bold white]Base URL:[/bold white]         [bold cyan]{base_url}[/bold cyan]\n\n"
+            f"[bold white]Available Input Surfaces & Pages:[/bold white]\n"
+            + "\n".join(surface_lines) + "\n"
+            + app_hint + "\n"
+            "[dim]● Preview running in background. Inspect in browser, then make your choice below.[/dim]"
+        )
 
     console.print()
     console.print(
@@ -132,14 +154,14 @@ def start_preview_server(
         except Exception:
             pass
 
-    if not run_until_interrupted:
-        # Non-blocking: caller manages server
-        return httpd, target_port, primary_url
-
-    # Blocking interactive loop
     server_thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     server_thread.start()
 
+    if not run_until_interrupted:
+        # Non-blocking: caller manages server lifecycle
+        return httpd, target_port, primary_url
+
+    # Blocking interactive loop
     try:
         input("\n[BuildRelay] > Press Enter to stop the preview server... ")
     except (EOFError, KeyboardInterrupt):

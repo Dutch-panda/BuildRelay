@@ -7,7 +7,7 @@ from pathlib import Path
 from datetime import datetime
 from pydantic_ai import Agent
 from pydantic_ai.models import Model
-from contracts import ExecutionPhase, TechnicalSpec, UIDesignSpec, UIFieldSpec
+from contracts import ExecutionPhase, TechnicalSpec, UIDesignSpec, UIFieldSpec, UIPrototypeResult
 from tools.graphify_tool import GraphifyVaultManager
 from tools.project_notes import prepare_project
 from tools.vault_infra import (
@@ -68,14 +68,17 @@ class TaghiArchitect:
                 "- ARCHITECTURAL FOCUS (NO UI/UX RESPONSIBILITY):\n"
                 "  Focus strictly on backend architecture: database schemas, API routes, data validation, error handling, storage lifecycles, and Docker verification phases.\n"
                 "  Do NOT design visual layouts, Tailwind color palettes, component wireframes, or interactive UI states. All UI/UX design is handled exclusively by Diba.\n\n"
-                "ARCHITECTURAL GRILL-ME & BACKEND CONTRACTS (3-PILLAR DEFENSIVE MATRIX):\n"
+                "ARCHITECTURAL GRILL-ME & BACKEND CONTRACTS (PLAIN-ENGLISH USER DECISIONS):\n"
                 "- Always populate 'input_interface_spec' with concrete field types and backend validation constraints.\n"
-                "- Formulate up to 15 targeted backend 'clarification_questions' (strictly <= 15). "
-                "  Structure questions across the 3-pillar defensive matrix:\n"
-                "  1. Storage & Lifecycle: SQLite durable file vs. JSON snapshot vs. In-memory ephemeral.\n"
-                "  2. Defensive Edge Cases: Duplicate detection policy (warn vs. reject vs. merge), corrupted input recovery, sanitization rules.\n"
-                "  3. API & Service Contracts: Error response envelopes, pagination, transaction boundaries.\n"
-                "  Every question MUST provide 2 to 4 numbered options with exactly one marked is_default=True.\n\n"
+                "- Formulate up to 10 targeted 'clarification_questions' (strictly <= 10). "
+                "  MANDATORY NON-TECHNICAL PLAIN-ENGLISH MANDATE:\n"
+                "  Questions MUST be written in simple, zero-jargon plain English designed for a non-technical product owner or user.\n"
+                "  DO NOT use engineering jargon like 'idempotency keys', 'ephemeral SQLite', 'REST error envelopes', 'ACID transactions', or '422 Unprocessable Entity'.\n"
+                "  Instead, translate technical concepts into practical, everyday user choices and business consequences:\n"
+                "  1. Data Storage: Ask whether saved records should stay permanently on the computer across restarts or if this is temporary during the active session.\n"
+                "  2. Accidental / Duplicate Actions: Ask what should happen if a user accidentally double-clicks or re-submits (e.g. ignore duplicate, update existing, or alert user).\n"
+                "  3. Errors & Feedback: Ask how errors should appear to the user (e.g. friendly popup warning vs. automatic background retry).\n"
+                "  Every question MUST provide 2 to 4 numbered options in plain language with exactly one marked is_default=True.\n\n"
                 "TWO-TIER VERIFICATION ARCHITECTURE & SPECIFICATION MANDATE:\n"
                 "1. Tier 1 (Automated Docker Validation):\n"
                 "   - All execution phases executed by Meti inside Docker MUST use deterministic unit tests, fixtures, and mock service adapters (e.g. mock SpreadsheetApp, mock REST API responses).\n"
@@ -100,7 +103,43 @@ class TaghiArchitect:
             agent_name="Taghi",
         )
 
-    async def create_specification(self, task_id: str, research_summary: str, project_id: str | None = None) -> TechnicalSpec:
+    def ingest_prototype_contracts(self, prototype: UIPrototypeResult | None, workspace_dir: str | Path | None = None) -> list[str]:
+        """
+        Parses an approved UI prototype HTML to extract input field names, IDs, types, and form submission targets.
+        Ensures Taghi's backend models match the verified UI frontend interface.
+        """
+        fields_found: list[str] = []
+        html_text = ""
+        if prototype and prototype.html_content:
+            html_text = prototype.html_content
+        elif workspace_dir:
+            ws_proto = Path(workspace_dir) / "prototype.html"
+            if ws_proto.is_file():
+                html_text = ws_proto.read_text(encoding="utf-8")
+
+        if not html_text:
+            return fields_found
+
+        # Extract input/textarea/select tags
+        input_patterns = [
+            r'<(?:input|textarea|select)[^>]+(?:name|id)=["\']([^"\']+)["\']',
+            r'formData\.get\(["\']([^"\']+)["\']\)',
+        ]
+        for pat in input_patterns:
+            matches = re.findall(pat, html_text, re.IGNORECASE)
+            for m in matches:
+                clean_name = m.strip()
+                if clean_name and clean_name not in fields_found and not clean_name.startswith("prototype-"):
+                    fields_found.append(clean_name)
+        return fields_found
+
+    async def create_specification(
+        self,
+        task_id: str,
+        research_summary: str,
+        project_id: str | None = None,
+        prototype: UIPrototypeResult | None = None,
+    ) -> TechnicalSpec:
         print_agent("taghi", f"Designing technical architecture and roadmap for task: {task_id}")
 
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", task_id):
@@ -116,6 +155,18 @@ class TaghiArchitect:
                 "Focus new phases on implementing and validating the requested features or refactorings.\n\n"
             )
         directory_instruction = f"Create your project directory at workspace/{workspace_dir}/ and place all modules there."
+        
+        # Ingest prototype contracts if prototype is provided or present in workspace
+        proto_fields = self.ingest_prototype_contracts(prototype, workspace_dir=Path("./workspace") / workspace_dir)
+        prototype_contract_section = ""
+        if proto_fields:
+            prototype_contract_section = (
+                "\n[APPROVED UI PROTOTYPE CONTRACT]\n"
+                f"An upfront Zero-to-One interactive prototype has been approved with fields: {proto_fields}.\n"
+                "MANDATE: Backend API models, route handlers, and schemas MUST directly match these field names and types.\n"
+                "Meti will wire the backend into this verified prototype without rewriting the UI.\n\n"
+            )
+        
         prior_art_section = ""
         if self.graph_manager and hasattr(self.graph_manager, "query_by_keywords"):
             try:
@@ -139,7 +190,7 @@ class TaghiArchitect:
                 pass
 
         prompt = (
-            f"Task ID: {task_id}\n{incremental_header}{project.prompt}{prior_art_section}Research Summary/Findings: {research_summary}\n\n"
+            f"Task ID: {task_id}\n{incremental_header}{prototype_contract_section}{project.prompt}{prior_art_section}Research Summary/Findings: {research_summary}\n\n"
             f"Include this instruction in the specification: {directory_instruction}\n"
             f"All sandbox commands start in /app/workspace/{workspace_dir}/. "
             "Keep source files, tests, documentation, validation scripts, and dependencies in this project directory. "

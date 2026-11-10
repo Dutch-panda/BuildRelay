@@ -6,9 +6,16 @@ __version__ = "0.2.0"
 
 from dataclasses import asdict
 from datetime import datetime
+from enum import Enum
 from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.dataclasses import dataclass
+
+
+class ResearchDomain(str, Enum):
+    FRONTEND_UX = "frontend_ux"
+    BACKEND_ARCHITECTURE = "backend_architecture"
+    GENERAL_FEASIBILITY = "general_feasibility"
 
 
 @dataclass
@@ -187,6 +194,7 @@ class ResearchReport(BaseModel):
 
     task_id: str
     project_id: str | None = Field(default=None, description="Parent project ID supplied by the caller; null for standalone tasks")
+    domain: ResearchDomain = Field(default=ResearchDomain.GENERAL_FEASIBILITY, description="Scope and target domain of research")
     summary: str = Field(description="Executive summary of research findings")
     key_findings: list[str] = Field(description="Bullet points of technical insights or architectural approaches")
     recommended_stack: list[str] = Field(description="Recommended technologies or packages to use")
@@ -303,6 +311,48 @@ class UIDesignSpec(BaseModel):
         return self.__dict__.items()
 
 
+class UIPrototypeResult(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    task_id: str | None = Field(default=None, description="Task identifier")
+    project_id: str | None = Field(default=None, description="Project identifier")
+    prototype_path: str = Field(description="Relative or absolute path to the generated prototype.html")
+    preview_url: str = Field(default="http://localhost:4173", description="Local URL where prototype is previewed")
+    mock_fixtures: list[dict[str, Any]] = Field(default_factory=list, description="Pre-populated in-memory test fixtures")
+    state_handlers: list[str] = Field(
+        default_factory=lambda: ["empty", "validating", "submitting", "success", "error"],
+        description="List of verified interactive UI states"
+    )
+    html_content: str = Field(default="", description="Complete self-contained HTML/JS prototype code")
+    feedback_history: list[str] = Field(default_factory=list, description="User refinement feedback captured during preview gate")
+    approved: bool = Field(default=False, description="Whether the developer approved this prototype")
+
+    def __getitem__(self, item: str) -> Any:
+        try:
+            return getattr(self, item)
+        except AttributeError:
+            raise KeyError(item)
+
+    def get(self, item: str, default: Any = None) -> Any:
+        val = getattr(self, item, default)
+        return val if val is not None else default
+
+    def __contains__(self, item: str) -> bool:
+        return hasattr(self, item)
+
+    def __iter__(self):
+        return iter(self.__dict__)
+
+    def keys(self):
+        return self.__dict__.keys()
+
+    def values(self):
+        return self.__dict__.values()
+
+    def items(self):
+        return self.__dict__.items()
+
+
 class TechnicalSpec(BaseModel):
     model_config = ConfigDict(extra="allow")
 
@@ -326,6 +376,10 @@ class TechnicalSpec(BaseModel):
     ui_spec: UIDesignSpec | None = Field(
         default=None,
         description="Dedicated UI/UX design specification for visual layout, styling, and interactive states",
+    )
+    prototype: UIPrototypeResult | None = Field(
+        default=None,
+        description="Approved zero-backend prototype contract with mock fixtures and verified interactive states",
     )
     live_verification_guide: str | None = Field(
         default=None,
