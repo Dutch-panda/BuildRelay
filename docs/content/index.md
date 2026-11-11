@@ -5,7 +5,6 @@
 <div class="actions">
 <a class="button primary" href="quickstart.md">Run your first task →</a>
 <a class="button" href="example.md">See the terminal cockpit</a>
-<a class="button" href="../intro/index.html">Interactive Process Explorer ↗</a>
 </div>
 
 <div class="workflow-motion-frame">
