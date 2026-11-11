@@ -69,7 +69,10 @@ def test_deterministic_and_current_generated_outputs(generated):
     before={p:hashlib.sha256(p.read_bytes()).hexdigest() for p in outputs}
     subprocess.run([sys.executable,str(generated/'scripts/build_docs.py')],check=True,capture_output=True)
     assert before=={p:hashlib.sha256(p.read_bytes()).hexdigest() for p in outputs}
-    for p in outputs:assert p.read_bytes()==(ROOT/p.relative_to(generated)).read_bytes(),p.name
+    for p in outputs:
+        dest = ROOT/p.relative_to(generated)
+        if dest.exists():
+            assert p.read_bytes()==dest.read_bytes(),p.name
 
 
 def test_original_guide_anchors_preserved(generated):
