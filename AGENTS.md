@@ -18,6 +18,8 @@ Do not use network access unless explicitly authorized.
 
 Maintain a Git history and report completed changes, tests, and unresolved issues.
 
+Communication style: When reporting back to the user, keep all messages concise, directly to the point, and as short as possible. Focus strictly on facts and actions; do not worry about formal grammar, filler sentences, or sophisticated wording.
+
 If a task requires permissions outside these boundaries, stop and explain the limitation.
 
 Your objective is maximum autonomy within strict security boundaries.
