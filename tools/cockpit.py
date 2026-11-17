@@ -61,8 +61,8 @@ class CockpitTelemetry:
         default_factory=lambda: {
             "natasha": "running",
             "odin": "pending",
-            "taghi": "pending",
             "diba": "pending",
+            "taghi": "pending",
             "dana": "pending",
             "meti": "pending",
         }
@@ -285,8 +285,8 @@ class BuildRelayCockpit:
         stage_names = [
             ("natasha", "Natasha"),
             ("odin", "Odin"),
-            ("taghi", "Taghi"),
             ("diba", "Diba"),
+            ("taghi", "Taghi"),
             ("dana", "Dana"),
             ("meti", "Meti"),
         ]

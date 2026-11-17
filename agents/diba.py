@@ -197,6 +197,7 @@ class DibaDesigner:
         auto: bool = False,
         input_func: Callable[[str], str] | None = None,
         project_id: str | None = None,
+        skip_approval_gate: bool = False,
     ) -> tuple[UIDesignSpec, bool]:
         """
         Conduct the interactive Diba UI/UX Grill-Me interview and review gate.
@@ -249,6 +250,9 @@ class DibaDesigner:
                     formatted_decisions = format_grill_answers_for_prompt(answers, current_ui.clarification_questions)
                     updated_context = f"{prompt_context}\n\nUser UI/UX Decisions:\n{formatted_decisions}"
                     current_ui = await self.design_ui(task_id, updated_context, project_id=project_id)
+
+            if skip_approval_gate:
+                return current_ui, False
 
             # Step 2: Present UI spec approval gate
             action, feedback = prompt_spec_approval_gate(

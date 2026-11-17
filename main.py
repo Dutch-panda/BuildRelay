@@ -391,9 +391,10 @@ async def run_task(
                         objective = f"{objective}\n\nSupervisor Research Recommendations:\n{rec_summary}"
 
             # Early completion for research-only tasks
+            prompt_low = re.sub(r"\bnot\s+(?:a\s+)?(?:research[- ]only|just\s+resear?ch)\b", "", record.prompt.lower())
             is_research_only = (
                 research_only
-                or any(kw in objective.lower() or kw in record.prompt.lower() for kw in [
+                or any(kw in prompt_low for kw in [
                     'just research', 'research-only', 'research only', 'no software implementation', 'just reseach'
                 ])
             )
@@ -447,7 +448,7 @@ async def run_task(
             ui_spec = await diba.design_ui(task_id, record.prompt, project_id=project)
             if not auto and sys.stdin.isatty():
                 ui_spec, quit_requested = await diba.conduct_ui_review(
-                    ui_spec, task_id, record.prompt, auto=auto, project_id=project
+                    ui_spec, task_id, record.prompt, auto=auto, project_id=project, skip_approval_gate=True
                 )
                 if quit_requested:
                     print_agent("orchestrator", "Task execution cancelled by user during Diba UI design review.")
@@ -495,6 +496,9 @@ async def run_task(
 
             if getattr(ui_spec, "token_usage", None):
                 record.token_usage["diba"] = ui_spec.token_usage
+            if tui_active:
+                cockpit.telemetry.update_stage("diba", "passed", "[Prototype Approved]")
+                cockpit.refresh()
 
         if brief.target_lead in ('odin', 'taghi', 'diba'):
             record.status = 'ARCHITECTING'
@@ -594,6 +598,10 @@ async def run_task(
                 spec = await TaghiArchitect(model_name=taghi_model).create_specification(
                     task_id, revised_context, project_id=project
                 )
+                if ui_spec:
+                    spec.ui_spec = ui_spec
+                if prototype:
+                    spec.prototype = prototype
                 record.specification = spec
                 ledger.save(record)
         elif supervise == "autonomous":
@@ -605,6 +613,10 @@ async def run_task(
                 spec = await TaghiArchitect(model_name=taghi_model).create_specification(
                     task_id, revised_context, project_id=project
                 )
+                if ui_spec:
+                    spec.ui_spec = ui_spec
+                if prototype:
+                    spec.prototype = prototype
                 record.specification = spec
                 ledger.save(record)
     print_spec_summary(
@@ -1001,67 +1013,68 @@ async def main() -> None:
             cockpit.telemetry.prompt = record.prompt
             cockpit.telemetry.model_name = str(args.model or "default")
             try:
-                with cockpit.live_context(screen=False):
-                    result = await run_task(
-                        record,
-                        ledger,
-                        model_override=args.model,
-                        image_override=args.image,
-                        auto=args.auto,
-                        step=args.step,
-                        tier=args.tier,
-                        lead_overrides=lead_overrides,
-                        research_only=args.research_only,
-                        supervise=supervise_mode,
-                    )
-            except (Exception, KeyboardInterrupt, asyncio.CancelledError) as error:
-                record.status = 'FAILED'
-                record.error = f'{type(error).__name__}: {error}'
+                try:
+                    with cockpit.live_context(screen=False):
+                        result = await run_task(
+                            record,
+                            ledger,
+                            model_override=args.model,
+                            image_override=args.image,
+                            auto=args.auto,
+                            step=args.step,
+                            tier=args.tier,
+                            lead_overrides=lead_overrides,
+                            research_only=args.research_only,
+                            supervise=supervise_mode,
+                        )
+                except (Exception, KeyboardInterrupt, asyncio.CancelledError) as error:
+                    record.status = 'FAILED'
+                    record.error = f'{type(error).__name__}: {error}'
+                    ledger.save(record)
+                    raise
+                record.result = result
+                record.status = 'COMPLETED' if result.status == 'success' else 'FAILED'
+                record.error = None if result.status == 'success' else result.summary
                 ledger.save(record)
-                raise
+                print_completion(task_id, result.status == 'success', result.summary)
+                if result.status == 'success':
+                    workspace_dir = record.project_id or record.task_id
+                    workspace_path = Path("workspace") / workspace_dir
+                    if workspace_path.is_dir():
+                        from tools.eval_harness import DeliverableEvaluator
+                        from tools.ui import print_evaluation_scorecard
+                        evaluator = DeliverableEvaluator(workspace_path, project_id=record.project_id, task_id=task_id)
+                        report = evaluator.evaluate()
+                        evaluator.save_report(report)
+                        if not args.auto:
+                            print_evaluation_scorecard(report)
+                if record.token_usage:
+                    print_token_summary_table(record.token_usage, default_model=args.model)
+                if result.status == 'success':
+                    workspace_dir = record.project_id or record.task_id
+                    workspace_path = Path("workspace") / workspace_dir
+                    print_workspace_tree(workspace_path)
+                    print_how_to_run(workspace_path)
+                if result.status != 'success':
+                    sys.exit(1)
+                if (
+                    result.status == 'success'
+                    and not args.research_only
+                    and not args.auto
+                    and sys.stdin.isatty()
+                    and not is_testing
+                ):
+                    await run_iteration_loop(
+                        record=record,
+                        ledger=ledger,
+                        args=args,
+                        lead_overrides=lead_overrides,
+                    )
             finally:
                 if has_tui:
                     os.environ.pop("BUILDRELAY_TUI", None)
                 if getattr(args, "plain", False):
                     os.environ.pop("BUILDRELAY_PLAIN", None)
-            record.result = result
-            record.status = 'COMPLETED' if result.status == 'success' else 'FAILED'
-            record.error = None if result.status == 'success' else result.summary
-            ledger.save(record)
-            print_completion(task_id, result.status == 'success', result.summary)
-            if result.status == 'success':
-                workspace_dir = record.project_id or record.task_id
-                workspace_path = Path("workspace") / workspace_dir
-                if workspace_path.is_dir():
-                    from tools.eval_harness import DeliverableEvaluator
-                    from tools.ui import print_evaluation_scorecard
-                    evaluator = DeliverableEvaluator(workspace_path, project_id=record.project_id, task_id=task_id)
-                    report = evaluator.evaluate()
-                    evaluator.save_report(report)
-                    if not args.auto:
-                        print_evaluation_scorecard(report)
-            if record.token_usage:
-                print_token_summary_table(record.token_usage, default_model=args.model)
-            if result.status == 'success':
-                workspace_dir = record.project_id or record.task_id
-                workspace_path = Path("workspace") / workspace_dir
-                print_workspace_tree(workspace_path)
-                print_how_to_run(workspace_path)
-            if result.status != 'success':
-                sys.exit(1)
-            if (
-                result.status == 'success'
-                and not args.research_only
-                and not args.auto
-                and sys.stdin.isatty()
-                and not is_testing
-            ):
-                await run_iteration_loop(
-                    record=record,
-                    ledger=ledger,
-                    args=args,
-                    lead_overrides=lead_overrides,
-                )
     except Exception as error:
         print_agent('orchestrator', f'[bold red]{error}[/bold red]')
         print_agent('orchestrator', f'To retry a saved task: python main.py --resume {task_id}')
@@ -1136,19 +1149,34 @@ async def run_iteration_loop(
                 )
                 ledger.create(record)
                 print_task_header(next_task_id, record.prompt, project_id=current_project, is_resume=False)
+                from tools.cockpit import get_cockpit
+                cockpit = get_cockpit()
+                cockpit.telemetry.project_id = current_project
+                cockpit.telemetry.task_id = next_task_id
+                cockpit.telemetry.prompt = record.prompt
+                cockpit.telemetry.pipeline_stages = {
+                    "natasha": "running",
+                    "odin": "pending",
+                    "diba": "pending",
+                    "taghi": "pending",
+                    "dana": "pending",
+                    "meti": "pending",
+                }
+                cockpit.telemetry.phases = []
                 try:
-                    result = await run_task(
-                        record,
-                        ledger,
-                        model_override=getattr(args, "model", None),
-                        image_override=getattr(args, "image", None),
-                        auto=getattr(args, "auto", False),
-                        step=getattr(args, "step", False),
-                        tier=getattr(args, "tier", None),
-                        lead_overrides=lead_overrides,
-                        research_only=getattr(args, "research_only", False),
-                        supervise=getattr(args, "supervise", "off") or "off",
-                    )
+                    with cockpit.live_context(screen=False):
+                        result = await run_task(
+                            record,
+                            ledger,
+                            model_override=getattr(args, "model", None),
+                            image_override=getattr(args, "image", None),
+                            auto=getattr(args, "auto", False),
+                            step=getattr(args, "step", False),
+                            tier=getattr(args, "tier", None),
+                            lead_overrides=lead_overrides,
+                            research_only=getattr(args, "research_only", False),
+                            supervise=getattr(args, "supervise", "off") or "off",
+                        )
                 except (Exception, KeyboardInterrupt, asyncio.CancelledError) as error:
                     record.status = "FAILED"
                     record.error = f"{type(error).__name__}: {error}"

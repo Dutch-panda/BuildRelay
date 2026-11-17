@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 import re
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
@@ -160,6 +161,43 @@ class MetiImplementer:
 
             with agent_status("docker", f"Running: {shell_command[:60]}"):
                 result = self.sandbox.execute_code(shell_command, **call_kwargs)
+            while (
+                result.get("exit_code") == -1
+                and "Could not connect to Docker daemon" in str(result.get("output", ""))
+            ):
+                is_testing = (
+                    os.environ.get("BUILDRELAY_TESTING") == "1"
+                    or "pytest" in sys.modules
+                    or self.model_name == "test"
+                    or type(self.model_name).__name__ == "TestModel"
+                )
+                if is_testing:
+                    break
+                if not sys.stdin.isatty():
+                    ctx.deps.in_flight_command = None
+                    ctx.deps.save()
+                    raise RuntimeError(
+                        "Docker daemon is not running. Please start Docker Desktop and rerun with --resume."
+                    )
+                from tools.ui import _ask_with_cockpit
+
+                ask = _ask_with_cockpit()
+                try:
+                    choice = ask(
+                        "🐳 Docker daemon is not running. Start Docker Desktop and press [Enter] to retry, or [q] to abort > "
+                    ).strip().lower()
+                except (EOFError, KeyboardInterrupt):
+                    choice = "q"
+                if choice in ("q", "quit", "exit"):
+                    ctx.deps.in_flight_command = None
+                    ctx.deps.save()
+                    raise RuntimeError(
+                        "Docker daemon is not running. Please start Docker Desktop and rerun with --resume."
+                    )
+                if hasattr(self.sandbox, "_client"):
+                    self.sandbox._client = None
+                with agent_status("docker", f"Running: {shell_command[:60]}"):
+                    result = self.sandbox.execute_code(shell_command, **call_kwargs)
             ctx.deps.in_flight_command = None
 
             if cockpit.is_active:

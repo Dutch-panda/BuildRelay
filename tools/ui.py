@@ -782,7 +782,7 @@ def print_ui_spec_proposal_card(ui_spec: Any) -> None:
 
     panel = Panel(
         "\n".join(lines).strip(),
-        title="[bold #ec4899]🎨 Taghi — UI/UX Design & Ergonomics Specification[/bold #ec4899]",
+        title="[bold #ec4899]🎨 Diba — UI/UX Design & Ergonomics Specification[/bold #ec4899]",
         title_align="left",
         border_style="#ec4899",
         padding=(1, 2),
@@ -793,6 +793,9 @@ def print_ui_spec_proposal_card(ui_spec: Any) -> None:
 
 def print_spec_proposal_card(spec: Any) -> None:
     """Render Taghi's architectural proposal, visual flow diagram, and phase roadmap."""
+    if hasattr(spec, "surface_type") and not hasattr(spec, "architecture_overview"):
+        print_ui_spec_proposal_card(spec)
+        return
     theme = _get_theme("taghi")
     overview = getattr(spec, "architecture_overview", "")
     clean_overview = "\n".join(
@@ -957,12 +960,21 @@ def prompt_spec_approval_gate(
         if auto or (input_func is None and not sys.stdin.isatty()):
             return "confirm", None
 
-        console.print(
-            "[bold]👉 Architecture Approval Action:[/bold] "
-            "[green]\\[Y/enter][/green] Approve Architecture & Begin Coding  |  "
-            "[yellow]\\[e/r][/yellow] Edit / Revise Architecture & Fields  |  "
-            "[red]\\[q][/red] Abort"
-        )
+        is_ui_only = hasattr(spec, "surface_type") and not hasattr(spec, "architecture_overview")
+        if is_ui_only:
+            console.print(
+                "[bold]👉 UI/UX Design Approval Action:[/bold] "
+                "[green]\\[Y/enter][/green] Approve UI Specification  |  "
+                "[yellow]\\[e/r][/yellow] Edit / Revise UI Design & Fields  |  "
+                "[red]\\[q][/red] Abort"
+            )
+        else:
+            console.print(
+                "[bold]👉 Architecture Approval Action:[/bold] "
+                "[green]\\[Y/enter][/green] Approve Architecture & Begin Coding  |  "
+                "[yellow]\\[e/r][/yellow] Edit / Revise Architecture & Fields  |  "
+                "[red]\\[q][/red] Abort"
+            )
         try:
             choice = ask("> ").strip()
         except (EOFError, KeyboardInterrupt):
