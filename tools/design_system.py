@@ -165,6 +165,36 @@ ARCHETYPES: dict[str, DesignArchetype] = {
         },
         recommended_keywords=("split", "workspace", "editor", "sidebar", "master", "detail", "explorer", "browser", "manage"),
     ),
+    "playful_interactive": DesignArchetype(
+        key="playful_interactive",
+        name="Playful Interactive Canvas",
+        description="Vibrant consumer-grade interactive experience with expressive typography, tactile card/canvas controls, playful micro-animations, and celebratory progress cues.",
+        surface_type="web_form",
+        theme="playful_light",
+        color_palette={
+            "primary": "#f97316",       # Warm vibrant orange/coral
+            "background": "#fffbeb",    # Warm sunlit cream
+            "surface": "#ffffff",       # Crisp white interactive cards
+            "text": "#1e293b",          # Deep slate ink
+            "border": "#fde68a",        # Soft amber border
+            "success": "#10b981",       # Playful emerald
+            "error": "#f43f5e",         # Rose alert
+        },
+        layout_wireframe=(
+            "Centered interactive stage or canvas (max-w-2xl) with playful header pill and progress ring/bar; "
+            "large tactile interactive cards, timers, or game/quiz controls with smooth hover/active transitions; "
+            "compact bottom or side history/score strip without heavy enterprise tables."
+        ),
+        typography_scale="Plus Jakarta Sans / system-rounded: h1 text-3xl font-extrabold tracking-tight, body text-base, badges text-xs font-bold",
+        state_styling={
+            "empty": "Welcoming hero prompt with playful illustration/icon and prominent 'Start' action button.",
+            "validating": "Friendly inline nudge highlighting missing or out-of-range choices.",
+            "submitting": "Animated active/running state with smooth progress feedback.",
+            "success": "Celebratory completion card or badge highlighting achievements/results.",
+            "error": "Friendly recovery banner with one-click retry.",
+        },
+        recommended_keywords=("fun", "playful", "game", "timer", "quiz", "personality", "teen", "teenager", "bright", "colorful", "focus", "concentration", "habit", "flashcard", "creative"),
+    ),
 }
 
 DEFAULT_ARCHETYPE = ARCHETYPES["linear_dark"]

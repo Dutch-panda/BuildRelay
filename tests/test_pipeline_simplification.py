@@ -11,6 +11,7 @@ from agents.diba import DibaDesigner
 from agents.natasha import NatashaRouter
 from agents.taghi import TaghiArchitect
 from contracts import (
+    AlignmentBrief,
     ClarificationOption,
     ClarificationQuestion,
     ExecutionPhase,
@@ -18,8 +19,10 @@ from contracts import (
     TechnicalSpec,
     UIDesignSpec,
 )
+from main import fast_track_spec
 from orchestrator import PreExecutionMetrics, StageRunner
 from tools.cockpit import BuildRelayCockpit
+from tools.design_system import detect_recommended_archetype
 
 
 def test_pre_execution_metrics_logging(tmp_path: Path) -> None:
@@ -194,3 +197,57 @@ async def test_taghi_skips_redundant_grill_when_prototype_approved(tmp_path: Pat
     assert quit_req is False
     mock_grill.assert_not_called()
     assert final_spec.task_id == "task-taghi-skip-grill"
+
+
+def test_is_ui_task_detects_app_and_brief_context() -> None:
+    assert DibaDesigner.is_ui_task("I want to create a fun simple concentration app which runs locally") is True
+    assert DibaDesigner.is_ui_task("Write a python script to parse csv logs") is False
+    assert DibaDesigner.is_ui_task("Build a python command-line app") is False
+
+    brief_with_browser = TaskBrief(
+        task_id="task-browser",
+        title="Concentration App",
+        objective="Provide a local browser interface with HTML and CSS.",
+        slug="concentration-app",
+        target_lead="meti",
+        research_questions=[],
+        alignment_brief=AlignmentBrief(
+            goal="Build a timer app",
+            core_features="Browser page with timer controls",
+            tech_stack="HTML, CSS, JS",
+            exclusions="None",
+            next_actions="Meti builds it",
+        ),
+    )
+    assert DibaDesigner.is_ui_task("Create a helper tool", brief=brief_with_browser) is True
+
+    brief_non_ui = TaskBrief(
+        task_id="task-cli",
+        title="Build CSV",
+        objective="Build CSV",
+        slug="build-csv",
+        target_lead="meti",
+        research_questions=[],
+    )
+    assert DibaDesigner.is_ui_task("Build CSV", brief=brief_non_ui) is False
+
+
+def test_detect_recommended_archetype_playful_interactive() -> None:
+    arch_focus = detect_recommended_archetype("I want to create a fun simple concentration app")
+    assert arch_focus.key == "playful_interactive"
+
+    arch_teen = detect_recommended_archetype("Big-five personality test quiz for teenagers with bright colors")
+    assert arch_teen.key == "playful_interactive"
+
+
+def test_fast_track_spec_uses_dynamic_archetype() -> None:
+    spec_playful = fast_track_spec("task-focus", "Create a fun interactive focus timer web app")
+    assert spec_playful.ui_spec is not None
+    assert spec_playful.ui_spec.archetype == "playful_interactive"
+    assert spec_playful.ui_spec.theme == "playful_light"
+    assert "data tables with status badges" not in spec_playful.ui_spec.component_layout
+
+    spec_dash = fast_track_spec("task-kpi", "Build an executive metrics analytics dashboard with KPI cards")
+    assert spec_dash.ui_spec is not None
+    assert spec_dash.ui_spec.archetype == "bento_dashboard"
+    assert spec_dash.ui_spec.surface_type == "dashboard"

@@ -378,7 +378,7 @@ def print_token_summary_table(
     total_cost: float = 0.0
     all_numeric_cost = True
 
-    lead_order = ["natasha", "odin", "taghi", "meti"]
+    lead_order = ["natasha", "odin", "diba", "taghi", "dana", "meti"]
     for k in token_usage_dict:
         if k not in lead_order:
             lead_order.append(k)
@@ -387,8 +387,13 @@ def print_token_summary_table(
         usage = token_usage_dict.get(lead_key)
         if not usage:
             continue
-        theme = _get_theme(lead_key)
-        lead_label = f"[{theme['color']}]{theme['icon']} {theme['name']}[/]"
+        if lead_key.startswith("dana_"):
+            theme = _get_theme("dana")
+            stage_label = lead_key.split("_", 1)[1].capitalize()
+            lead_label = f"[{theme['color']}]{theme['icon']} {theme['name']} ({stage_label})[/]"
+        else:
+            theme = _get_theme(lead_key)
+            lead_label = f"[{theme['color']}]{theme['icon']} {theme['name']}[/]"
 
         inp = usage.get("input_tokens", 0)
         out = usage.get("output_tokens", 0)
