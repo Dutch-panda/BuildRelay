@@ -587,6 +587,7 @@ def prompt_alignment_gate(
     brief: Any,
     auto: bool = False,
     input_func: Callable[[str], str] | None = None,
+    show_questions: bool = True,
 ) -> tuple[str, str | None, dict[str, str]]:
     """
     Present the 5-sentence brief and any clarification questions.
@@ -616,7 +617,7 @@ def prompt_alignment_gate(
             return "confirm", None, answers
 
         # Render clarification questions if present
-        if questions:
+        if questions and show_questions:
             console.print(
                 "[bold yellow]⚡ Clarification Questions[/bold yellow] [dim](Press Enter to accept defaults):[/dim]"
             )

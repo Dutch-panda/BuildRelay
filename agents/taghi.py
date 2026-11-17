@@ -69,8 +69,9 @@ class TaghiArchitect:
                 "  Focus strictly on backend architecture: database schemas, API routes, data validation, error handling, storage lifecycles, and Docker verification phases.\n"
                 "  Do NOT design visual layouts, Tailwind color palettes, component wireframes, or interactive UI states. All UI/UX design is handled exclusively by Diba.\n\n"
                 "ARCHITECTURAL GRILL-ME & BACKEND CONTRACTS (PLAIN-ENGLISH USER DECISIONS):\n"
+                "- Keep 'architecture_overview' concise (under 250 words: schema, route table, and core flow).\n"
                 "- Always populate 'input_interface_spec' with concrete field types and backend validation constraints.\n"
-                "- Formulate up to 10 targeted 'clarification_questions' (strictly <= 10). "
+                "- Formulate up to 3 targeted 'clarification_questions' (strictly <= 3) ONLY when genuine blocking ambiguities remain. "
                 "  MANDATORY NON-TECHNICAL PLAIN-ENGLISH MANDATE:\n"
                 "  Questions MUST be written in simple, zero-jargon plain English designed for a non-technical product owner or user.\n"
                 "  DO NOT use engineering jargon like 'idempotency keys', 'ephemeral SQLite', 'REST error envelopes', 'ACID transactions', or '422 Unprocessable Entity'.\n"
@@ -295,6 +296,7 @@ links: ["[[research-{task_id}]]", "[[{task_id}-brief]]"]
         input_func: Any = None,
         project_id: str | None = None,
         skip_ui_grill: bool = False,
+        skip_grill_when_prototype: bool = False,
     ) -> tuple[TechnicalSpec, bool]:
         """
         Run Taghi's architectural grill interview and review approval gate before Meti implements.
@@ -308,14 +310,14 @@ links: ["[[research-{task_id}]]", "[[{task_id}-brief]]"]
 
         while True:
             # Step 1: Run architectural grill questions once
-            if not grill_completed and getattr(current_spec, "clarification_questions", None):
+            if not grill_completed and not skip_grill_when_prototype and getattr(current_spec, "clarification_questions", None):
                 answers, quit_requested = run_grill_session(
                     current_spec.clarification_questions,
                     agent_name="taghi",
                     title="🏛 Taghi Architecture & Schema Grill",
                     auto=auto,
                     input_func=input_func,
-                    max_questions=15,
+                    max_questions=3,
                 )
                 if quit_requested:
                     return current_spec, True

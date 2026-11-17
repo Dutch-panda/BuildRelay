@@ -75,7 +75,7 @@ class DibaDesigner:
                 "5. Responsive Ergonomics ('responsive_breakpoints'):\n"
                 "   - Mobile-first single-column (<640px), balanced multi-column grid on desktop (>=768px).\n"
                 "6. Design Grill-Me Questions ('clarification_questions'):\n"
-                "   - Emit up to 6 targeted, highly ergonomic UI clarification questions covering archetype, layout density, validation timing, and empty states.\n"
+                "   - Generate up to 4 targeted 'clarification_questions' (strictly <= 4) covering archetype, layout density, validation timing, and empty states.\n"
                 "   - Every question MUST provide 2 to 4 options with exactly one marked is_default=True."
             ),
         )
@@ -198,6 +198,7 @@ class DibaDesigner:
         input_func: Callable[[str], str] | None = None,
         project_id: str | None = None,
         skip_approval_gate: bool = False,
+        resynthesize_on_change: bool = True,
     ) -> tuple[UIDesignSpec, bool]:
         """
         Conduct the interactive Diba UI/UX Grill-Me interview and review gate.
@@ -245,11 +246,15 @@ class DibaDesigner:
                             current_ui.states = dict(chosen_arch.state_styling)
 
                 if not auto and has_non_default_answers(current_ui.clarification_questions, answers):
-                    from tools.ui import print_agent
-                    print_agent("diba", "Re-synthesizing UI/UX design with user decisions (AI analyzing)...")
                     formatted_decisions = format_grill_answers_for_prompt(answers, current_ui.clarification_questions)
-                    updated_context = f"{prompt_context}\n\nUser UI/UX Decisions:\n{formatted_decisions}"
-                    current_ui = await self.design_ui(task_id, updated_context, project_id=project_id)
+                    if not resynthesize_on_change:
+                        current_ui.component_layout = f"{current_ui.component_layout}\n\nUser UI/UX Decisions:\n{formatted_decisions}"
+                        await self.write_ui_spec_note(task_id, current_ui, project_id=project_id)
+                    else:
+                        from tools.ui import print_agent
+                        print_agent("diba", "Re-synthesizing UI/UX design with user decisions (AI analyzing)...")
+                        updated_context = f"{prompt_context}\n\nUser UI/UX Decisions:\n{formatted_decisions}"
+                        current_ui = await self.design_ui(task_id, updated_context, project_id=project_id)
 
             if skip_approval_gate:
                 return current_ui, False

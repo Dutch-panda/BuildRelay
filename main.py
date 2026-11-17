@@ -32,6 +32,7 @@ from agents.odin import OdinResearcher
 from agents.taghi import TaghiArchitect
 from agents.diba import DibaDesigner
 from agents.meti import MetiImplementer
+from orchestrator.pipeline import PreExecutionMetrics, StageRunner
 from tools.ui import (
     print_agent,
     print_brief_summary,
@@ -53,6 +54,20 @@ from tools.ui import (
 from tools.ui_preview import start_preview_server
 
 load_dotenv()
+
+
+def _accepts_kwarg(fn: Any, kwarg: str) -> bool:
+    """Return True if fn (or its mock side_effect) accepts the given keyword argument."""
+    import inspect
+
+    target = getattr(fn, "side_effect", None) or fn
+    try:
+        sig = inspect.signature(target)
+        return kwarg in sig.parameters or any(
+            p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
+        )
+    except (ValueError, TypeError):
+        return False
 
 
 def slugify_task_prompt(prompt: str, max_words: int = 4, max_chars: int = 32) -> str:
@@ -228,26 +243,35 @@ async def run_task(
     from tools.cockpit import get_cockpit, is_tui_enabled
     cockpit = get_cockpit()
     tui_active = is_tui_enabled()
+    runner = StageRunner(cockpit=cockpit, tui_active=tui_active)
+    metrics = PreExecutionMetrics()
     if tui_active:
         cockpit.telemetry.project_id = project or "standalone"
         cockpit.telemetry.task_id = task_id
         cockpit.telemetry.prompt = record.prompt
         cockpit.telemetry.model_name = str(pipeline_models.get("natasha", model_override or "default"))
 
+    grill_ran = False
     if record.brief is None:
         record.status = 'PENDING'
         ledger.save(record)
-        if tui_active:
-            cockpit.telemetry.update_stage("natasha", "running")
-            cockpit.telemetry.set_action("Natasha scoping task and alignment brief...")
-            cockpit.refresh()
+        runner.start_stage("natasha", "Natasha scoping task and alignment brief...")
         natasha_model = await resolve_agent_model(pipeline_models["natasha"])
         router = NatashaRouter(model_name=natasha_model)
         brief = await router.coordinate_request(record.prompt, task_id, project_id=project)
+        metrics.record_llm_call(
+            getattr(brief, "token_usage", None),
+            len(getattr(brief, "clarification_questions", []) or []),
+        )
         if not auto and sys.stdin.isatty() and getattr(brief, "clarification_questions", None):
             review_fn = getattr(router, "conduct_grill_session", None)
             if asyncio.iscoroutinefunction(review_fn):
-                brief, quit_requested = await review_fn(brief, auto=auto, project_id=project)
+                grill_kwargs: dict[str, Any] = {"auto": auto, "project_id": project}
+                if _accepts_kwarg(review_fn, "realign_on_change"):
+                    grill_kwargs["realign_on_change"] = False
+                brief, quit_requested = await review_fn(brief, **grill_kwargs)
+                grill_ran = True
+                metrics.record_gate()
                 if quit_requested:
                     print_agent("orchestrator", "Task execution cancelled by user during Natasha grill.")
                     sys.exit(0)
@@ -258,9 +282,7 @@ async def run_task(
             if tui_active:
                 cockpit.telemetry.record_token_usage(brief.token_usage, model_name=str(pipeline_models["natasha"]))
         ledger.save(record)
-        if tui_active:
-            cockpit.telemetry.update_stage("natasha", "passed", "[Aligned]")
-            cockpit.refresh()
+        runner.complete_stage("natasha", "[Aligned]")
     brief = TaskBrief.model_validate(record.brief)
 
     # Dana Supervision of Natasha's Intent Brief
@@ -302,14 +324,19 @@ async def run_task(
     # Alignment gate: 5-sentence brief and intent confirmation
     if not implementation_started and not auto:
         while True:
+            metrics.record_gate()
             with cockpit.pause():
-                action, feedback, _ = prompt_alignment_gate(brief, auto=auto)
+                gate_kwargs: dict[str, Any] = {"auto": auto}
+                if _accepts_kwarg(prompt_alignment_gate, "show_questions"):
+                    gate_kwargs["show_questions"] = not grill_ran
+                action, feedback, _ = prompt_alignment_gate(brief, **gate_kwargs)
             if action == "quit":
                 print_agent("orchestrator", "Task execution cancelled by user.")
                 sys.exit(0)
             elif action == "edit" and feedback:
                 natasha_model = await resolve_agent_model(pipeline_models["natasha"])
                 brief = await NatashaRouter(model_name=natasha_model).realign_intent(brief, feedback, project_id=project)
+                metrics.record_llm_call(getattr(brief, "token_usage", None))
                 record.prompt = f"{record.prompt} (Clarification: {feedback})"
                 record.brief = brief
                 if getattr(brief, "token_usage", None):
@@ -353,13 +380,16 @@ async def run_task(
             if record.research is None:
                 record.status = 'RESEARCHING'
                 ledger.save(record)
+                runner.start_stage("odin", "Odin conducting research & stack verification...")
                 odin_model = await resolve_agent_model(pipeline_models["odin"])
                 research = await OdinResearcher(model_name=odin_model).conduct_research(task_id, objective, project_id=project)
+                metrics.record_llm_call(getattr(research, "token_usage", None))
                 record.research = research
                 if getattr(research, "token_usage", None):
                     research.token_usage["model"] = str(pipeline_models["odin"])
                     record.token_usage["odin"] = research.token_usage
                 ledger.save(record)
+                runner.complete_stage("odin", "[Researched]")
             research = ResearchReport.model_validate(record.research)
 
             # Dana Supervision of Odin's Research Report
@@ -420,36 +450,27 @@ async def run_task(
         prototype = None
 
         if has_ui:
-            # On-demand UI research check: if prompt asks for complex/novel frontend components or templates
-            ui_research_needed = any(kw in record.prompt.lower() for kw in [
-                "benchmark", "archetype", "inspiration", "template", "kanban", "chart", "micro-interaction", "palette"
-            ])
-            if ui_research_needed:
-                print_agent("orchestrator", "🔍 On-Demand Trigger: Awakening Odin for UI/UX Design Intelligence")
-                if tui_active:
-                    cockpit.telemetry.update_stage("odin", "running")
-                    cockpit.telemetry.set_action("Odin researching UI benchmarks & design archetypes...")
-                    cockpit.refresh()
-                odin_model = await resolve_agent_model(pipeline_models["odin"])
-                odin_ui = OdinResearcher(model_name=odin_model)
-                ui_research = await odin_ui.conduct_research(
-                    task_id, record.prompt, project_id=project, domain=ResearchDomain.FRONTEND_UX
-                )
-                if getattr(ui_research, "token_usage", None):
-                    record.token_usage["odin_ui"] = ui_research.token_usage
-
             print_agent("orchestrator", "⚡ Handoff: Intent Aligned ➔ DIBA (Upfront Zero-to-One UI Prototype)")
-            if tui_active:
-                cockpit.telemetry.update_stage("diba", "running")
-                cockpit.telemetry.set_action("Diba crafting upfront UI spec & interactive HTML prototype...")
-                cockpit.refresh()
+            runner.start_stage("diba", "Diba crafting upfront UI spec & interactive HTML prototype...")
             diba_model = await resolve_agent_model(pipeline_models.get("diba", pipeline_models["taghi"]))
             diba = DibaDesigner(model_name=diba_model)
             ui_spec = await diba.design_ui(task_id, record.prompt, project_id=project)
+            metrics.record_llm_call(
+                getattr(ui_spec, "token_usage", None),
+                len(getattr(ui_spec, "clarification_questions", []) or []),
+            )
             if not auto and sys.stdin.isatty():
+                diba_review_kwargs: dict[str, Any] = {
+                    "auto": auto,
+                    "project_id": project,
+                    "skip_approval_gate": True,
+                }
+                if _accepts_kwarg(diba.conduct_ui_review, "resynthesize_on_change"):
+                    diba_review_kwargs["resynthesize_on_change"] = False
                 ui_spec, quit_requested = await diba.conduct_ui_review(
-                    ui_spec, task_id, record.prompt, auto=auto, project_id=project, skip_approval_gate=True
+                    ui_spec, task_id, record.prompt, **diba_review_kwargs
                 )
+                metrics.record_gate()
                 if quit_requested:
                     print_agent("orchestrator", "Task execution cancelled by user during Diba UI design review.")
                     sys.exit(0)
@@ -458,6 +479,7 @@ async def run_task(
             prototype = await diba.generate_standalone_prototype(
                 task_id, record.prompt, ui_spec=ui_spec, project_id=project
             )
+            metrics.record_llm_call(None)
 
             # Interactive browser preview and prototype approval gate
             if not auto and sys.stdin.isatty() and prototype:
@@ -470,6 +492,7 @@ async def run_task(
                     print_agent("orchestrator", f"[dim yellow]Notice: Could not launch auto-browser preview: {e}[/dim yellow]")
                     preview_url = None
 
+                metrics.record_gate()
                 gate_action, refine_feedback = prompt_prototype_gate(prototype, preview_url=preview_url, auto=auto)
 
                 # Refinement loop
@@ -479,6 +502,8 @@ async def run_task(
                     prototype = await diba.generate_standalone_prototype(
                         task_id, refined_prompt, ui_spec=ui_spec, project_id=project
                     )
+                    metrics.record_llm_call(None)
+                    metrics.record_gate()
                     gate_action, refine_feedback = prompt_prototype_gate(prototype, preview_url=preview_url, auto=auto)
 
                 if preview_server:
@@ -496,32 +521,17 @@ async def run_task(
 
             if getattr(ui_spec, "token_usage", None):
                 record.token_usage["diba"] = ui_spec.token_usage
-            if tui_active:
-                cockpit.telemetry.update_stage("diba", "passed", "[Prototype Approved]")
-                cockpit.refresh()
+            runner.complete_stage("diba", "[Prototype Approved]")
 
         if brief.target_lead in ('odin', 'taghi', 'diba'):
             record.status = 'ARCHITECTING'
             ledger.save(record)
             print_agent("orchestrator", f"⚡ Handoff: {'DIBA Prototype' if has_ui else 'Natasha'} ➔ TAGHI (Architecture Lead)")
-            if tui_active:
-                cockpit.telemetry.update_stage("taghi", "running")
-                cockpit.telemetry.set_action("Taghi synthesizing architecture specification & roadmap (AI analyzing)...")
-                cockpit.refresh()
+            runner.start_stage("taghi", "Taghi synthesizing architecture specification & roadmap (AI analyzing)...")
             taghi_model = await resolve_agent_model(pipeline_models["taghi"])
             architect = TaghiArchitect(model_name=taghi_model)
             create_spec_fn = getattr(architect, "create_specification", None)
-            accepts_proto = False
-            if create_spec_fn:
-                import inspect
-                target_inspect = getattr(create_spec_fn, "side_effect", None) or create_spec_fn
-                try:
-                    sig = inspect.signature(target_inspect)
-                    accepts_proto = "prototype" in sig.parameters or any(
-                        p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
-                    )
-                except (ValueError, TypeError):
-                    accepts_proto = True
+            accepts_proto = bool(create_spec_fn and _accepts_kwarg(create_spec_fn, "prototype"))
 
             if accepts_proto and prototype is not None:
                 spec = await architect.create_specification(
@@ -531,18 +541,31 @@ async def run_task(
                 spec = await architect.create_specification(
                     task_id, design_context, project_id=project
                 )
+            metrics.record_llm_call(
+                getattr(spec, "token_usage", None),
+                0 if prototype else len(getattr(spec, "clarification_questions", []) or []),
+            )
             if not auto and sys.stdin.isatty():
                 review_fn = getattr(architect, "conduct_architectural_review", None)
                 if asyncio.iscoroutinefunction(review_fn):
+                    arch_kwargs: dict[str, Any] = {
+                        "auto": auto,
+                        "project_id": project,
+                        "skip_ui_grill": has_ui,
+                    }
+                    if _accepts_kwarg(review_fn, "skip_grill_when_prototype"):
+                        arch_kwargs["skip_grill_when_prototype"] = bool(prototype)
                     spec, quit_requested = await review_fn(
-                        spec, task_id, design_context, auto=auto, project_id=project, skip_ui_grill=has_ui
+                        spec, task_id, design_context, **arch_kwargs
                     )
+                    metrics.record_gate()
                     if quit_requested:
                         print_agent("orchestrator", "Task execution cancelled by user during Taghi architectural review.")
                         sys.exit(0)
             if getattr(spec, "token_usage", None):
                 spec.token_usage["model"] = str(pipeline_models["taghi"])
                 record.token_usage["taghi"] = spec.token_usage
+            runner.complete_stage("taghi", "[Architected]")
         else:
             spec = fast_track_spec(task_id, objective, base_image=image_override, project_id=project)
 
@@ -655,11 +678,9 @@ async def run_task(
 
     record.status = 'IMPLEMENTING'
     ledger.save(record)
+    metrics.log_to_state(task_id)
     print_agent("orchestrator", "⚡ Handoff: Architecture Approved ➔ METI (Docker Sandbox Implementation)")
-    if tui_active:
-        cockpit.telemetry.update_stage("meti", "running")
-        cockpit.telemetry.set_action("Meti preparing Docker sandbox & executing phases...")
-        cockpit.refresh()
+    runner.start_stage("meti", "Meti preparing Docker sandbox & executing phases...")
 
     def save_implementation(state: ImplementationCheckpoint | dict) -> None:
         record.implementation = state
@@ -1008,10 +1029,12 @@ async def main() -> None:
                 os.environ["BUILDRELAY_TUI"] = "1"
             from tools.cockpit import get_cockpit
             cockpit = get_cockpit()
-            cockpit.telemetry.project_id = record.project_id or "default-project"
-            cockpit.telemetry.task_id = task_id
-            cockpit.telemetry.prompt = record.prompt
-            cockpit.telemetry.model_name = str(args.model or "default")
+            StageRunner(cockpit=cockpit, tui_active=True).reset_for_task(
+                record.project_id or "default-project",
+                task_id,
+                record.prompt,
+                model_name=str(args.model or "default"),
+            )
             try:
                 try:
                     with cockpit.live_context(screen=False):
@@ -1036,25 +1059,15 @@ async def main() -> None:
                 record.status = 'COMPLETED' if result.status == 'success' else 'FAILED'
                 record.error = None if result.status == 'success' else result.summary
                 ledger.save(record)
-                print_completion(task_id, result.status == 'success', result.summary)
-                if result.status == 'success':
-                    workspace_dir = record.project_id or record.task_id
-                    workspace_path = Path("workspace") / workspace_dir
-                    if workspace_path.is_dir():
-                        from tools.eval_harness import DeliverableEvaluator
-                        from tools.ui import print_evaluation_scorecard
-                        evaluator = DeliverableEvaluator(workspace_path, project_id=record.project_id, task_id=task_id)
-                        report = evaluator.evaluate()
-                        evaluator.save_report(report)
-                        if not args.auto:
-                            print_evaluation_scorecard(report)
-                if record.token_usage:
-                    print_token_summary_table(record.token_usage, default_model=args.model)
-                if result.status == 'success':
-                    workspace_dir = record.project_id or record.task_id
-                    workspace_path = Path("workspace") / workspace_dir
-                    print_workspace_tree(workspace_path)
-                    print_how_to_run(workspace_path)
+                StageRunner.render_post_delivery_summary(
+                    task_id=task_id,
+                    project_id=record.project_id,
+                    result=result,
+                    token_usage=record.token_usage,
+                    default_model=args.model,
+                    auto=args.auto,
+                    show_tokens=True,
+                )
                 if result.status != 'success':
                     sys.exit(1)
                 if (
@@ -1151,18 +1164,12 @@ async def run_iteration_loop(
                 print_task_header(next_task_id, record.prompt, project_id=current_project, is_resume=False)
                 from tools.cockpit import get_cockpit
                 cockpit = get_cockpit()
-                cockpit.telemetry.project_id = current_project
-                cockpit.telemetry.task_id = next_task_id
-                cockpit.telemetry.prompt = record.prompt
-                cockpit.telemetry.pipeline_stages = {
-                    "natasha": "running",
-                    "odin": "pending",
-                    "diba": "pending",
-                    "taghi": "pending",
-                    "dana": "pending",
-                    "meti": "pending",
-                }
-                cockpit.telemetry.phases = []
+                StageRunner(cockpit=cockpit, tui_active=True).reset_for_task(
+                    current_project,
+                    next_task_id,
+                    record.prompt,
+                    model_name=str(getattr(args, "model", None) or "default"),
+                )
                 try:
                     with cockpit.live_context(screen=False):
                         result = await run_task(
@@ -1186,20 +1193,17 @@ async def run_iteration_loop(
                 record.status = "COMPLETED" if result.status == "success" else "FAILED"
                 record.error = None if result.status == "success" else result.summary
                 ledger.save(record)
-                print_completion(next_task_id, result.status == "success", result.summary)
                 if result.status == "success":
-                    workspace_path = Path("workspace") / current_project
-                    if workspace_path.is_dir():
-                        from tools.eval_harness import DeliverableEvaluator
-                        from tools.ui import print_evaluation_scorecard
-                        evaluator = DeliverableEvaluator(workspace_path, project_id=current_project, task_id=next_task_id)
-                        report = evaluator.evaluate()
-                        evaluator.save_report(report)
-                        if not getattr(args, "auto", False):
-                            print_evaluation_scorecard(report)
-                    print_workspace_tree(workspace_path)
-                    print_how_to_run(workspace_path)
+                    StageRunner.render_post_delivery_summary(
+                        task_id=next_task_id,
+                        project_id=current_project,
+                        result=result,
+                        default_model=getattr(args, "model", None),
+                        auto=getattr(args, "auto", False),
+                        show_tokens=False,
+                    )
                 else:
+                    print_completion(next_task_id, False, result.summary)
                     print_agent("orchestrator", f"[bold red]Iteration task {next_task_id} failed.[/bold red]")
 
 

@@ -56,7 +56,7 @@ class NatashaRouter:
                 "   - tech_stack: Minimal runtime environment and technologies.\n"
                 "   - exclusions: Explicitly state what is intentionally omitted.\n"
                 "   - next_actions: State the designated next lead and their first deliverable.\n"
-                "2. Conduct an active 'Grill-Me' alignment interview by generating targeted 'clarification_questions' (up to 10 questions, strictly <= 10). "
+                "2. Conduct an active 'Grill-Me' alignment interview by generating targeted 'clarification_questions' (up to 5 high-impact questions, strictly <= 5). "
                 "   Structure questions across user-facing choices using plain language (avoiding heavy engineering jargon):\n"
                 "   - Surface & Form Factor: Web UI (browser page) vs. Terminal CLI command vs. Background service.\n"
                 "   - User Workflow & Ingestion: Interactive form vs. Spreadsheet/CSV file import vs. Live automatic sync.\n"
@@ -195,6 +195,7 @@ class NatashaRouter:
         auto: bool = False,
         input_func: Any = None,
         project_id: str | None = None,
+        realign_on_change: bool = True,
     ) -> tuple[TaskBrief, bool]:
         """Run Natasha's interactive grill-me alignment interview and realign intent if selections change."""
         from tools.grill import has_non_default_answers, run_grill_session, format_grill_answers_for_prompt
@@ -208,15 +209,20 @@ class NatashaRouter:
             title="🎯 Natasha Intent & Operational Scope Grill",
             auto=auto,
             input_func=input_func,
-            max_questions=15,
+            max_questions=5,
         )
         if quit_requested:
             return brief, True
 
         if not auto and has_non_default_answers(brief.clarification_questions, answers):
+            formatted_decisions = format_grill_answers_for_prompt(answers, brief.clarification_questions)
+            if not realign_on_change:
+                brief.objective = f"{brief.objective}\n\n{formatted_decisions}"
+                project = prepare_project(self.vault_path, project_id or brief.project_id)
+                await self._write_brief_note(brief, project)
+                return brief, False
             from tools.ui import print_agent
             print_agent("natasha", "Realigning intent with user selections (AI analyzing)...")
-            formatted_decisions = format_grill_answers_for_prompt(answers, brief.clarification_questions)
             realigned_brief = await self.realign_intent(brief, formatted_decisions, project_id=project_id)
             return realigned_brief, False
 
