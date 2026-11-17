@@ -133,28 +133,18 @@ def fast_track_spec(
     if image is None and any(kw in obj_words for kw in ('python', 'pytest', 'pip', 'fastapi', 'flask', 'django', 'pandas', 'numpy')):
         image = 'python:3.11-slim'
     ui_spec = None
-    if any(kw in obj_words for kw in ('web', 'browser', 'html', 'form', 'ui', 'dashboard', 'frontend', 'portal', 'screen')):
+    if any(kw in obj_words for kw in ('web', 'browser', 'html', 'form', 'ui', 'dashboard', 'frontend', 'portal', 'screen', 'interactive', 'game', 'timer')):
+        from tools.design_system import detect_recommended_archetype
+
+        arch = detect_recommended_archetype(objective)
         ui_spec = UIDesignSpec(
-            surface_type='dashboard' if any(kw in obj_words for kw in ('dashboard', 'erp', 'portal')) else 'web_form',
-            theme='clean_light',
-            color_palette={
-                'primary': '#0f766e',
-                'background': '#f8fafc',
-                'surface': '#ffffff',
-                'text': '#0f172a',
-                'border': '#e2e8f0',
-                'success': '#10b981',
-                'error': '#ef4444',
-            },
-            component_layout='Sticky header with brand title & navigation tabs; main container with rounded-xl bordered cards, clean data tables with status badges, and interactive form modals with focus rings.',
-            states={
-                'empty': 'Centered empty state with icon, friendly guidance, and primary action button.',
-                'validating': 'Inline red helper text and border highlights on invalid field inputs.',
-                'submitting': 'Disabled submit button with spinning loader indicator to prevent double-clicks.',
-                'success': 'Dismissible green alert banner confirming data saved successfully.',
-                'error': 'Dismissible red alert banner displaying actionable error details.',
-            },
-            responsive_breakpoints='Mobile-first single column below 640px; multi-column responsive grid on tablet and desktop (>=768px).'
+            surface_type='dashboard' if any(kw in obj_words for kw in ('dashboard', 'erp', 'portal')) else arch.surface_type,
+            theme=arch.theme,
+            archetype=arch.key,
+            color_palette=dict(arch.color_palette),
+            component_layout=arch.layout_wireframe,
+            states=dict(arch.state_styling),
+            responsive_breakpoints='Mobile-first single column below 640px; multi-column responsive grid on tablet and desktop (>=768px).',
         )
     return TechnicalSpec(
         task_id=task_id, architecture_overview=objective, required_dependencies=[],
@@ -295,8 +285,10 @@ async def run_task(
             project_id=project,
         )
         if getattr(dana_critique, "token_usage", None):
-            dana_critique.token_usage["model"] = str(pipeline_models.get("dana", pipeline_models["taghi"]))
+            dana_model_name = str(pipeline_models.get("dana", pipeline_models["taghi"]))
+            dana_critique.token_usage["model"] = dana_model_name
             record.token_usage["dana_natasha"] = dana_critique.token_usage
+            runner.record_usage(dana_critique.token_usage, model_name=dana_model_name)
             ledger.save(record)
 
         if supervise == "advisory" and not auto:
@@ -388,6 +380,7 @@ async def run_task(
                 if getattr(research, "token_usage", None):
                     research.token_usage["model"] = str(pipeline_models["odin"])
                     record.token_usage["odin"] = research.token_usage
+                    runner.record_usage(research.token_usage, model_name=str(pipeline_models["odin"]))
                 ledger.save(record)
                 runner.complete_stage("odin", "[Researched]")
             research = ResearchReport.model_validate(record.research)
@@ -402,8 +395,10 @@ async def run_task(
                     project_id=project,
                 )
                 if getattr(dana_critique, "token_usage", None):
-                    dana_critique.token_usage["model"] = str(pipeline_models.get("dana", pipeline_models["taghi"]))
+                    dana_model_name = str(pipeline_models.get("dana", pipeline_models["taghi"]))
+                    dana_critique.token_usage["model"] = dana_model_name
                     record.token_usage["dana_odin"] = dana_critique.token_usage
+                    runner.record_usage(dana_critique.token_usage, model_name=dana_model_name)
                     ledger.save(record)
 
                 if supervise == "advisory" and not auto:
@@ -445,7 +440,11 @@ async def run_task(
         else:
             design_context = format_design_context(objective, None, alignment_brief=brief.alignment_brief)
         # Early check for UI intent: awaken Diba upfront if task involves UI surfaces
-        has_ui = (brief.target_lead == 'diba') or DibaDesigner.is_ui_task(record.prompt)
+        has_ui = (brief.target_lead == 'diba') or (
+            DibaDesigner.is_ui_task(record.prompt, brief=brief)
+            if _accepts_kwarg(DibaDesigner.is_ui_task, "brief")
+            else DibaDesigner.is_ui_task(record.prompt)
+        )
         ui_spec = None
         prototype = None
 
@@ -520,7 +519,10 @@ async def run_task(
                     print_agent("orchestrator", "Prototype review skipped by user.")
 
             if getattr(ui_spec, "token_usage", None):
+                diba_model_name = str(pipeline_models.get("diba", pipeline_models["taghi"]))
+                ui_spec.token_usage["model"] = diba_model_name
                 record.token_usage["diba"] = ui_spec.token_usage
+                runner.record_usage(ui_spec.token_usage, model_name=diba_model_name)
             runner.complete_stage("diba", "[Prototype Approved]")
 
         if brief.target_lead in ('odin', 'taghi', 'diba'):
@@ -565,6 +567,7 @@ async def run_task(
             if getattr(spec, "token_usage", None):
                 spec.token_usage["model"] = str(pipeline_models["taghi"])
                 record.token_usage["taghi"] = spec.token_usage
+                runner.record_usage(spec.token_usage, model_name=str(pipeline_models["taghi"]))
             runner.complete_stage("taghi", "[Architected]")
         else:
             spec = fast_track_spec(task_id, objective, base_image=image_override, project_id=project)
@@ -591,8 +594,10 @@ async def run_task(
             project_id=project,
         )
         if getattr(dana_critique, "token_usage", None):
-            dana_critique.token_usage["model"] = str(pipeline_models.get("dana", pipeline_models["taghi"]))
+            dana_model_name = str(pipeline_models.get("dana", pipeline_models["taghi"]))
+            dana_critique.token_usage["model"] = dana_model_name
             record.token_usage["dana_taghi"] = dana_critique.token_usage
+            runner.record_usage(dana_critique.token_usage, model_name=dana_model_name)
             ledger.save(record)
 
         if supervise == "advisory" and not auto:
@@ -698,6 +703,7 @@ async def run_task(
     if getattr(impl_res, "token_usage", None):
         impl_res.token_usage["model"] = str(pipeline_models["meti"])
         record.token_usage["meti"] = impl_res.token_usage
+        runner.record_usage(impl_res.token_usage, model_name=str(pipeline_models["meti"]))
         ledger.save(record)
 
     # Dana Supervision of Meti Deliverable
@@ -710,8 +716,10 @@ async def run_task(
             project_id=project,
         )
         if getattr(dana_critique, "token_usage", None):
-            dana_critique.token_usage["model"] = str(pipeline_models.get("dana", pipeline_models["taghi"]))
+            dana_model_name = str(pipeline_models.get("dana", pipeline_models["taghi"]))
+            dana_critique.token_usage["model"] = dana_model_name
             record.token_usage["dana_meti"] = dana_critique.token_usage
+            runner.record_usage(dana_critique.token_usage, model_name=dana_model_name)
             ledger.save(record)
 
         if supervise == "advisory" and not auto:
@@ -731,6 +739,7 @@ async def run_task(
                 if getattr(impl_res, "token_usage", None):
                     impl_res.token_usage["model"] = str(pipeline_models["meti"])
                     record.token_usage["meti"] = impl_res.token_usage
+                    runner.record_usage(impl_res.token_usage, model_name=str(pipeline_models["meti"]))
                     ledger.save(record)
         elif supervise == "autonomous":
             if dana_critique.verdict in ("warn", "block") and dana_critique.actionable_recommendations:
@@ -746,6 +755,7 @@ async def run_task(
                 if getattr(impl_res, "token_usage", None):
                     impl_res.token_usage["model"] = str(pipeline_models["meti"])
                     record.token_usage["meti"] = impl_res.token_usage
+                    runner.record_usage(impl_res.token_usage, model_name=str(pipeline_models["meti"]))
                     ledger.save(record)
 
     # Automated deliverable evaluation & scoring
@@ -761,6 +771,9 @@ async def run_task(
             if not auto:
                 with cockpit.pause():
                     print_evaluation_scorecard(report)
+        if not auto and record.token_usage:
+            with cockpit.pause():
+                print_token_summary_table(record.token_usage, default_model=model_override)
 
     # Post-implementation delivery confirmation gate & refinement loop
     if impl_res.status == 'success' and not auto:

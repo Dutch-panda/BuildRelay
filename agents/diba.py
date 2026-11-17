@@ -57,17 +57,18 @@ class DibaDesigner:
             model_settings={"cache": True},
             system_prompt=(
                 "You are Diba, the Principal UI/UX & Product Design Lead of BuildRelay. "
-                "Your mission is to transform user requests and technical backend architecture into world-class, "
-                "production-grade user interfaces that feel like modern, high-end SaaS applications (e.g. Linear, Stripe, Vercel). "
-                "Never produce bland, generic HTML forms or primitive unstyled tables.\n\n"
+                "Your mission is to transform user requests and technical requirements into polished, "
+                "domain-appropriate user interfaces that match the purpose and audience of each application. "
+                "Never produce bland, generic unstyled HTML.\n\n"
                 f"{archetypes_guide}\n\n"
                 "STUDIO-GRADE DESIGN SYSTEM & STYLING STANDARDS:\n"
                 "1. Visual Archetype & Theme:\n"
-                "   - Assign 'archetype' to one of: 'linear_dark', 'bento_dashboard', 'stripe_enterprise', 'split_pane_workspace'.\n"
+                "   - Assign 'archetype' to one of: 'linear_dark', 'bento_dashboard', 'stripe_enterprise', 'split_pane_workspace', 'playful_interactive'.\n"
                 "   - Populate explicit hex tokens in 'color_palette' (primary, background, surface, text, border, success, error).\n"
                 "   - Surface Type: 'web_form', 'dashboard', 'apps_script_dialog', 'cli_interactive', or 'webhook_portal'.\n"
                 "2. Component Wireframe & Visual Hierarchy ('component_layout'):\n"
-                "   - Specify concrete visual hierarchy: sticky brand header with live status pill, elevated card containers with subtle borders (e.g. border-zinc-800 bg-zinc-900/60 backdrop-blur-xl shadow-2xl), rounded-xl data tables, floating action dock, and modal overlays.\n"
+                "   - Specify a component hierarchy tailored to the product's actual domain (e.g. interactive timer/game canvas for consumer/focus apps, step-by-step card wizard for quizzes/assessments, Bento grid for analytics, or structured tables/forms for business/ERP apps). "
+                "Do NOT force B2B enterprise tables, status pills, or CRUD boilerplate onto consumer apps, games, or timers.\n"
                 "3. User Fields & Input Ergonomics ('form_fields'):\n"
                 "   - Specify every input with clear id, label, input_type, placeholder example (e.g. 'e.g. ACME Corp'), required flag, and explicit validation_rules.\n"
                 "4. Complete Interactive States ('states' dict):\n"
@@ -105,15 +106,15 @@ class DibaDesigner:
                 "4. An interactive top state-switcher bar allowing the user to click between 5 states: 'empty', 'validating', 'submitting', 'success', 'error'.\n"
                 "5. Embedded client-side in-memory mock engine in a <script> block:\n"
                 "   - Intercepts form submissions and click events without network calls.\n"
-                "   - Pre-populates mock data in table/cards.\n"
+                "   - Implements realistic client-side interactivity matching the app domain (e.g. working timer/game loop, interactive quiz scoring, or live form/table state) with zero external network calls.\n"
                 "   - Simulates validation errors when inputs are invalid.\n"
-                "   - Shows button loading spinner on submit, then displays success confirmation with transaction ID.\n"
+                "   - Shows clear visual feedback for active/completed states.\n"
                 "6. Return ONLY the raw valid HTML code without markdown code fences or conversational prose."
             ),
         )
 
     @staticmethod
-    def is_ui_task(prompt: str, spec: TechnicalSpec | None = None) -> bool:
+    def is_ui_task(prompt: str, spec: TechnicalSpec | None = None, brief: Any | None = None) -> bool:
         """
         Determines whether a task requires frontend/UI surface design.
         """
@@ -124,6 +125,25 @@ class DibaDesigner:
             if any(w in interface_desc for w in ("form", "html", "web", "dashboard", "ui", "view", "page", "table")):
                 return True
 
+        if brief is not None:
+            brief_parts: list[str] = []
+            ab = getattr(brief, "alignment_brief", None)
+            if ab is not None:
+                if isinstance(ab, dict):
+                    brief_parts.extend(str(ab.get(k, "")) for k in ("goal", "core_features", "tech_stack"))
+                else:
+                    brief_parts.extend(str(getattr(ab, k, "")) for k in ("goal", "core_features", "tech_stack"))
+            obj = getattr(brief, "objective", None)
+            if obj:
+                brief_parts.append(str(obj))
+            brief_text = " ".join(brief_parts).lower()
+            brief_ui_terms = (
+                "browser", "html", "css", "tailwind", "web ui", "web form", "web page",
+                "frontend", "front-end", "dashboard", "web interface", "browser interface",
+            )
+            if any(term in brief_text for term in brief_ui_terms):
+                return True
+
         text = prompt.lower()
         ui_keywords = {
             "ui", "ux", "design", "redesign", "frontend", "front-end", "web", "website", "form",
@@ -132,10 +152,16 @@ class DibaDesigner:
             "theme", "tui", "interface", "portal", "display", "look", "aesthetic", "colors",
             "visual", "visuals", "bento", "navbar", "sidebar", "cleaner", "erp", "gui",
             "typography", "cards", "responsive", "mobile", "darkmode", "palette", "wireframe",
-            "archetype", "banner", "header", "footer", "icon", "icons", "widgets"
+            "archetype", "banner", "header", "footer", "icon", "icons", "widgets",
+            "browser", "game", "timer", "quiz", "canvas", "playful", "interactive",
         }
         words = set(re.findall(r"[a-z0-9_-]+", text))
-        return bool(words & ui_keywords)
+        if words & ui_keywords:
+            return True
+        cli_only_keywords = {"cli", "command-line", "terminal", "script", "library", "headless"}
+        if (words & {"app", "application"}) and not (words & cli_only_keywords):
+            return True
+        return False
 
     async def design_ui(
         self,

@@ -97,6 +97,11 @@ class StageRunner:
             self.cockpit.telemetry.update_stage(stage, "passed", detail)
             self.cockpit.refresh()
 
+    def record_usage(self, token_usage: dict[str, Any] | None, model_name: str | None = None) -> None:
+        if self.tui_active and isinstance(token_usage, dict) and token_usage:
+            self.cockpit.telemetry.record_token_usage(token_usage, model_name=model_name)
+            self.cockpit.refresh()
+
     @staticmethod
     def render_post_delivery_summary(
         task_id: str,
@@ -126,8 +131,8 @@ class StageRunner:
             evaluator.save_report(report)
             if not auto:
                 print_evaluation_scorecard(report)
-        if show_tokens and token_usage:
-            print_token_summary_table(token_usage, default_model=default_model)
         if result.status == "success":
             print_workspace_tree(workspace_path)
             print_how_to_run(workspace_path)
+        if show_tokens and token_usage:
+            print_token_summary_table(token_usage, default_model=default_model)
