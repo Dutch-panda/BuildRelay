@@ -249,22 +249,28 @@ async def run_task(
         natasha_model = await resolve_agent_model(pipeline_models["natasha"])
         router = NatashaRouter(model_name=natasha_model)
         brief = await router.coordinate_request(record.prompt, task_id, project_id=project)
+        initial_usage = dict(getattr(brief, "token_usage", None) or {})
         metrics.record_llm_call(
-            getattr(brief, "token_usage", None),
+            initial_usage or None,
             len(getattr(brief, "clarification_questions", []) or []),
         )
         if not auto and sys.stdin.isatty() and getattr(brief, "clarification_questions", None):
             review_fn = getattr(router, "conduct_grill_session", None)
             if asyncio.iscoroutinefunction(review_fn):
                 grill_kwargs: dict[str, Any] = {"auto": auto, "project_id": project}
-                if _accepts_kwarg(review_fn, "realign_on_change"):
-                    grill_kwargs["realign_on_change"] = False
                 brief, quit_requested = await review_fn(brief, **grill_kwargs)
                 grill_ran = True
                 metrics.record_gate()
                 if quit_requested:
                     print_agent("orchestrator", "Task execution cancelled by user during Natasha grill.")
                     sys.exit(0)
+                updated_usage = getattr(brief, "token_usage", None) or {}
+                if int(updated_usage.get("requests") or 0) > int(initial_usage.get("requests") or 0):
+                    delta_usage = {
+                        k: max(0, int(updated_usage.get(k) or 0) - int(initial_usage.get(k) or 0))
+                        for k in ("input_tokens", "output_tokens", "total_tokens", "requests")
+                    }
+                    metrics.record_llm_call(delta_usage)
         record.brief = brief
         if getattr(brief, "token_usage", None):
             brief.token_usage["model"] = str(pipeline_models["natasha"])

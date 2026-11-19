@@ -92,6 +92,13 @@ async def test_natasha_grill_in_place_without_second_llm_call(tmp_path: Path) ->
         slug="personality-form",
         target_lead="diba",
         research_questions=[],
+        alignment_brief=AlignmentBrief(
+            goal="Collect personality answers",
+            core_features="Form workflow",
+            tech_stack="Python",
+            exclusions="Cloud sync",
+            next_actions="Diba designs prototype",
+        ),
         clarification_questions=[
             ClarificationQuestion(
                 id="entry",
@@ -116,7 +123,84 @@ async def test_natasha_grill_in_place_without_second_llm_call(tmp_path: Path) ->
     assert quit_req is False
     mock_realign.assert_not_awaited()
     assert "Interactive CLI" in updated.objective
+    assert updated.alignment_brief is not None
+    assert "Interactive CLI" in updated.alignment_brief.core_features
     assert (vault_dir / "tasks" / "task-in-place-natasha-brief.md").is_file()
+
+
+@pytest.mark.anyio
+async def test_natasha_grill_realigns_brief_by_default_when_user_pivots_concept(tmp_path: Path) -> None:
+    from pydantic_ai.models.test import TestModel
+
+    vault_dir = tmp_path / "vault"
+    realigned_payload = dict(
+        task_id="task-pivot-concentration",
+        title="Memory Card-Matching Concentration Game",
+        objective="Build a local card-flipping concentration memory game.",
+        slug="concentration-game",
+        target_lead="diba",
+        research_questions=["Grid sizes and difficulty levels"],
+        alignment_brief=dict(
+            goal="Build an interactive card-matching concentration memory game in the browser.",
+            core_features="Flip cards, match pairs, track moves and timer locally.",
+            tech_stack="Python, Flask, HTML/CSS/JS",
+            exclusions="Cloud accounts and multiplayer.",
+            next_actions="Diba builds an interactive card-grid prototype.",
+        ),
+    )
+    natasha = NatashaRouter(
+        vault_path=vault_dir,
+        model_name=TestModel(call_tools=[], custom_output_args=realigned_payload),
+    )
+    draft_brief = TaskBrief(
+        task_id="task-pivot-concentration",
+        title="Pomodoro Focus Timer",
+        objective="Build a Pomodoro focus timer web app.",
+        slug="focus-timer",
+        target_lead="diba",
+        research_questions=[],
+        alignment_brief=AlignmentBrief(
+            goal="Build a Pomodoro timer for deep work.",
+            core_features="25/5 countdown intervals.",
+            tech_stack="HTML/JS",
+            exclusions="None",
+            next_actions="Diba builds timer.",
+        ),
+        clarification_questions=[
+            ClarificationQuestion(
+                id="concept",
+                question="Are we on the same page about what we're building?",
+                category="Core Concept",
+                options=[
+                    ClarificationOption(key="1", label="Pomodoro focus timer", is_default=True),
+                    ClarificationOption(key="2", label="Card-matching memory game", is_default=False),
+                ],
+            )
+        ],
+        token_usage={
+            "input_tokens": 100,
+            "output_tokens": 50,
+            "total_tokens": 150,
+            "requests": 1,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0,
+        },
+    )
+
+    inputs = iter(["2"])
+    updated, quit_req = await natasha.conduct_grill_session(
+        draft_brief,
+        auto=False,
+        input_func=lambda _: next(inputs),
+    )
+
+    assert quit_req is False
+    assert updated.title == "Memory Card-Matching Concentration Game"
+    assert updated.alignment_brief is not None
+    assert "card-matching" in updated.alignment_brief.goal.lower()
+    assert updated.token_usage is not None
+    assert updated.token_usage["requests"] >= 2
+    assert updated.token_usage["total_tokens"] > 150
 
 
 @pytest.mark.anyio

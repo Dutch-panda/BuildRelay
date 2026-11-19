@@ -85,6 +85,12 @@ def test_cockpit_telemetry_token_usage_and_cost():
     assert "1.0k" in summary
     assert "$" in summary
 
+    telem.record_token_usage({"input_tokens": 500, "output_tokens": 150, "total_tokens": 650})
+    assert telem.prompt_tokens == 1300
+    assert telem.completion_tokens == 350
+    assert telem.total_tokens == 1650
+    assert telem.estimated_cost > 0.0
+
 
 def test_cockpit_layout_construction():
     from rich.console import Group
@@ -346,4 +352,66 @@ def test_cockpit_heartbeat_ticker_lifecycle(monkeypatch):
     cockpit.stop()
     assert cockpit.is_active is False
     assert cockpit._ticker_thread is None
+
+
+def test_ask_with_cockpit_clears_awaiting_input_inside_nested_pause():
+    from contracts import AlignmentBrief, ExecutionPhase, TaskBrief, TechnicalSpec
+    from tools.ui import _ask_with_cockpit, prompt_alignment_gate, prompt_spec_approval_gate
+
+    reset_cockpit()
+    cockpit = get_cockpit()
+    cockpit._is_active = True
+
+    try:
+        ask = _ask_with_cockpit(lambda _: "y")
+        with cockpit.pause():
+            assert cockpit._pause_depth == 1
+            resp = ask("Confirm?")
+            assert resp == "y"
+            assert cockpit.telemetry.awaiting_input is False
+
+        brief = TaskBrief(
+            task_id="task-gate-1",
+            title="Test",
+            objective="Test obj",
+            slug="test",
+            target_lead="taghi",
+            research_questions=[],
+            alignment_brief=AlignmentBrief(
+                goal="G",
+                core_features="F",
+                tech_stack="Python",
+                exclusions="None",
+                next_actions="Next",
+            ),
+        )
+        with cockpit.pause():
+            action, _, _ = prompt_alignment_gate(brief, auto=False, input_func=lambda _: "y")
+            assert action == "confirm"
+            assert cockpit.telemetry.awaiting_input is False
+
+        spec = TechnicalSpec(
+            task_id="task-gate-1",
+            architecture_overview="Arch",
+            required_dependencies=[],
+            base_image="python:3.11-slim",
+            phases=[ExecutionPhase(phase_name="1-core", instructions="Build", validation_command="pytest")],
+        )
+        with cockpit.pause():
+            spec_action, _ = prompt_spec_approval_gate(spec, auto=False, input_func=lambda _: "y")
+            assert spec_action == "confirm"
+            assert cockpit.telemetry.awaiting_input is False
+
+        cockpit.telemetry.awaiting_input = True
+        cockpit.telemetry.set_action("Working...")
+        assert cockpit.telemetry.awaiting_input is False
+
+        cockpit.telemetry.awaiting_input = True
+        cockpit._pause_depth = 0
+        with patch("tools.cockpit.Live.start", return_value=None):
+            cockpit.resume()
+        assert cockpit.telemetry.awaiting_input is False
+    finally:
+        cockpit.stop()
+        reset_cockpit()
 

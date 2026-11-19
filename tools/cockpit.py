@@ -172,9 +172,19 @@ class CockpitTelemetry:
     ) -> None:
         if not usage:
             return
-        total = usage.get("total_tokens", 0)
-        prompt = usage.get("prompt_tokens", 0)
-        completion = usage.get("completion_tokens", 0)
+        prompt = (
+            usage.get("input_tokens")
+            or usage.get("prompt_tokens")
+            or usage.get("request_tokens")
+            or 0
+        )
+        completion = (
+            usage.get("output_tokens")
+            or usage.get("completion_tokens")
+            or usage.get("response_tokens")
+            or 0
+        )
+        total = usage.get("total_tokens") or (prompt + completion)
         cached = usage.get("cache_read_tokens", 0)
 
         self.total_tokens += total
@@ -196,6 +206,7 @@ class CockpitTelemetry:
             pass
 
     def set_action(self, action: str) -> None:
+        self.awaiting_input = False
         self.current_action = action
 
 
@@ -468,6 +479,7 @@ class BuildRelayCockpit:
     def resume(self) -> None:
         """Resume live rendering if cockpit is active and not in a nested pause."""
         if self._is_active and self._pause_depth == 0:
+            self.telemetry.awaiting_input = False
             try:
                 self._live = Live(
                     self.make_layout(),

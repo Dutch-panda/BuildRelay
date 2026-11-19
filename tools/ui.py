@@ -81,8 +81,8 @@ def _ask_with_cockpit(raw_func: Callable[[str], str] | None = None) -> Callable[
                 # Clean prompt prompt string for input() with standard terminal cursor tracking
                 return fn("> ")
         finally:
+            cockpit.telemetry.awaiting_input = False
             if getattr(cockpit, "_pause_depth", 0) == 0:
-                cockpit.telemetry.awaiting_input = False
                 cockpit.refresh()
 
     return ask

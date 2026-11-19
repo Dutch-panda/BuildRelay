@@ -18,6 +18,31 @@ from tools.vault_infra import (
 )
 from tools.ui import print_agent
 
+
+def _merge_token_usage(
+    prev: dict[str, Any] | None,
+    curr: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    """Merge token usage dicts across sequential Natasha calls."""
+    if not prev:
+        return curr
+    if not curr:
+        return prev
+    merged = dict(prev)
+    for key in (
+        "input_tokens",
+        "output_tokens",
+        "total_tokens",
+        "requests",
+        "cache_read_tokens",
+        "cache_write_tokens",
+    ):
+        merged[key] = int(prev.get(key) or 0) + int(curr.get(key) or 0)
+    if curr.get("model"):
+        merged["model"] = curr["model"]
+    return merged
+
+
 class NatashaRouter:
     def __init__(
         self,
@@ -56,13 +81,18 @@ class NatashaRouter:
                 "   - tech_stack: Minimal runtime environment and technologies.\n"
                 "   - exclusions: Explicitly state what is intentionally omitted.\n"
                 "   - next_actions: State the designated next lead and their first deliverable.\n"
-                "2. Conduct an active 'Grill-Me' alignment interview by generating targeted 'clarification_questions' (up to 5 high-impact questions, strictly <= 5). "
-                "   Structure questions across user-facing choices using plain language (avoiding heavy engineering jargon):\n"
-                "   - Surface & Form Factor: Web UI (browser page) vs. Terminal CLI command vs. Background service.\n"
-                "   - User Workflow & Ingestion: Interactive form vs. Spreadsheet/CSV file import vs. Live automatic sync.\n"
-                "   - Environment & Scope: Local computer vs. Cloud deployment.\n"
-                "   Focus on clarifying user workflow, input requirements, error handling preferences, and entry points.\n"
-                "   Every question MUST provide 2 to 4 concrete numbered options with exactly one marked is_default=True representing your recommended choice.\n\n"
+                "2. Conduct an active 'Grill-Me' alignment interview by generating targeted 'clarification_questions' (up to 5 high-impact questions, strictly <= 5).\n"
+                "   ANTI-PRESUPPOSITION / CONCEPT ALIGNMENT FIRST:\n"
+                "   - Never silently presuppose a narrow product interpretation when the user's prompt is broad or could mean different product types "
+                "(e.g. 'concentration app' could mean a Pomodoro focus timer, a card-matching memory game, or a guided mindfulness trainer).\n"
+                "   - ALWAYS make Question 1 verify Core Product Concept & Intent Alignment ('Are we on the same page about what we are building?') "
+                "offering 2 to 4 distinct product concept interpretations before asking secondary implementation or workflow details.\n"
+                "   - Make Question 2 clarify the primary User Experience, Audience, or Interaction Mode.\n"
+                "   - Use Questions 3 to 5 for plain-English choices across:\n"
+                "     * Surface & Form Factor: Web UI (browser page) vs. Terminal CLI command vs. Background service.\n"
+                "     * User Workflow & Ingestion: Interactive form / standalone local state vs. Spreadsheet/CSV import vs. Live automatic sync.\n"
+                "     * Environment & Scope: Local single-user tool vs. Hosted service.\n"
+                "   - Avoid heavy engineering jargon. Every question MUST provide 2 to 4 concrete numbered options with exactly one marked is_default=True representing your recommended hypothesis.\n\n"
                 "USER INPUT SURFACE & ENTRY POINT MANDATE:\n"
                 "- When the user's request involves data ingestion, workflows, forms, surveys, CLI utilities, or interactive apps, "
                 "  you MUST explicitly define the Entry Point / Input Surface in 'alignment_brief' (under goal or core_features). "
@@ -168,14 +198,25 @@ class NatashaRouter:
         """Re-align Natasha's task brief when the user clarifies or pivots their intent."""
         print_agent("natasha", f"Re-aligning intent based on user feedback: '{user_feedback}'")
         project = prepare_project(self.vault_path, project_id or previous_brief.project_id)
+        prev_brief_summary = ""
+        if previous_brief.alignment_brief:
+            ab = previous_brief.alignment_brief
+            prev_brief_summary = (
+                f"Previous Draft Goal Hypothesis: {ab.goal}\n"
+                f"Previous Draft Features Hypothesis: {ab.core_features}\n"
+            )
         pivot_prompt = (
             f"Original Task ID: {previous_brief.task_id}\n"
-            f"Original Goal: {previous_brief.title}\n"
-            f"Original Scope: {previous_brief.objective}\n"
+            f"Previous Draft Title Hypothesis: {previous_brief.title}\n"
+            f"Previous Draft Objective Hypothesis: {previous_brief.objective}\n"
+            f"{prev_brief_summary}"
             f"{project.prompt}"
-            f"User Feedback / Intent Pivot: {user_feedback}\n"
-            "Please revise the task brief, re-evaluate target lead, update the 5-sentence alignment brief, "
-            "and update clarification questions."
+            f"Confirmed User Feedback / Intent Pivot:\n{user_feedback}\n\n"
+            "IMPORTANT: Treat the previous title, objective, and alignment_brief strictly as an unconfirmed draft hypothesis. "
+            "Discard any draft assumptions contradicted by the Confirmed User Feedback / Intent Pivot above. "
+            "Completely rewrite title, objective, target_lead, research_questions, and all 5 fields of alignment_brief "
+            "(goal, core_features, tech_stack, exclusions, next_actions) so they accurately reflect the user's confirmed choices, "
+            "and update clarification questions if needed."
         )
         result = await self.agent.run(pivot_prompt)
         new_brief = result.output
@@ -183,7 +224,11 @@ class NatashaRouter:
         new_brief.project_id = previous_brief.project_id
         from tools.token_analytics import extract_usage
 
-        new_brief.token_usage = extract_usage(result, model_name=str(self.model_name))
+        curr_usage = extract_usage(result, model_name=str(self.model_name))
+        new_brief.token_usage = _merge_token_usage(
+            getattr(previous_brief, "token_usage", None),
+            curr_usage,
+        )
         self._ensure_alignment_brief(new_brief, user_feedback)
         saved_path = await self._write_brief_note(new_brief, project)
         await update_vault_graph(self.graph_manager, saved_path)
@@ -218,6 +263,16 @@ class NatashaRouter:
             formatted_decisions = format_grill_answers_for_prompt(answers, brief.clarification_questions)
             if not realign_on_change:
                 brief.objective = f"{brief.objective}\n\n{formatted_decisions}"
+                if brief.alignment_brief:
+                    summary = "; ".join(
+                        f"{q.category or q.id}: {answers[q.id]}"
+                        for q in brief.clarification_questions
+                        if q.id in answers
+                    )
+                    if summary:
+                        brief.alignment_brief.core_features = (
+                            f"{brief.alignment_brief.core_features} (Confirmed: {summary})"
+                        )
                 project = prepare_project(self.vault_path, project_id or brief.project_id)
                 await self._write_brief_note(brief, project)
                 return brief, False

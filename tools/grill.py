@@ -250,6 +250,6 @@ def run_grill_session(
             console.print()
             return answers, False
     finally:
+        cockpit.telemetry.awaiting_input = False
         if getattr(cockpit, "_pause_depth", 0) == 0:
-            cockpit.telemetry.awaiting_input = False
             cockpit.refresh()
